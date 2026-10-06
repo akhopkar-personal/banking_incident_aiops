@@ -1,0 +1,90 @@
+%%{init: {"themeVariables": {"fontSize": "16px", "fontFamily": "Arial, Helvetica, sans-serif"}, "flowchart": {"htmlLabels": true, "nodeSpacing": 30, "rankSpacing": 60, "padding": 20, "subGraphTitleMargin": {"top": 8, "bottom": 8}}}}%%
+flowchart LR
+  classDef agent fill:#1e40af,stroke-width:0px,color:#ffffff
+  classDef svc fill:#475569,stroke-width:0px,color:#ffffff
+  classDef store fill:#6d28d9,stroke-width:0px,color:#ffffff
+  classDef gate fill:#eab308,stroke-width:0px,color:#000000
+  classDef ops fill:#06b6d4,stroke-width:0px,color:#000000
+  classDef note fill:#111827,stroke:#6b7280,stroke-width:1px,color:#ffffff
+
+  %% Human Feedback and RLHF loop: spec v0.8 Section 12.6, FR-57 to FR-64
+  %% Edges inside a group stay inside it; groups link to groups.
+
+  subgraph LEG["<b>Legend</b>"]
+    direction TB
+    L1["<b>Agent (LLM)</b>"]:::agent
+    L2["<b>Non-agent service</b>"]:::svc
+    L3["<b>Store</b>"]:::store
+    L4["<b>Decision gate</b>"]:::gate
+    L5["<b>Human input</b>"]:::ops
+    L6["<b>Stretch</b>"]:::note
+  end
+
+  AGENTS["<b>LLM agents</b><br/>Triage, RCA,<br/>Change Correlation,<br/>Recommendation<br/>(see full diagram)"]:::agent
+
+  subgraph R1["<b>1. Collect human signals</b>"]
+    direction TB
+    H3["<b>Review + ratings</b><br/>approve / edit / reject<br/>1 to 5 on four dimensions"]:::ops
+    H4["<b>Re-classification</b><br/>Production Support<br/>to Major, with reason"]:::ops
+    H2["<b>Gate hand-off</b><br/>after needs human RCA"]:::ops
+    H6["<b>Fix outcome</b><br/>worked, partly,<br/>did not work, not tried"]:::ops
+    H7["<b>Verification</b><br/>root cause confirmed,<br/>corrected or rejected"]:::ops
+    H9["<b>Pairwise sessions</b><br/>blind A vs B on<br/>replayed incidents"]:::ops
+  end
+
+  subgraph R2["<b>2. Store and check</b>"]
+    direction TB
+    PREF[("<b>Preference store</b><br/>preferences.jsonl<br/>PII re-checked")]:::store
+    INTEG["<b>Integrity checks</b><br/>reviewer role, duplicates,<br/>max 30% from one reviewer"]:::svc
+    AGREE{"<b>Two reviewers</b><br/>agree?"}:::gate
+    TIE["<b>SME tie-break</b>"]:::ops
+    OK["<b>Usable signals</b>"]:::svc
+    PREF --> INTEG --> AGREE
+    AGREE -->|"<b>yes</b>"| OK
+    AGREE -->|"<b>no</b>"| TIE --> OK
+  end
+
+  subgraph R3["<b>3. Learn</b>"]
+    direction TB
+    QUEUE["<b>SME review queue</b><br/>promote or discard<br/>to golden dataset"]:::ops
+    REWARD["<b>Reward score</b><br/>per prompt version<br/>min 10 signals"]:::svc
+    W["<b>Weights</b><br/>ratings 0.35<br/>pairwise win rate 0.30<br/>approval rate 0.15<br/>fix outcome 0.20"]:::note
+    DPO["<b>DPO export</b><br/>chosen / rejected JSONL<br/>agreed pairs only"]:::svc
+    FT["<b>Preference fine-tune</b><br/>stretch"]:::note
+    REWARD -.- W
+    DPO -.-> FT
+  end
+
+  subgraph R4["<b>4. Adapt (human-gated)</b>"]
+    direction TB
+    ADAPT["<b>Adaptation Engine</b><br/>preferred outputs to few-shot<br/>rejected patterns to rules<br/>missed docs to retrieval aliases"]:::svc
+    THRESH{"<b>Pattern seen</b><br/>often enough?"}:::gate
+    APPROVE{"<b>SME / QA</b><br/>approve?"}:::gate
+    EVALS["<b>Before/after eval</b><br/>full golden set,<br/>held-out pairs,<br/>length-bias check"]:::svc
+    KEEP{"<b>Improved, no</b><br/>regression?"}:::gate
+    LIVE["<b>New prompt version live</b><br/>logged in adaptation_log.json"]:::svc
+    REVERT["<b>Reverted</b><br/>and logged"]:::svc
+    DISCARD["<b>Discarded</b><br/>with reason"]:::svc
+    WAIT["<b>Wait for</b><br/>more signals"]:::svc
+    ADAPT --> THRESH
+    THRESH -->|"<b>no</b>"| WAIT
+    THRESH -->|"<b>yes</b>"| APPROVE
+    APPROVE -->|"<b>no</b>"| DISCARD
+    APPROVE -->|"<b>yes</b>"| EVALS --> KEEP
+    KEEP -->|"<b>yes</b>"| LIVE
+    KEEP -->|"<b>no</b>"| REVERT
+  end
+
+  AGENTS -->|"<b>outputs to review</b>"| R1
+  R1 -->|"<b>signals</b>"| R2
+  R2 -->|"<b>usable signals</b>"| R3
+  R3 -->|"<b>promoted cases,<br/>reward, preferences</b>"| R4
+  R4 -.->|"<b>approved prompt versions</b>"| AGENTS
+
+  style R1 fill:#000000,stroke:#6b7280,stroke-width:2px,color:#ffffff
+  style R2 fill:#000000,stroke:#6b7280,stroke-width:2px,color:#ffffff
+  style R3 fill:#000000,stroke:#6b7280,stroke-width:2px,color:#ffffff
+  style R4 fill:#000000,stroke:#6b7280,stroke-width:2px,color:#ffffff
+  style LEG fill:#000000,stroke:#6b7280,stroke-width:2px,color:#ffffff
+
+  linkStyle default stroke:#9ca3af,stroke-width:2px

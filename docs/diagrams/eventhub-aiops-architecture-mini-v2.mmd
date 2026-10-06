@@ -1,0 +1,103 @@
+%%{init: {"themeVariables": {"fontSize": "18px", "fontFamily": "Arial, Helvetica, sans-serif"}, "flowchart": {"htmlLabels": true, "nodeSpacing": 35, "rankSpacing": 45, "padding": 20, "subGraphTitleMargin": {"top": 8, "bottom": 8}}}}%%
+flowchart LR
+  classDef agent fill:#1e40af,stroke-width:0px,color:#ffffff
+  classDef svc fill:#475569,stroke-width:0px,color:#ffffff
+  classDef gate fill:#eab308,stroke-width:0px,color:#000000
+  classDef human fill:#be185d,stroke-width:0px,color:#ffffff
+  classDef ops fill:#06b6d4,stroke-width:0px,color:#000000
+  classDef store fill:#6d28d9,stroke-width:0px,color:#ffffff
+  classDef rag fill:#10b981,stroke-width:0px,color:#000000
+
+  subgraph P1["<b>1. Detect (no LLM)</b>"]
+    direction TB
+    DET["<b>Anomaly Detection</b><br/>or manual alert input"]:::svc
+    CORR["<b>Correlate, dedup, redact</b><br/>one incident per storm"]:::svc
+    WF["<b>Workflow Engine</b><br/>deterministic orchestration"]:::svc
+    DET --> CORR --> WF
+  end
+
+  subgraph P2["<b>2. Triage</b>"]
+    direction TB
+    TRI["<b>Triage Agent</b><br/>class + severity + confidence"]:::agent
+    SEV{"<b>Critical?</b><br/>rules decide"}:::gate
+    TRI --> SEV
+  end
+
+  subgraph P3["<b>3. Analyze (parallel)</b>"]
+    direction TB
+    RCA["<b>Root Cause Analysis Agent</b><br/>tools + RAG"]:::agent
+    CC["<b>Change Correlation Agent</b>"]:::agent
+    REC["<b>Recommendation Agent</b><br/>fix + evidence + confidence"]:::agent
+    RCA --> REC
+    CC --> REC
+  end
+
+  subgraph P4["<b>4. Respond</b>"]
+    direction TB
+    GATE{"<b>Severity</b><br/>Major?"}:::gate
+    HUMAN["<b>Incident Escalation Team</b><br/>Major only"]:::human
+    PROD["<b>Production Support Team</b><br/>Low / Medium: restart, runbook fixes"]:::ops
+    NOTIFY["<b>Notification Service</b><br/>chat + email, by severity"]:::svc
+    GATE -->|"<b>yes</b>"| HUMAN
+    GATE -->|"<b>no</b>"| PROD
+    GATE --> NOTIFY
+  end
+
+  subgraph P5["<b>5. Close and learn</b>"]
+    direction TB
+    RES["<b>Resolution notes</b><br/>root cause + fix outcome"]:::svc
+    VER{"<b>Human-verified?</b>"}:::gate
+    IDX[("<b>Past-incident RAG</b><br/>verified only")]:::rag
+    NOIDX["<b>Stored only</b><br/>not indexed"]:::svc
+    RES --> VER
+    VER -->|"<b>yes</b>"| IDX
+    VER -->|"<b>no</b>"| NOIDX
+  end
+
+  subgraph P6["<b>6. Human feedback and RLHF</b>"]
+    direction TB
+    FB["<b>Feedback + preferences</b><br/>review, ratings, pairwise A/B"]:::ops
+    RW["<b>Reward score</b><br/>per prompt version"]:::svc
+    AD["<b>Adaptation Engine</b><br/>SME-approved,<br/>before/after eval"]:::svc
+    FB --> RW --> AD
+  end
+
+  STATE[("<b>Incident State Store</b><br/>lifecycle record")]:::store
+
+  WF --> TRI
+  SEV --> RCA
+  SEV --> CC
+  REC --> GATE
+  SEV ==>|"<b>critical: page now</b>"| HUMAN
+  HUMAN --> RES
+  PROD --> RES
+  PROD -.->|"<b>re-classify</b>"| GATE
+
+  P4 -.->|"<b>review + ratings</b>"| FB
+  VER -.->|"<b>outcome</b>"| FB
+  AD -.->|"<b>approved prompt versions</b><br/>Triage, RCA, Change Correlation,<br/>Recommendation"| P3
+
+  P2 -.->|"<b>created</b>"| STATE
+  P4 -.->|"<b>paged, assigned, reviewed</b>"| STATE
+  P5 -.->|"<b>resolved, verified</b>"| STATE
+
+  subgraph LEG["<b>Legend</b>"]
+    direction TB
+    L1["<b>Agent (LLM)</b>"]:::agent
+    L2["<b>Non-agent service</b>"]:::svc
+    L3["<b>Decision gate</b>"]:::gate
+    L4["<b>Escalation humans (Major only)</b>"]:::human
+    L5["<b>Production support and reviewers</b>"]:::ops
+    L6["<b>Non-RAG store</b>"]:::store
+    L7["<b>RAG source</b>"]:::rag
+  end
+
+  style P1 fill:#000000,stroke:#6b7280,stroke-width:2px,color:#ffffff
+  style P2 fill:#000000,stroke:#6b7280,stroke-width:2px,color:#ffffff
+  style P3 fill:#000000,stroke:#6b7280,stroke-width:2px,color:#ffffff
+  style P4 fill:#000000,stroke:#6b7280,stroke-width:2px,color:#ffffff
+  style P5 fill:#000000,stroke:#6b7280,stroke-width:2px,color:#ffffff
+  style P6 fill:#000000,stroke:#6b7280,stroke-width:2px,color:#ffffff
+  style LEG fill:#000000,stroke:#6b7280,stroke-width:2px,color:#ffffff
+
+  linkStyle default stroke:#6b7280,stroke-width:2.5px

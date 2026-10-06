@@ -1,0 +1,158 @@
+%%{init: {"themeVariables": {"fontSize": "16px", "fontFamily": "Arial, Helvetica, sans-serif"}, "flowchart": {"htmlLabels": true, "nodeSpacing": 30, "rankSpacing": 60, "padding": 20, "subGraphTitleMargin": {"top": 8, "bottom": 8}}}}%%
+flowchart LR
+  classDef agent fill:#1e40af,stroke-width:0px,color:#ffffff
+  classDef tool fill:#f59e0b,stroke-width:0px,color:#000000
+  classDef svc fill:#475569,stroke-width:0px,color:#ffffff
+  classDef rag fill:#10b981,stroke-width:0px,color:#000000
+  classDef store fill:#6d28d9,stroke-width:0px,color:#ffffff
+  classDef gate fill:#eab308,stroke-width:0px,color:#000000
+  classDef human fill:#be185d,stroke-width:0px,color:#ffffff
+  classDef ops fill:#06b6d4,stroke-width:0px,color:#000000
+  classDef note fill:#111827,stroke:#6b7280,stroke-width:1px,color:#ffffff
+
+  %% Edges inside a group stay inside it; groups link to groups.
+  %% Mermaid drops a group's direction when its nodes link outside it.
+  %% Section and FR numbers refer to AI_Capstone_Project_Requirements_v0.8.md
+
+  subgraph LEG["<b>Legend</b>"]
+    direction TB
+    L1["<b>Agent (LLM)</b>"]:::agent
+    L2["<b>Tool call</b><br/>dispatch tools are mocks"]:::tool
+    L3["<b>Non-agent service</b>"]:::svc
+    L4["<b>RAG source</b>"]:::rag
+    L5["<b>Non-RAG store</b>"]:::store
+    L6["<b>Decision gate</b>"]:::gate
+    L7["<b>Escalation humans</b><br/>Major only"]:::human
+    L8["<b>Production support</b><br/>and reviewers"]:::ops
+    L9["<b>Edges</b><br/>solid: control flow<br/>dotted: feedback or data<br/>thick: critical fast path"]:::note
+  end
+
+  subgraph S1["<b>1. Detect (no LLM)</b>"]
+    direction TB
+    TEL["<b>Telemetry snapshot</b><br/>logs, Kafka, API, DB, network,<br/>changes, complaints, EventHub"]:::svc
+    DET["<b>Anomaly Detection</b><br/>statistical + threshold rules"]:::svc
+    MAN["<b>Manual input</b><br/>alert JSON or free text"]:::svc
+    CORR["<b>Alert Correlation + Dedup</b><br/>one incident per storm,<br/>idempotency key"]:::svc
+    RED["<b>Redaction Filter</b><br/>strips secrets and PII<br/>before any LLM call"]:::svc
+    TEL --> DET --> CORR
+    MAN --> CORR
+    CORR --> RED
+  end
+
+  subgraph S2["<b>2. Triage</b>"]
+    direction TB
+    WF["<b>Incident Workflow Engine</b><br/>LangGraph state machine<br/>timeouts, bounded loops"]:::svc
+    SEV1["<b>Severity Rules, pass 1</b><br/>measurable signals only<br/>no LLM input"]:::svc
+    TRI["<b>Triage Agent</b><br/>issue class, proposed severity,<br/>confidence, evidence"]:::agent
+    T_ITSM["<b>Tool: ITSM upsert</b><br/>mock, idempotent"]:::tool
+    SEV2["<b>Severity Rules, pass 2</b><br/>rules override LLM;<br/>disagreement logged"]:::svc
+    FB_MODE["<b>Rules-only mode</b><br/>LLM down or kill switch:<br/>dispatch, then SYSTEM_ERROR"]:::svc
+    WF --> SEV1 --> TRI --> SEV2
+    TRI --> T_ITSM
+    WF -.->|"<b>LLM down</b>"| FB_MODE
+  end
+
+  subgraph S3["<b>3. Analyze (parallel)</b>"]
+    direction TB
+    RCA["<b>Root Cause Analysis Agent</b><br/>tools picked by issue class,<br/>call budget"]:::agent
+    CC["<b>Change Correlation Agent</b>"]:::agent
+    T_RCA["<b>RCA tools (read-only)</b><br/>logs, Kafka, API, DB, network<br/>complaints, Connect, ACL audit<br/>Schema Registry + TLS<br/>ZooKeeper / KRaft quorum<br/>topology and blast radius"]:::tool
+    T_CHG["<b>Tool: change records</b><br/>release, config, ACL,<br/>schema, connector"]:::tool
+    REC["<b>Recommendation Agent</b><br/>root cause, fix, confidence,<br/>evidence, summary fields"]:::agent
+    OUT["<b>Output guardrails</b><br/>schema, grounding,<br/>action policy, PII re-check"]:::svc
+    CONF{"<b>Confidence</b><br/>high enough?"}:::gate
+    FLAG["<b>Flag: needs human RCA</b>"]:::svc
+    READY["<b>Recommendation ready</b><br/>for final severity gate"]:::svc
+    RCA --> T_RCA
+    CC --> T_CHG
+    RCA --> REC
+    CC --> REC
+    REC --> OUT --> CONF
+    CONF -->|"<b>no</b>"| FLAG --> READY
+    CONF -->|"<b>yes</b>"| READY
+  end
+
+  subgraph S4["<b>4. Respond</b>"]
+    direction TB
+    GATE{"<b>Final severity</b><br/>Major?"}:::gate
+    T_PAGE["<b>Tool: page on-call</b><br/>mock PagerDuty"]:::tool
+    HUMAN["<b>Incident Escalation</b><br/>Team"]:::human
+    T_ASSIGN["<b>Tool: ITSM assign</b><br/>mock support queue"]:::tool
+    PROD["<b>Production Support</b><br/>restart services,<br/>apply runbook fixes"]:::ops
+    NOTIFY["<b>Notification Service</b><br/>Major: wide alert<br/>Low/Med: team channel"]:::svc
+    REVIEW["<b>Human review</b><br/>approve / edit / reject<br/>+ ratings 1 to 5"]:::ops
+    GATE -->|"<b>yes</b>"| T_PAGE --> HUMAN
+    GATE -->|"<b>no</b>"| T_ASSIGN --> PROD
+    T_PAGE --> NOTIFY
+    T_ASSIGN --> NOTIFY
+    HUMAN --> REVIEW
+    PROD --> REVIEW
+    PROD -.->|"<b>re-classify</b>"| GATE
+  end
+
+  subgraph S5["<b>5. Close and learn</b>"]
+    direction TB
+    RESOLVE["<b>Resolution notes</b><br/>actual root cause,<br/>fix outcome"]:::svc
+    VERIFY{"<b>Root cause</b><br/>human-verified?"}:::gate
+    IDX["<b>Index verified</b><br/>resolution"]:::svc
+    NOIDX["<b>Stored only</b><br/>not indexed"]:::svc
+    RESOLVE --> VERIFY
+    VERIFY -->|"<b>yes</b>"| IDX
+    VERIFY -->|"<b>no</b>"| NOIDX
+  end
+
+  subgraph S6["<b>6. Human feedback and RLHF</b>"]
+    direction TB
+    RLHF["<b>RLHF loop</b><br/>preference store, reward score,<br/>human-gated adaptation<br/>see eventhub-aiops-rlhf-loop"]:::note
+  end
+
+  subgraph KB["<b>Knowledge (RAG)</b>"]
+    direction TB
+    RB[("<b>RAG: runbooks, KB,</b><br/>Confluent docs<br/>last-verified date")]:::rag
+    HIST[("<b>RAG: past incidents</b><br/>verified resolutions only")]:::rag
+    REIDX["<b>Runbook re-index</b><br/>scheduled job"]:::svc
+    REIDX -.-> RB
+  end
+
+  subgraph SS["<b>Shared state (non-RAG)</b>"]
+    direction TB
+    STATE[("<b>Incident State Store</b><br/>incidents.jsonl<br/>append-only lifecycle")]:::store
+    OUTBOX[("<b>Simulated outbox</b><br/>pages, tickets,<br/>notifications")]:::store
+    OBS["<b>Observability + Eval</b><br/>LangFuse traces,<br/>3 log files"]:::svc
+  end
+
+  %% Main flow
+  S1 -->|"<b>incident event</b>"| S2
+  S2 -->|"<b>all incidents</b>"| S3
+  S2 ==>|"<b>S1: page now</b>"| S4
+  S3 -->|"<b>recommendation</b>"| S4
+  S3 -.->|"<b>re-score once</b>"| S2
+  S4 -->|"<b>resolve</b>"| S5
+
+  %% Knowledge
+  S2 -.->|"<b>RAG reads</b>"| KB
+  S3 -.->|"<b>RAG reads</b>"| KB
+  S5 -.->|"<b>verified only</b>"| KB
+
+  %% Incident State Store and outbox
+  S2 -.->|"<b>created, ticket</b>"| SS
+  S4 -.->|"<b>paged, assigned,<br/>reviewed, re-classified</b>"| SS
+  S5 -.->|"<b>resolved, verified</b>"| SS
+
+  %% Human feedback and RLHF loop
+  S4 -.->|"<b>review, ratings,<br/>re-classify, gate hand-off</b>"| S6
+  S5 -.->|"<b>fix outcome,<br/>verification</b>"| S6
+  S6 -.->|"<b>approved prompt versions</b>"| S2
+  S6 -.->|"<b>approved prompt versions</b>"| S3
+
+  style S1 fill:#000000,stroke:#6b7280,stroke-width:2px,color:#ffffff
+  style S2 fill:#000000,stroke:#6b7280,stroke-width:2px,color:#ffffff
+  style S3 fill:#000000,stroke:#6b7280,stroke-width:2px,color:#ffffff
+  style S4 fill:#000000,stroke:#6b7280,stroke-width:2px,color:#ffffff
+  style S5 fill:#000000,stroke:#6b7280,stroke-width:2px,color:#ffffff
+  style S6 fill:#000000,stroke:#6b7280,stroke-width:2px,color:#ffffff
+  style KB fill:#000000,stroke:#6b7280,stroke-width:2px,color:#ffffff
+  style SS fill:#000000,stroke:#6b7280,stroke-width:2px,color:#ffffff
+  style LEG fill:#000000,stroke:#6b7280,stroke-width:2px,color:#ffffff
+
+  linkStyle default stroke:#9ca3af,stroke-width:2px

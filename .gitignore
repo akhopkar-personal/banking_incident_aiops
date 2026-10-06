@@ -1,0 +1,21 @@
+# Secrets: never commit. Use .env.example as the template.
+.env
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+.pytest_cache/
+.deepeval/
+
+# Rebuilt from knowledge/raw/ by scripts/build_index.py
+knowledge/faiss_index/
+knowledge/processed/
+
+# Editors and OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
