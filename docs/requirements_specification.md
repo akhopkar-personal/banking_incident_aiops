@@ -105,7 +105,7 @@ The bank's event-streaming platform (**EventHub**, built on Kafka with Kafka Con
 | A-3 | Synthetic data is realistic enough to demonstrate correlation, including noise and red herrings |
 | A-4 | Runbooks, postmortems and service documentation are authored or validated by the Domain Expert (SME) |
 | A-5 | One incident is investigated at a time. **v0.8:** the alert correlation service may still receive many anomaly events for that one incident, and must group them (FR-38) |
-| A-6 | An OpenAI API key and a LangFuse Cloud project (public/secret key) are available, and outbound calls to both contain only masked data |
+| A-6 | An OpenAI API key and a LangFuse Cloud project (public/secret key) are available, and outbound calls to both contain only masked data. **v0.8:** the course provides a Vocareum gateway key (`voc-…`) that works only through `https://openai.vocareum.com/v1`; the gateway address is configured through `OPENAI_BASE_URL`, so switching between the gateway key and a personal OpenAI key changes only `.env` (OPS-2) |
 | A-7 | During the capstone timeline, enough reviewer edits/rejections and preference labels will be generated (through demo runs, deliberate test variants and scheduled comparison sessions) to exercise the feedback loop, the RLHF loop and the adaptation engine at least once per scenario |
 | A-8 | The Vocareum lab environment used for the demo permits outbound HTTPS to the LangFuse Cloud API endpoint. **Confirmed 2026-10-06:** LangFuse Cloud (EU) health and key authentication return 200 from Vocareum, from both `curl` and Python; OpenAI and PyPI are also reachable; no outbound proxy (Architecture Spec v1.2, Section 0.2.1). Re-check once in the final demo session |
 | A-9 | The Vocareum lab environment may reset or tear down between sessions, so anything meant to be long-term memory (golden dataset, feedback candidates, preference store, adaptation log, prompt version history, verified-resolution index) is only durable if it is committed to git (or otherwise exported) before a session ends (Section 10.3, Section 13.6) |
@@ -820,7 +820,7 @@ rules:
 | Language | Python 3.10 | Matches the Vocareum demo environment (Python 3.10.2, checked 2026-10-06); local development uses 3.10 too. Python 3.10 reaches end-of-life in October 2026, so library versions stay pinned for the project's duration (OI-9) |
 | Agent and tool framework | LangChain (`langchain-core`, `langchain-openai`, `langchain-text-splitters`) | The `langchain` meta-package and `langchain-community` are not used |
 | Orchestration graph engine | LangGraph | Section 10.4 |
-| LLM | OpenAI (gpt-4o-mini) | |
+| LLM | OpenAI (gpt-4o-mini) | Called directly or through the Vocareum OpenAI gateway, selected by `OPENAI_BASE_URL` (A-6) |
 | Embeddings | OpenAI text-embedding-3-small | |
 | Vector DB | FAISS (in-memory, persisted to `knowledge/faiss_index/`) | |
 | Evaluation metrics engine | DeepEval | Section 11.2 |
@@ -1524,6 +1524,7 @@ banking_incident_aiops/
 | **OI-18** | **NEW:** Reviewer agreement rule and reward weights | Two reviewers must agree; weights in Section 12.6 | Confirm after the first pairwise session |
 | A-8 | Vocareum allows outbound HTTPS to LangFuse Cloud | **Confirmed 2026-10-06** (Section 4.3) | Re-check once in the final demo session |
 | OPS-1 | Streamlit behind Vocareum's inbound proxy (`/proxy/8501/`) | May need server options for its websocket connection | Confirm in Phase 7 when the app first runs in Vocareum |
+| OPS-2 | Vocareum OpenAI gateway (`https://openai.vocareum.com/v1`) | Allows `gpt-4o-mini` and `text-embedding-3-small`, with enough budget for golden-set runs | Confirm in the Phase 0 smoke test, including whether the key works from outside Vocareum |
 
 ## 19. Risks and Mitigations
 

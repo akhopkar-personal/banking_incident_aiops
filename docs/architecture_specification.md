@@ -81,6 +81,7 @@ Declared dependency ranges were read from PyPI metadata on 2026-10-06. Nothing h
 | OpenAI API reachable | Yes (401 without a key, as expected) |
 | PyPI index and package download (`pip download langfuse==4.17.0`) | Works |
 | Outbound proxy | None. `VSCODE_PROXY_URI` is Vocareum's inbound proxy for reaching lab apps from the browser |
+| OpenAI key | The course issues a Vocareum gateway key (`voc-…`). `api.openai.com` rejects it (401 `invalid_api_key`); it works only through the gateway `https://openai.vocareum.com/v1`. Model access (`gpt-4o-mini`, `text-embedding-3-small`), budget, and use from outside Vocareum are still to be confirmed (OPS-2) |
 
 **Consequence for Phase 7:** in Vocareum the Streamlit UI is reached through the inbound proxy at `/proxy/8501/`. Streamlit behind a path-based proxy may need server options (base URL path, CORS and XSRF settings) for its websocket connection; this is checked when the app is first run in Vocareum.
 
@@ -94,7 +95,7 @@ These are the API surfaces code generation will target. Names marked "verify" ar
 |---|---|---|
 | LangGraph | `StateGraph` with a typed state, `add_node`, `add_edge` (including list-of-sources joins), `add_conditional_edges` returning one or several node names for fan-out, `START`/`END`, `compile().invoke()` and `.stream()` for UI progress | `core_agent.py` |
 | langchain-core | `bind_tools` for the RCA and Change Correlation tool loops; `with_structured_output` with Pydantic models for every agent's final output; `@tool` or `StructuredTool` to wrap registry tools | Agents, `tool_registry.py` |
-| langchain-openai | `ChatOpenAI(model, temperature, timeout, max_retries=0)` (retries are owned by this system, Section 4.4); `OpenAIEmbeddings(model="text-embedding-3-small")` | Agents, `embedder.py` |
+| langchain-openai | `ChatOpenAI(model, base_url, temperature, timeout, max_retries=0)` (retries are owned by this system, Section 4.4); `OpenAIEmbeddings(model="text-embedding-3-small", base_url)`. `base_url` comes from `OPENAI_BASE_URL` (Section 15.1) and is always passed explicitly | Agents, `embedder.py` |
 | langchain-text-splitters | `MarkdownHeaderTextSplitter` (keeps section headings for citations), then `RecursiveCharacterTextSplitter` | `chunker.py` |
 | faiss-cpu | `IndexFlatIP` over L2-normalized vectors (cosine similarity), `write_index`/`read_index` | `faiss_store.py` |
 | DeepEval | `LLMTestCase`, `FaithfulnessMetric`, `HallucinationMetric`, `ContextualRecallMetric`, `GEval` (verify constructor arguments) | `deepeval_harness.py` |
@@ -956,7 +957,7 @@ Role checks are advisory in the MVP (no auth), but every control records the sel
 
 ### 15.1 `.env` variables
 
-`OPENAI_API_KEY`, `LANGFUSE_PUBLIC_KEY`, `LANGFUSE_SECRET_KEY`, `LANGFUSE_HOST` (default `https://cloud.langfuse.com`), `LLM_MODEL` (default `gpt-4o-mini`), `EMBEDDING_MODEL` (default `text-embedding-3-small`), `LLM_ENABLED` (default `true`), `LOG_LEVEL` (default `INFO`).
+`OPENAI_API_KEY`, `OPENAI_BASE_URL` (default `https://api.openai.com/v1`; set to `https://openai.vocareum.com/v1` when using a Vocareum gateway key; `config.py` also exports it to the process environment so libraries that create their own OpenAI client, such as DeepEval's judge, use the same gateway), `LANGFUSE_PUBLIC_KEY`, `LANGFUSE_SECRET_KEY`, `LANGFUSE_HOST` (default `https://cloud.langfuse.com`), `LLM_MODEL` (default `gpt-4o-mini`), `EMBEDDING_MODEL` (default `text-embedding-3-small`), `LLM_ENABLED` (default `true`), `LOG_LEVEL` (default `INFO`).
 
 ### 15.2 Settings fields
 
@@ -1220,6 +1221,7 @@ sequenceDiagram
 |---|---|---|
 | OI-3 / OI-9 | Python version set to 3.10 to match Vocareum; library versions checked on paper but not yet installed | Section 0 may change after the Phase 0 smoke test; contracts in Sections 3 to 16 do not depend on exact versions except the APIs marked "verify" in 0.3 |
 | OPS-1 | Streamlit behind Vocareum's inbound proxy | Phase 7: confirm the server options needed for `/proxy/8501/` (Section 0.2.1) |
+| OPS-2 | Vocareum OpenAI gateway: confirm both models are allowed, the budget, and whether the key works from outside Vocareum | Phase 0 smoke test. If embeddings are blocked or the budget is too small for golden-set runs, use a personal OpenAI key for those runs (only `.env` changes) |
 | OI-8 | Metric targets | Settings constants only |
 | OI-12 | Adaptation threshold | `adaptation_min_occurrences` |
 | OI-16 | Confidence-gate threshold | `confidence_gate_threshold` |
