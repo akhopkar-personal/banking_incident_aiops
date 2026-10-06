@@ -1,0 +1,7 @@
+# Use LF line endings everywhere: the code also runs on Linux (Vocareum, Docker),
+# where shell scripts with CRLF endings fail.
+* text=auto eol=lf
+
+*.png binary
+*.pdf binary
+*.faiss binary
