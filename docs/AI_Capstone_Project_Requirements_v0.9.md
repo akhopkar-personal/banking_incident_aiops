@@ -2,10 +2,10 @@
 
 | Item | Detail |
 |---|---|
-| **Document version** | v0.8 (draft) |
+| **Document version** | v0.9 (draft) |
 | **Status** | In review. Open items: dependency verification (OI-3), Python version (OI-9), post-evaluation target review (OI-8), adaptation pattern-detection threshold (OI-12), confidence-gate threshold (OI-16), severity rule thresholds (OI-17), reviewer agreement rule for preference labels (OI-18). See Section 18 |
-| **Supersedes** | v0.7 |
-| **Next artifact** | Architecture Specification v1.2 (drafted; aligned with this version). Next step: library smoke test (Section 11.3, step 6), then code generation |
+| **Supersedes** | v0.8 |
+| **Next artifact** | Architecture Specification v1.3 (aligned with this version). Next step: repeat the install and smoke test in Vocareum, then code generation Phase 1 |
 
 ### Version history
 
@@ -19,6 +19,7 @@
 | v0.6 | Added a dedicated Memory Architecture (Section 10.3): working memory design, four-layer long-term memory model, retention table, git-commit-before-session-end rule; added episodic memory as a guarded stretch feature (FR-35, OI-13) |
 | v0.7 | Adopted LangGraph as the orchestration engine (OI-14); added the `SYSTEM_ERROR` output status (OI-15, FR-36) |
 | v0.8 | **Adopted the EventHub AIOps v2 architecture (Section 10, OI-19).** Four LLM agents (Triage, Root Cause Analysis, Change Correlation, Recommendation) replace the six v0.7 agents. Deterministic services now own detection, alert correlation and dedup, redaction, severity, paging and notification. Added a critical fast path that never waits on an LLM, an LLM-down fallback, a confidence gate, and a close-and-learn stage that indexes only human-verified resolutions. **Added the Human Feedback and RLHF loop** (Section 12.6, FR-57 to FR-64): structured ratings, pairwise preferences, a reward score per prompt version, preference-driven adaptation, and a DPO-format export. **Expanded safety guardrails** into a layered model (Section 14, FR-65 to FR-69). **Added a dedicated Streamlit UI section** (Section 15, FR-70). Paging, ticketing and notification are simulated through mock adapters (OI-20). Folder structure rebuilt on the Multi-Agent Blueprint layout (Section 17). Partly resolved OI-13. **Review updates:** Section 5 renamed to Project Team Roles and separated from the new user personas in Section 6.1, with a demo role mapping; Severity Rules Engine defined (Section 10.6); log evidence chain and evidence report for feedback and adaptation (Section 16.1, FR-71); Section 12.5 example corrected so it stays within adaptation scope. **Aligned with Architecture Spec v1.2 (ALIGN-1 to ALIGN-4):** prompt versions stored in `data/prompt_versions.json` (Sections 5, 10.3.2, 10.3.4, 13.6, 17); new data files, folders and `scripts/` added to Section 17; `live` and `evaluation` run modes (Sections 7.9, 8.1, 10.4); library versions updated to current releases, `langchain` meta-package removed (Sections 11, 11.1, 11.3, 18.2, 19). **Vocareum check (2026-10-06):** Python set to 3.10 to match Vocareum, with `numpy==2.2.6` and `pandas==2.3.3`; A-8 confirmed; OPS-1 added for Streamlit behind Vocareum's inbound proxy |
+| v0.9 | **Phase 0 smoke test results (2026-10-06), aligned with Architecture Spec v1.3 (ALIGN-5).** Pinned libraries installed on Python 3.10.11 and all 10 smoke test checks pass on the development laptop (Section 11.3). `langchain==1.4.3` pinned again, because LangFuse's LangChain integration needs it (Sections 11, 11.1). All structured LLM output uses function calling with an output cap, after strict schema mode produced runaway whitespace output (Section 13.6). DeepEval uses a custom judge, configurable through `JUDGE_MODEL` (Section 17, OI-22). The Vocareum OpenAI gateway works from outside Vocareum (OPS-2). Specification file names in `docs/` follow the versioned naming (Section 17, acceptance criterion 22) |
 
 ### Architecture diagrams
 
@@ -818,7 +819,7 @@ rules:
 | Component | Choice | Notes |
 |---|---|---|
 | Language | Python 3.10 | Matches the Vocareum demo environment (Python 3.10.2, checked 2026-10-06); local development uses 3.10 too. Python 3.10 reaches end-of-life in October 2026, so library versions stay pinned for the project's duration (OI-9) |
-| Agent and tool framework | LangChain (`langchain-core`, `langchain-openai`, `langchain-text-splitters`) | The `langchain` meta-package and `langchain-community` are not used |
+| Agent and tool framework | LangChain (`langchain-core`, `langchain-openai`, `langchain-text-splitters`) | `langchain` is installed only because LangFuse's LangChain integration needs it; `langchain-community` is not used |
 | Orchestration graph engine | LangGraph | Section 10.4 |
 | LLM | OpenAI (gpt-4o-mini) | Called directly or through the Vocareum OpenAI gateway, selected by `OPENAI_BASE_URL` (A-6) |
 | Embeddings | OpenAI text-embedding-3-small | |
@@ -837,6 +838,7 @@ There is **one** requirements file, at `deployment/requirements.txt` (OI-5). Loc
 
 ```
 langgraph==1.2.13
+langchain==1.4.3
 langchain-core==1.6.6
 langchain-openai==1.6.7
 langchain-text-splitters==1.1.3
@@ -859,7 +861,9 @@ pytest==9.1.1
 
 **Changes from v0.7 pins:** every pin moved to the current release (the v0.7 pins dated from 2023 to 2024 and would not install with current LangGraph). The `langchain` meta-package is removed; the design needs only `langchain-core`, `langchain-openai` and `langchain-text-splitters`. Added: `langchain-text-splitters` (chunking), `pydantic-settings` (configuration), `tiktoken` (token counting for the cost cap), `numpy` (pinned explicitly; 2.2.6 is the newest release that supports Python 3.10), and `pytest` (tests; DeepEval also depends on it).
 
-**Verification status:** the declared dependency ranges of these packages were checked against each other on PyPI and are compatible (Architecture Spec v1.2, Section 0.2). The set has **not yet been installed**. If installation fails, run the procedure in Section 11.3 and record the final pins (OI-3).
+**v0.9:** `langchain==1.4.3` is pinned again. LangFuse's LangChain callback handler fails without it; adding it changed no other pin.
+
+**Verification status (2026-10-06):** installed on the development laptop with Python 3.10.11; `pip check` reports no broken requirements; all libraries import; all 10 functional smoke test checks pass (`scripts/smoke_test.py`, Architecture Spec v1.3 Section 0.4). The same install and smoke test still need to run in Vocareum before OI-3 and OI-9 close.
 
 ### 11.2 DeepEval and LangFuse: confirmed roles and hosting
 
@@ -869,7 +873,7 @@ Unchanged from v0.7. DeepEval computes metric scores; LangFuse Cloud captures on
 
 ### 11.3 Dependency verification procedure (OI-3)
 
-Run only if the proposed pins in Section 11.1 fail to install or fail the smoke tests. Updated in v0.8 for the new package list.
+Steps 1 to 6 passed on the development laptop on 2026-10-06 (`scripts/smoke_test.py` implements step 6). Repeat steps 1 to 6 in Vocareum; run the full procedure again only if a pin changes.
 
 | Step | Action | Exit criterion |
 |---|---|---|
@@ -1130,7 +1134,7 @@ Rules carried from v0.7: every recommendation starts as `PENDING_REVIEW`; a reas
 
 | Category | Requirement |
 |---|---|
-| **Reliability** | Tool, LLM or LangFuse failure does not crash the run. Each node retries up to 2 times with backoff, then routes to `system_error`. **v0.8:** deterministic dispatch keeps working when LLM nodes fail (FR-43) |
+| **Reliability** | Tool, LLM or LangFuse failure does not crash the run. Each node retries up to 2 times with backoff, then routes to `system_error`. **v0.8:** deterministic dispatch keeps working when LLM nodes fail (FR-43). **v0.9:** every LLM call caps its output tokens, and all structured output (agents and the DeepEval judge) uses function calling, never strict schema mode, which produced runaway whitespace output in the smoke test. A length-limited or malformed response counts as a retryable failure |
 | **Security** | API keys only from `.env`; `.env` is git-ignored; `.env.example` has placeholders |
 | **Maintainability** | Base prompt templates in `prompts.py`; versioned prompt additions in `data/prompt_versions.json`. Tools in one registry. Configuration only in `src/config.py`. Graph definition in `core_agent.py`. **Severity rules and action policy in data files, versioned, not in code** |
 | **Usability** | Section 15 |
@@ -1321,11 +1325,13 @@ banking_incident_aiops/
 ├── scripts/                           # v0.8: operational scripts, not application code
 │   ├── commit_state.sh                # Commit long-term stores before a Vocareum session ends (Section 10.3.4)
 │   ├── build_index.py                 # Build the FAISS index from knowledge/raw/
-│   └── generate_data.py               # Generate scenario telemetry and fixtures from data/generators/
+│   ├── generate_data.py               # Generate scenario telemetry and fixtures from data/generators/
+│   └── smoke_test.py                  # v0.9: library and API smoke test (Section 11.3, step 6)
 │
 ├── docs/
 │   ├── problem_framing.md
-│   ├── architecture_specification.md
+│   ├── AI_Capstone_Project_Requirements_vX.Y.md            # This document; version in the file name
+│   ├── AI_Capstone_Project_Architecture_Specification_vX.Y.md
 │   ├── agent_design.md
 │   ├── data_dictionary.md
 │   ├── scenarios.md                   # SC-01 to SC-05 and test fixtures
@@ -1409,6 +1415,7 @@ banking_incident_aiops/
 │   ├── evaluation/
 │   │   ├── __init__.py
 │   │   ├── deepeval_harness.py
+│   │   ├── judge.py                   # v0.9: DeepEval judge using function calling
 │   │   ├── langfuse_tracker.py
 │   │   ├── adaptation_engine.py       # Now includes preference-driven proposals
 │   │   └── evidence_report.py         # v0.8: builds docs/evidence/<adaptation_id>.md from logs (FR-71)
@@ -1515,16 +1522,17 @@ banking_incident_aiops/
 
 | ID | Item | Assumption made | Decision needed |
 |---|---|---|---|
-| OI-3 | Dependency verification | Not yet run | Execute Section 11.3 |
+| OI-3 | Dependency verification | Passed on the development laptop (2026-10-06) | Repeat the install and smoke test in Vocareum, then close |
 | OI-8 | Metric targets | Provisional (Section 12.2) | Confirm after first evaluation run |
-| OI-9 | Python version | 3.10, to match Vocareum (3.10.2) | Close once the Phase 0 install and smoke test pass on 3.10 |
+| OI-9 | Python version | 3.10; passes on 3.10.11 locally | Close with OI-3 once Vocareum (3.10.2) passes |
 | OI-12 | Adaptation pattern threshold | Minimum 2 occurrences | Confirm after first cycles |
 | **OI-16** | **NEW:** Confidence-gate threshold | 0.5 | Confirm against confidence-gate precision after first evaluation run |
 | **OI-17** | **NEW:** Severity rule thresholds | Draft in `data/severity_rules.yaml` | SME confirms thresholds per signal |
 | **OI-18** | **NEW:** Reviewer agreement rule and reward weights | Two reviewers must agree; weights in Section 12.6 | Confirm after the first pairwise session |
 | A-8 | Vocareum allows outbound HTTPS to LangFuse Cloud | **Confirmed 2026-10-06** (Section 4.3) | Re-check once in the final demo session |
 | OPS-1 | Streamlit behind Vocareum's inbound proxy (`/proxy/8501/`) | May need server options for its websocket connection | Confirm in Phase 7 when the app first runs in Vocareum |
-| OPS-2 | Vocareum OpenAI gateway (`https://openai.vocareum.com/v1`) | Allows `gpt-4o-mini` and `text-embedding-3-small`, with enough budget for golden-set runs | Confirm in the Phase 0 smoke test, including whether the key works from outside Vocareum |
+| OPS-2 | Vocareum OpenAI gateway (`https://openai.vocareum.com/v1`) | **Partly confirmed (2026-10-06):** both models work, from Vocareum and from the development laptop | Confirm the key's budget is enough for golden-set and adaptation runs |
+| OI-22 | **NEW v0.9:** DeepEval judge model | gpt-4o-mini (`JUDGE_MODEL`). In the smoke test it scored a faithful answer 0.50 | After the first golden-set run, compare judge scores with SME spot-checks; use a stronger judge model if the gateway offers one and the scores are unreliable |
 
 ## 19. Risks and Mitigations
 
@@ -1535,14 +1543,15 @@ banking_incident_aiops/
 | Hallucinated root causes or citations | Loss of trust | Evidence-ID requirement, citation validation, abstention, confidence gate |
 | Timezone or clock differences | Wrong timeline | Normalize to UTC; flag assumptions |
 | Dependencies do not install together (OI-3) | Build failures | Run Section 11.3 early |
-| Proposed current versions have API changes from what the team knows (LangFuse v4, DeepEval 4, python-json-logger 4) | Code fails at runtime | Smoke test (Section 11.3, step 6) before generating the rest of the code; APIs to check are listed in Architecture Spec v1.2 Section 0.3 |
+| Current library versions have API changes from what the team knows (LangFuse v4, DeepEval 4, python-json-logger 4) | Code fails at runtime | Smoke test passed; confirmed API names are listed in Architecture Spec v1.3 Section 0.3. APIs not yet exercised (LangFuse datasets, other DeepEval metrics) are tested when first used |
+| **NEW v0.9:** Strict schema structured output makes the model emit runaway output | Calls hang for minutes and waste budget | Function calling for all structured output, output token cap, length-limited responses retried (Section 13.6) |
 | Python 3.10 reaches end-of-life during the project; new library releases drop 3.10 | An unplanned upgrade breaks installs | Keep exact pins; do not upgrade libraries without re-running Section 11.3 |
 | Vocareum network rules differ in the final demo session | No tracing in the demo | Access confirmed 2026-10-06 (A-8); re-check in the demo session; FR-26 fallback |
 | Streamlit UI does not load through Vocareum's inbound proxy | UI unavailable in Vocareum | Check early in Phase 7 (OPS-1); fall back to a local demo if needed |
 | Session teardown erases long-term stores | Lost memory | Git-commit rule (Section 10.3.4) |
 | Prompt injection through logs, complaints or connector traces | Manipulated output | Untrusted-data handling; injection fixture |
 | Scope creep | Missed deadline | Phasing (Section 4.4) |
-| LLM-as-judge inconsistency | Unreliable metrics | Programmatic checks plus SME spot-checks |
+| LLM-as-judge inconsistency (seen in the smoke test: a faithful answer scored 0.50) | Unreliable metrics | Programmatic checks plus SME spot-checks; judge model configurable (OI-22) |
 | Too few Edit/Reject decisions and preference labels | Feedback and RLHF loops undemonstrated | Scheduled pairwise sessions and deliberate test variants (A-7) |
 | SME becomes a bottleneck | Loops stall | Lightweight queues; batch review sessions |
 | Overfit adaptation from a small sample | Change does not generalize | Threshold, full golden-set regression, held-out pairs |
@@ -1577,7 +1586,7 @@ banking_incident_aiops/
 19. **NEW:** At least one pairwise session with two reviewers has been run, the reward score is shown per prompt version, and at least one preference-driven adaptation has been approved, evaluated (golden set plus held-out pairs) and kept or reverted.
 20. **NEW:** A DPO-format export is produced from agreed preference pairs and passes the PII check.
 21. **NEW:** The guardrail test set passes: injection, PII, action policy (destructive action flagged, denied action removed) and tool access (an agent attempt to call a dispatch tool is blocked).
-22. Documentation is complete: `README.md`, `problem_framing.md`, `architecture_specification.md`, `agent_design.md`, `memory_architecture.md`, `safety_guardrails.md`, `rlhf_feedback_loop.md`, `evaluation_report.md`, `engineering_decisions.md`.
+22. Documentation is complete: `README.md`, the current versions of the requirements and architecture specifications, `problem_framing.md`, `agent_design.md`, `memory_architecture.md`, `safety_guardrails.md`, `rlhf_feedback_loop.md`, `evaluation_report.md`, `engineering_decisions.md`.
 23. The application runs locally, through Docker, and in the Vocareum lab environment, with LangFuse Cloud connectivity confirmed or its fallback demonstrated.
 
 ## 21. Glossary
