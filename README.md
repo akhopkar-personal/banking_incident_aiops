@@ -8,9 +8,11 @@ Status: setup (Phase 0). No application code yet.
 
 | Document | Path |
 |---|---|
-| Requirements specification (v0.8) | [docs/requirements_specification.md](docs/requirements_specification.md) |
-| Architecture specification (v1.2) | [docs/architecture_specification.md](docs/architecture_specification.md) |
+| Requirements specification | [docs/AI_Capstone_Project_Requirements_v0.8.md](docs/AI_Capstone_Project_Requirements_v0.8.md) |
+| Architecture specification | [docs/AI_Capstone_Project_Architecture_Specification_v1.2.md](docs/AI_Capstone_Project_Architecture_Specification_v1.2.md) |
 | Architecture diagrams (Mermaid sources and PNG exports) | [docs/diagrams/](docs/diagrams/) |
+
+**Document versions:** the specifications in `docs/` are the working copies. A change that alters a document increments its version, and the file is renamed to match (for example `..._v0.8.md` becomes `..._v0.9.md`), with an entry in the document's version history. Earlier versions stay available in git history.
 
 ## Environment
 
