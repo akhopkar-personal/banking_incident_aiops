@@ -4,6 +4,15 @@ AI capstone project: a multi-agent system that investigates banking incidents ac
 
 Status: Phase 0 complete on the development laptop (libraries installed, smoke test 10/10). Next: repeat the smoke test in Vocareum, then Phase 1.
 
+## Session setup (Linux / Vocareum)
+
+Run at the start of every session:
+
+```
+source scripts/setup_env.sh            # creates .venv if needed, installs only when requirements changed, activates
+source scripts/setup_env.sh --smoke    # same, then runs the smoke test
+```
+
 ## Phase 0 smoke test
 
 ```
