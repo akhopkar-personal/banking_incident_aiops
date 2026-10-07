@@ -1,0 +1,9 @@
+# Tool configuration only. Dependencies live in deployment/requirements.txt (Req. OI-5).
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
+addopts = "-q"
+markers = [
+    "llm: test calls the LLM API (costs money; run explicitly)",
+]
