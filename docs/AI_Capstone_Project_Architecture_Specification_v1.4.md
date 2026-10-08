@@ -2,12 +2,20 @@
 
 | Item | Detail |
 |---|---|
-| **Document version** | v1.3 (draft) |
-| **Supersedes** | v1.2 |
-| **Derived from** | Project Requirements v0.9. "Req." references below point to that document |
+| **Document version** | v1.4 (draft) |
+| **Supersedes** | v1.3 |
+| **Derived from** | Project Requirements v0.10. "Req." references below point to that document |
 | **Purpose** | The contracts needed to generate code: target library versions, data schemas, module and function contracts, LangGraph wiring, algorithms, synthetic data targets, and test hooks. Each section names the source file it governs |
 | **Format** | Contracts are given as tables (fields, types, parameters, returns), not as code. Code is generated in a later step, after this document is reviewed |
-| **Status** | Draft for review. Library versions in Section 0 are installed and pass the Phase 0 smoke test on the development laptop (2026-10-06); the Vocareum install is still to be repeated (Req. OI-3). Open items in Section 21 |
+| **Status** | Draft for review. Library versions in Section 0 are installed and pass the smoke test on the development laptop and in Vocareum (Req. OI-3, OI-9 closed). Phase 1 (Sections 3, 13, 15) is implemented. Open items in Section 21 |
+
+### Changes from v1.3
+
+| Area | Change | Reason |
+|---|---|---|
+| MCP | New Section 7.5: the `incident-tools` MCP server (stdio) serves the read-only tools to the agents; the registry gains a `TOOL_TRANSPORT` switch (`mcp` or `inprocess`) and a background event loop for MCP calls. Dispatch tools are never on the server (Sections 0, 1.2, 1.3, 2, 7.1, 15, 19, 20) | Req. v0.10 O-13, FR-72, FR-73 (OI-23) |
+| Dependencies | `mcp==1.30.0`, `langchain-mcp-adapters==0.3.2` (Section 0.1); smoke test MCP check (Section 0.4) | MCP; adapter requires `mcp<2` (Req. OPS-3) |
+| Phase 1 alignment | Graph state is a `TypedDict` with reducers (3.14); `ProposedAction` added and LLM-facing text fields made required (3.7); stricter output and review rules recorded (3.9, 3.11); scenario directory names (15.3); `anomaly_detected` is not run-scoped and two event names added (13) | Decisions made while implementing Phase 1 |
 
 ### Changes from v1.2
 
@@ -46,6 +54,8 @@ Latest releases on PyPI as of 2026-10-06. Exact pins go into `deployment/require
 | `langchain-core` | 1.6.6 | Messages, tool binding, structured output, callbacks |
 | `langchain-openai` | 1.6.7 | `ChatOpenAI` and `OpenAIEmbeddings` |
 | `langchain-text-splitters` | 1.1.3 | Document chunking (Section 8) |
+| `mcp` | 1.30.0 | MCP server (`FastMCP`) and client session (Section 7.5). Newest 1.x; the adapter below requires `mcp<2` |
+| `langchain-mcp-adapters` | 0.3.2 | Turns MCP tools into LangChain tools for `bind_tools` (Section 7.5) |
 | `openai` | 3.24.0 | Pulled in by `langchain-openai`; pinned for reproducibility |
 | `tiktoken` | 0.14.0 | Token counting for the cost cap |
 | `faiss-cpu` | 1.15.1 | Vector index |
@@ -113,6 +123,8 @@ These are the API surfaces code generation will target. All were confirmed by th
 | Streamlit | Multipage app using `src/ui/pages/`; `st.session_state`; `st.status` for node progress; `st.dataframe` | `src/ui/` |
 | pydantic-settings | `BaseSettings` with `.env` file | `src/config.py` |
 | python-json-logger | `from pythonjsonlogger.json import JsonFormatter`; `extra=` fields appear as top-level JSON keys | `logger_setup.py` |
+| MCP server | `from mcp.server.fastmcp import FastMCP`; `server = FastMCP("incident-tools")`; `@server.tool()` on a typed function (its docstring becomes the tool description); `server.run(transport="stdio")` | `src/mcp_server/server.py` |
+| MCP client | `from langchain_mcp_adapters.client import MultiServerMCPClient`; `MultiServerMCPClient({"incident-tools": {"command": <python>, "args": ["-m", "src.mcp_server.server"], "transport": "stdio"}})`; `await client.get_tools()` returns LangChain tools; tools are async (`await tool.ainvoke(args)`), and synchronous callers submit the coroutine to a background event loop with `asyncio.run_coroutine_threadsafe` | `tool_registry.py` |
 
 **LLM model:** `gpt-4o-mini` (Req. Section 11), configurable through `LLM_MODEL`. Confirmed available through the Vocareum gateway, which resolves it to `gpt-4o-mini-2024-07-18`.
 
@@ -131,6 +143,9 @@ These are the API surfaces code generation will target. All were confirmed by th
 | LangFuse: auth, root observation, LangChain callback handler, score | Pass; trace visible in LangFuse Cloud |
 | DeepEval `FaithfulnessMetric` with the custom judge, score pushed to the LangFuse trace | Pass |
 | Streamlit, pandas, pdfplumber, JSON logger, YAML | Pass |
+| **v1.4:** MCP: stdio server started as a subprocess, tools listed through the LangChain adapter, one tool called with `ainvoke` and once from a synchronous caller through a background event loop, and the LLM choosing the MCP tool with `bind_tools` | Pass (laptop, 2026-10-08) |
+
+**Vocareum (2026-10-07):** the 10 checks above (before the MCP check was added) also pass in Vocareum on Python 3.10.2. The MCP check runs there with the next upload.
 
 **Findings that changed the design:**
 
@@ -165,6 +180,7 @@ core_agent.py ── LangGraph StateGraph ────────────�
    │
    ├── src/services   anomaly_detector, alert_correlator, severity_rules, gates,
    │                  notification_service, incident_state_store
+   ├── src/mcp_server incident-tools MCP server (stdio): serves the read-only tools to the agents
    ├── src/tools      read-only telemetry/EventHub/KB tools; dispatch mocks → data/outbox
    ├── src/tool_retrieval  loader, chunker, embedder, FAISS, retriever, indexers
    └── src/safety     redaction, injection, action policy, output checks
@@ -181,7 +197,7 @@ Generated code must not break any of these.
 
 1. **One state object.** The LangGraph state (Section 3.14) is the working memory. No other conversation memory exists.
 2. **No LLM in the paging path.** `severity_rules_pass1` and `dispatch_fast_page` never wait on an LLM node. `final_severity_gate` uses only the rules result (Req. FR-41, FR-42, FR-51).
-3. **Dispatch isolation.** Only workflow nodes and the Notification Service may call dispatch tools. The registry enforces this (Section 7.1, Req. FR-66).
+3. **Dispatch isolation.** Only workflow nodes and the Notification Service may call dispatch tools. The registry enforces this (Section 7.1, Req. FR-66), and the MCP server through which agents get their tools does not offer any dispatch tool (Section 7.5, Req. FR-72).
 4. **Raise-only automatic severity.** Pass 2 and the re-score can raise severity, never lower it (Req. Section 10.6).
 5. **No auto-execution.** No tool writes to any system outside `data/outbox/` and the mock ITSM store.
 6. **Adaptation scope.** Adaptation changes only prompt guidelines, few-shot examples and retrieval aliases, all stored as data (Section 6.1). It never touches model, temperature, rules, graph or source code.
@@ -218,6 +234,7 @@ Authoritative file list for code generation. It matches Req. Section 17; each pa
 | `src/tools/tool_registry.py` | 7.1 |
 | `src/tools/implementations/*.py` | 7.2, 7.3 |
 | `src/tools/dispatch_mocks/*.py` | 7.4 |
+| `src/mcp_server/server.py` | 7.5 |
 | `src/tool_retrieval/*.py` | 8 |
 | `src/safety/*.py` | 9 |
 | `src/feedback/*.py` | 10 |
@@ -332,7 +349,8 @@ Every record has the common fields `timestamp`, `service`, `environment` (defaul
 | `ChangeFinding` | `change_id`, `change_type`, `service`, `time_before_onset_min`, `on_dependency_path` (bool), `linked_hypothesis_rank` (opt), `rationale` |
 | `ChangeCorrelationResult` | `findings` (list of `ChangeFinding`), `searched_window_min` |
 | `RetrievedDocument` | `doc_id`, `section` (opt), `title`, `doc_type` (`runbook`, `postmortem`, `verified_resolution`, `service_doc`, `regulatory`, `auto_postmortem`), `score`, `excerpt`, `citation_status` (`verified`, `unverified`), `last_verified` (date, opt), `stale` (bool) |
-| `RecommendationResult` | `root_cause_summary`, `top_confidence`, `recommended_actions`, `summary_fields` (`what_happened`, `customer_impact`, `current_status`, `next_update`), `regulatory_notes` (opt), `insufficient_evidence_reason` (opt), `cited_doc_ids`, `cited_evidence_ids` |
+| `ProposedAction` | **v1.4:** `step`, `action`, `action_type`, `risk_level`, `runbook_citation`, `expected_effect`. An action as the Recommendation Agent proposes it; the action policy (Section 9.3) turns it into a `RecommendedAction` |
+| `RecommendationResult` | `root_cause_summary`, `top_confidence`, `recommended_actions` (list of `ProposedAction`), `summary_fields` (`what_happened`, `customer_impact`, `current_status`, `next_update`), `regulatory_notes`, `insufficient_evidence_reason`, `cited_doc_ids`, `cited_evidence_ids`. **v1.4:** `regulatory_notes` and `insufficient_evidence_reason` are required strings (empty when there is nothing to say), following Section 6.1 |
 
 ### 3.8 Output — `src/schemas/output.py` (Req. 8.1)
 
@@ -369,7 +387,7 @@ Every record has the common fields `timestamp`, `service`, `environment` (defaul
 | `resolution` | `ResolutionInfo` | After close |
 | `metadata` | `OutputMetadata` | Always |
 
-**Validation rules (model validator):** `SYSTEM_ERROR` requires `error_detail` and forbids `severity`, `hypotheses`, `recommended_actions` and `stakeholder_summary` (they are omitted from the serialized output, not set to null). `INSUFFICIENT_EVIDENCE` requires `insufficient_evidence_reason` and has no `recommended_actions`. Every `RecommendedAction.requires_approval` is true.
+**Validation rules (model validator):** `SYSTEM_ERROR` requires `error_detail` and forbids `severity`, `hypotheses`, `recommended_actions` and `stakeholder_summary` (they are omitted from the serialized output, not set to null). `INSUFFICIENT_EVIDENCE` requires `insufficient_evidence_reason` and has no `recommended_actions`. Every `RecommendedAction.requires_approval` is true. **v1.4 (as implemented):** statuses other than `SYSTEM_ERROR` also require `issue_class`, `severity` and `stakeholder_summary`; `error_detail` and `rules_severity` are rejected unless the status is `SYSTEM_ERROR`; `insufficient_evidence_reason` is rejected unless the status is `INSUFFICIENT_EVIDENCE`. `to_output_dict()` produces the serialized form and drops every recommendation-body field for `SYSTEM_ERROR`.
 
 ### 3.10 Incident State Store record — `src/schemas/feedback.py`
 
@@ -388,7 +406,7 @@ Every record has the common fields `timestamp`, `service`, `environment` (defaul
 | Model | Fields |
 |---|---|
 | `Ratings` | `rca`, `actions`, `severity`, `summary` (each int 1..5) |
-| `ReviewDecision` | `incident_id`, `run_id`, `decision` (`approve`, `edit`, `reject`), `reason` (required for edit/reject), `issue_type` (opt, required for edit/reject), `ratings` (required for edit/reject), `edited_output` (opt), `high_risk_confirmations` (list of action steps), `reviewer_role`, `at` |
+| `ReviewDecision` | `incident_id`, `run_id`, `decision` (`approve`, `edit`, `reject`), `reason` (required for edit/reject), `issue_type` (opt, required for edit/reject), `ratings` (required for edit/reject), `edited_output` (opt; **v1.4:** required for edit), `high_risk_confirmations` (list of action steps), `reviewer_role`, `at` |
 | `Reclassification` | `incident_id`, `from_level`, `to_level` (S1 or S2 only), `reason`, `reviewer_role`, `at` |
 | `ResolutionRecord` | `incident_id`, `actual_root_cause`, `actions_taken`, `fix_outcome`, `resolution_time_min`, `resolver_role`, `at` |
 | `VerificationRecord` | `incident_id`, `verdict` (`confirmed`, `corrected`, `rejected`), `corrected_root_cause` (opt), `verifier_role` (`sme` or `escalation`), `at` |
@@ -414,6 +432,8 @@ Payloads for other signal types reuse `ReviewDecision`, `Reclassification`, `Res
 ### 3.14 Graph state — `src/schemas/graph_state.py`
 
 One typed state object. Fields written by nodes that run in parallel use a merge reducer so concurrent updates do not overwrite each other.
+
+**v1.4:** the state is a `TypedDict` (with `Annotated` reducers) whose values are the Pydantic models of this section, rather than a Pydantic model itself. This is the form verified with parallel branches in the smoke test. `initial_state()` builds a fresh state and rejects a prompt-version override outside `evaluation` run mode. The dispatch reducer keeps flags on once set and keeps the first page time and ticket ID, so a later update cannot erase the fast-path page.
 
 | Field | Type | Written by | Reducer |
 |---|---|---|---|
@@ -737,6 +757,9 @@ The store also persists the final `InvestigationOutput` of each run under `data/
 | Policy | `read` tools: callable by the agents listed in Req. 10.5 and by workflow nodes. `dispatch` tools: callable only by workflow nodes in `DISPATCH_CALLERS` (`dispatch_fast_page`, `itsm_upsert`, `dispatch_page`, `dispatch_itsm_assign`, `notify`, `rules_only_dispatch`) |
 | Violation | Raise `ToolAccessDenied`, log `tool_access_blocked` to `error.log`, add guardrail flag; for an LLM tool call, return an error message to the model instead of a result |
 | LangChain wrapping | `as_langchain_tools(agent)` returns only the read tools that agent may use, for `bind_tools` |
+| Transport (**v1.4**) | `settings.tool_transport` is `mcp` (default) or `inprocess`. With `mcp`, `as_langchain_tools(agent)` returns the tools listed by the `incident-tools` MCP server (Section 7.5), filtered to that agent's allowed set; with `inprocess`, it wraps the Python implementations directly. Agents and graph nodes do not know which transport is in use |
+| Calling MCP tools synchronously | The registry owns one background event loop (a daemon thread started on first use). A synchronous `call(name, args, caller)` submits `tool.ainvoke(args)` to that loop and waits with a timeout of `tool_call_timeout_s`; the agent's tool loop uses this, so graph nodes stay synchronous |
+| Logging | Every call logs `tool_call` with `tool`, `caller`, `transport` and `latency_ms` |
 
 ### 7.2 Common read-tool contract
 
@@ -775,6 +798,18 @@ All mocks append one JSON line per call, with `outbox_id`, `incident_id`, `at`, 
 `reset_outbox()` (used by the Outbox page "reset demo" action) moves the outbox files to `data/outbox/archive/<timestamp>/`; it never deletes them.
 
 ---
+
+### 7.5 MCP server — `src/mcp_server/server.py` (Req. FR-72, FR-73)
+
+| Element | Contract |
+|---|---|
+| Server | `FastMCP("incident-tools")`, started with `python -m src.mcp_server.server`, stdio transport only |
+| Tools exposed | Exactly the read tools in Section 7.3 except `lookup_stakeholders`: `search_knowledge_base`, `query_logs`, `query_kafka_events`, `query_api_metrics`, `query_db_infra_metrics`, `query_network`, `query_change_records`, `query_complaints`, `query_connect_status`, `query_acl_audit`, `query_schema_registry`, `query_cluster_quorum`, `get_service_dependencies`. The list is a constant `MCP_EXPOSED_TOOLS`; a test asserts the server lists exactly these and nothing of kind `dispatch` |
+| Implementation | Each MCP tool is a thin wrapper that calls the same function from `src/tools/implementations/` and returns the `ToolSummary` (or list of `RetrievedDocument`) as JSON. No tool logic lives in the server |
+| Tool arguments | Typed parameters matching Section 7.3 (`service`, `window_start`, `window_end` as ISO 8601 strings, tool-specific options) plus `scenario_id`, `incident_id` and `run_id`. The server resolves `scenario_id` to a directory with `config.scenario_dir`; it never accepts a file path |
+| Redaction | Results are redacted inside the tool implementations, before they leave the server |
+| Lifecycle | The registry starts the server on first MCP use and keeps it for the life of the process. Startup logs `mcp_server_started` with the tool count. If the server cannot start, the registry logs `mcp_server_error`, falls back to `inprocess` for the rest of the process, and adds the guardrail flag `mcp_fallback` to the runs that follow. Errors during a call raise `RecoverableError`, so the node wrapper's retries and `SYSTEM_ERROR` path apply (Section 4.4) |
+| Manual inspection | The same command can be opened in the MCP Inspector for the demo (Req. acceptance criterion 24) |
 
 ## 8. Retrieval and Knowledge Base — `src/tool_retrieval/`
 
@@ -968,7 +1003,7 @@ As v1.1 Section 10.2, plus `attach_human_scores(trace_id, ratings, decision)`, `
 | `log_interaction(event, **fields)`, `log_error(event, **fields)`, `log_eval(event, **fields)` | Require `component` and `event`; require `incident_id` and `run_id` for run-scoped events; add `timestamp`, `trace_id`, `langfuse_trace_id` from a context variable set by `core_agent`; pass every string field through `redact` |
 | Link fields | `feedback_id`, `adaptation_id`, `prompt_version_set` are added whenever present in the context (Req. 16) |
 
-Event names are exactly those in Req. Section 16; a constant list in `logger_setup.py` rejects unknown event names in tests.
+Event names are exactly those in Req. Section 16; a constant list in `logger_setup.py` rejects unknown event names, and a test checks that every name listed in Req. Section 16 is accepted. **v1.4 (as implemented):** run-scoped events (those tied to one investigation, such as `tool_call`, `node_completed`, the dispatch and gate events, and review decisions) must carry `incident_id` and `run_id`, from the call or from `log_context(...)`. `anomaly_detected` is not run-scoped, because detection runs before the incident ID exists. Fields are written as top-level JSON keys, so field names such as `message` or `name` do not clash with Python's log-record attributes.
 
 **LangFuse instrumentation:** one trace per run (`run_id` as session, `incident_id` as tag); one span per node (from the node wrapper); LLM generations through the LangChain callback handler, with `prompt_version_set` as metadata; scores as listed in Req. 12.4.
 
@@ -997,7 +1032,7 @@ Role checks are advisory in the MVP (no auth), but every control records the sel
 
 ### 15.1 `.env` variables
 
-`OPENAI_API_KEY`, `OPENAI_BASE_URL` (default `https://api.openai.com/v1`; set to `https://openai.vocareum.com/v1` when using a Vocareum gateway key; `config.py` also exports it to the process environment so libraries that create their own OpenAI client, such as DeepEval's judge, use the same gateway), `LANGFUSE_PUBLIC_KEY`, `LANGFUSE_SECRET_KEY`, `LANGFUSE_HOST` (default `https://cloud.langfuse.com`), `LLM_MODEL` (default `gpt-4o-mini`), `JUDGE_MODEL` (default: same as `LLM_MODEL`), `EMBEDDING_MODEL` (default `text-embedding-3-small`), `LLM_ENABLED` (default `true`), `LOG_LEVEL` (default `INFO`).
+`OPENAI_API_KEY`, `OPENAI_BASE_URL` (default `https://api.openai.com/v1`; set to `https://openai.vocareum.com/v1` when using a Vocareum gateway key; `config.py` also exports it to the process environment so libraries that create their own OpenAI client, such as DeepEval's judge, use the same gateway), `LANGFUSE_PUBLIC_KEY`, `LANGFUSE_SECRET_KEY`, `LANGFUSE_HOST` (default `https://cloud.langfuse.com`), `LLM_MODEL` (default `gpt-4o-mini`), `JUDGE_MODEL` (default: same as `LLM_MODEL`), `EMBEDDING_MODEL` (default `text-embedding-3-small`), `LLM_ENABLED` (default `true`), `TOOL_TRANSPORT` (default `mcp`; **v1.4**), `LOG_LEVEL` (default `INFO`). **v1.4:** `OPENAI_API_KEY` is optional at load time so that tests and rules-only mode run without it; code that calls the LLM uses `require_openai_key()`, which fails with a clear message when it is missing.
 
 ### 15.2 Settings fields
 
@@ -1028,9 +1063,27 @@ Role checks are advisory in the MVP (no auth), but every control records the sel
 | `length_bias_max_pct` | 20 | Req. 12.2 |
 | `regression_tolerance_points` | 5 | FR-33 |
 | `customer_facing_services` | list in Section 5.3.2 | |
+| `tool_transport` | `mcp` | Section 7.1, 7.5; Req. FR-73 (**v1.4**) |
+| `tool_call_timeout_s` | 10 | Section 7.1; per tool call, either transport (**v1.4**) |
 | `data_dir`, `knowledge_dir`, `logs_dir` | `./data`, `./knowledge`, `./logs` | |
 
 `config.py` is the only module that reads environment variables. It also resolves `scenario_id` to `data/telemetry/<scenario_dir>/`.
+
+### 15.3 Scenario and fixture IDs (v1.4)
+
+| ID | Directory under `data/telemetry/` |
+|---|---|
+| `SC-01` | `sc01_bad_release` |
+| `SC-02` | `sc02_kafka_consumer_lag` |
+| `SC-03` | `sc03_db_saturation` |
+| `SC-04` | `sc04_tls_expiry` |
+| `SC-05` | `sc05_duplicate_debits` |
+| `FX-FAILURE` | `failure_fixture` |
+| `FX-LLM-DOWN` | `llm_down_fixture` |
+| `FX-ALERT-STORM` | `alert_storm_fixture` |
+| `FX-INJECTION` | `injection_fixture` |
+
+Price defaults (`price_per_1k_*`) are gpt-4o-mini and text-embedding-3-small list prices at the time of writing; confirm them against the provider's current price list.
 
 ---
 
@@ -1222,6 +1275,7 @@ sequenceDiagram
 | T-EVIDENCE | Evidence report finds all of E-1 to E-10 after T-ADAPT; reports MISSING when a log line is removed | 11.4 | 11 |
 | T-MEMORY | No carry-over between runs; stores intact after simulated session reset | 12 | 12 |
 | T-SMOKE | Library smoke test (Req. 11.3, step 6) | 0 | 9 |
+| T-MCP (**v1.4**) | Server lists exactly `MCP_EXPOSED_TOOLS` and no dispatch tool; a dispatch tool name cannot be called over MCP; each read tool returns the same result over `mcp` and `inprocess`; server start failure falls back to `inprocess` with `mcp_server_error` logged | 7.1, 7.5 | 21, 24 |
 
 ---
 
@@ -1252,6 +1306,7 @@ sequenceDiagram
 | FR-57, FR-59 to FR-61, FR-63, FR-64 | 10.4 to 10.7 |
 | FR-65, FR-67 | 9.3, 9.4 |
 | FR-68, FR-69 | 4.3, 5.4, 5.5 |
+| FR-72, FR-73 (**v1.4**) | 1.3, 7.1, 7.5, 15.2 |
 | Req. 10.3 memory | 3.14, 12 |
 | Req. 10.6 severity rules | 5.3, 16.2 |
 | Req. 16.1 log evidence | 11.4, 13 |
@@ -1262,7 +1317,8 @@ sequenceDiagram
 
 | ID | Item | Impact on this specification |
 |---|---|---|
-| OI-3 / OI-9 | Python 3.10 and the Section 0.1 pins installed and smoke-tested on the development laptop (Section 0.4) | Close once the same install and smoke test pass in Vocareum |
+| OI-3 / OI-9 | **Closed (v1.4):** Python 3.10 and the Section 0.1 pins pass the smoke test on the laptop and in Vocareum | None |
+| OPS-3 (**v1.4**) | MCP pinned to 1.x because `langchain-mcp-adapters` requires `mcp<2` | Section 7.5 uses only `FastMCP`, stdio and the adapter's client, which a later 2.x upgrade would need to re-verify with the smoke test |
 | OPS-1 | Streamlit behind Vocareum's inbound proxy | Phase 7: confirm the server options needed for `/proxy/8501/` (Section 0.2.1) |
 | OPS-2 | Vocareum OpenAI gateway: confirm both models are allowed, the budget, and whether the key works from outside Vocareum | Phase 0 smoke test. If embeddings are blocked or the budget is too small for golden-set runs, use a personal OpenAI key for those runs (only `.env` changes) |
 | OI-8 | Metric targets | Settings constants only |
@@ -1275,5 +1331,6 @@ sequenceDiagram
 | ALIGN-3 | Run modes (`live`, `evaluation`) and suppressed dispatch in evaluation runs | **Done:** Req. v0.8 Sections 7.9, 8.1 and 10.4 updated |
 | ALIGN-4 | `langchain` meta-package not used; `langchain-text-splitters` and `pydantic-settings` added; `pytest` pinned | **Done:** Req. v0.8 Sections 11, 11.1, 11.3, 18.2 and 19 updated with the Section 0 pins. **Superseded in v1.3:** `langchain` is installed again for LangFuse (ALIGN-5) |
 | ALIGN-5 | `langchain` pin added back; function-calling structured output, output cap and custom DeepEval judge; `src/evaluation/judge.py`; new settings; smoke test results | **Done:** Req. v0.9 Sections 11, 11.1, 11.3, 13.6, 17, 18.2 and 19 |
+| ALIGN-6 | MCP server and transport switch; MCP pins; Phase 1 alignment (event names, scenario directories); OI-3 and OI-9 closed | **Done:** Req. v0.10 Sections 3, 4, 7.12, 10.5, 11, 11.1, 11.3, 14, 16, 17, 18, 19, 20, 21 |
 
-**Code generation order (for the next step, after review):** 0 smoke test → 3 schemas → 15 config → 13 logging → 16 data generator and reference files → 9 safety → 7 tools and mocks → 8 retrieval → 5 services → 6 agents and prompts → 4 graph → 10 feedback and RLHF → 11 evaluation → 14 UI → 19 tests.
+**Code generation order:** 0 smoke test (done) → 3 schemas, 15 config, 13 logging (Phase 1, done) → 16 data generator and reference files (Phase 2) → 9 safety → 7 tools, mocks and the MCP server (7.5) → 8 retrieval → 5 services (Phase 3) → 6 agents and prompts → 4 graph (Phase 4) → 14 UI (Phase 5) → 10 feedback and RLHF → 11 evaluation (Phase 6) → packaging (Phase 7). Tests are written with each phase.

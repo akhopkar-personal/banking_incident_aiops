@@ -2,10 +2,10 @@
 
 | Item | Detail |
 |---|---|
-| **Document version** | v0.9 (draft) |
-| **Status** | In review. Open items: dependency verification (OI-3), Python version (OI-9), post-evaluation target review (OI-8), adaptation pattern-detection threshold (OI-12), confidence-gate threshold (OI-16), severity rule thresholds (OI-17), reviewer agreement rule for preference labels (OI-18). See Section 18 |
-| **Supersedes** | v0.8 |
-| **Next artifact** | Architecture Specification v1.3 (aligned with this version). Next step: repeat the install and smoke test in Vocareum, then code generation Phase 1 |
+| **Document version** | v0.10 (draft) |
+| **Status** | In review. Open items: post-evaluation target review (OI-8), adaptation pattern-detection threshold (OI-12), confidence-gate threshold (OI-16), severity rule thresholds (OI-17), reviewer agreement rule for preference labels (OI-18), DeepEval judge model (OI-22), MCP 2.x upgrade (OPS-3). See Section 18 |
+| **Supersedes** | v0.9 |
+| **Next artifact** | Architecture Specification v1.4 (aligned with this version). Next step: code generation Phase 2 (data) |
 
 ### Version history
 
@@ -20,6 +20,7 @@
 | v0.7 | Adopted LangGraph as the orchestration engine (OI-14); added the `SYSTEM_ERROR` output status (OI-15, FR-36) |
 | v0.8 | **Adopted the EventHub AIOps v2 architecture (Section 10, OI-19).** Four LLM agents (Triage, Root Cause Analysis, Change Correlation, Recommendation) replace the six v0.7 agents. Deterministic services now own detection, alert correlation and dedup, redaction, severity, paging and notification. Added a critical fast path that never waits on an LLM, an LLM-down fallback, a confidence gate, and a close-and-learn stage that indexes only human-verified resolutions. **Added the Human Feedback and RLHF loop** (Section 12.6, FR-57 to FR-64): structured ratings, pairwise preferences, a reward score per prompt version, preference-driven adaptation, and a DPO-format export. **Expanded safety guardrails** into a layered model (Section 14, FR-65 to FR-69). **Added a dedicated Streamlit UI section** (Section 15, FR-70). Paging, ticketing and notification are simulated through mock adapters (OI-20). Folder structure rebuilt on the Multi-Agent Blueprint layout (Section 17). Partly resolved OI-13. **Review updates:** Section 5 renamed to Project Team Roles and separated from the new user personas in Section 6.1, with a demo role mapping; Severity Rules Engine defined (Section 10.6); log evidence chain and evidence report for feedback and adaptation (Section 16.1, FR-71); Section 12.5 example corrected so it stays within adaptation scope. **Aligned with Architecture Spec v1.2 (ALIGN-1 to ALIGN-4):** prompt versions stored in `data/prompt_versions.json` (Sections 5, 10.3.2, 10.3.4, 13.6, 17); new data files, folders and `scripts/` added to Section 17; `live` and `evaluation` run modes (Sections 7.9, 8.1, 10.4); library versions updated to current releases, `langchain` meta-package removed (Sections 11, 11.1, 11.3, 18.2, 19). **Vocareum check (2026-10-06):** Python set to 3.10 to match Vocareum, with `numpy==2.2.6` and `pandas==2.3.3`; A-8 confirmed; OPS-1 added for Streamlit behind Vocareum's inbound proxy |
 | v0.9 | **Phase 0 smoke test results (2026-10-06), aligned with Architecture Spec v1.3 (ALIGN-5).** Pinned libraries installed on Python 3.10.11 and all 10 smoke test checks pass on the development laptop (Section 11.3). `langchain==1.4.3` pinned again, because LangFuse's LangChain integration needs it (Sections 11, 11.1). All structured LLM output uses function calling with an output cap, after strict schema mode produced runaway whitespace output (Section 13.6). DeepEval uses a custom judge, configurable through `JUDGE_MODEL` (Section 17, OI-22). The Vocareum OpenAI gateway works from outside Vocareum (OPS-2). Specification file names in `docs/` follow the versioned naming (Section 17, acceptance criterion 22) |
+| v0.10 | **Added MCP for tool access (OI-23, resolved).** The read-only tools are served by an MCP server (`incident-tools`, stdio transport), and the LLM agents reach them only through it; dispatch tools are never exposed over MCP (O-13, FR-72, FR-73, Sections 10.5, 11, 14, 17, 19, 20). `mcp==1.30.0` and `langchain-mcp-adapters==0.3.2` pinned; the smoke test gains an MCP check (11 of 11 pass). **Closed OI-3 and OI-9:** the pinned libraries install and pass the smoke test on the laptop (Python 3.10.11) and in Vocareum (Python 3.10.2). **Phase 1 alignment:** `node_completed`, `feedback_candidate_discarded` and two MCP server events added to Section 16; scenario directory names and fixture IDs fixed in Section 17 |
 
 ### Architecture diagrams
 
@@ -63,6 +64,7 @@ The bank's event-streaming platform (**EventHub**, built on Kafka with Kafka Con
 | O-10 | **NEW v0.8:** Shorten time to acknowledge for critical incidents: paging and severity decisions are deterministic, so they never wait on an LLM call and still work when the LLM is unavailable |
 | O-11 | **NEW v0.8:** Learn from human preferences (RLHF at the prompt level): collect structured ratings and pairwise preferences at every human intervention point, turn them into a reward signal per prompt version, and use that signal to drive human-approved improvements |
 | O-12 | **NEW v0.8:** Apply layered safety guardrails across input, tools, outputs, dispatch and learning, so no LLM output can trigger an action, leak data or corrupt the learning loop without a human gate |
+| O-13 | **NEW v0.10:** Demonstrate the Model Context Protocol (MCP) as the standard interface between agents and tools: the LLM agents discover and call the read-only tools through an MCP server, and the server's tool list is itself a safety boundary because it contains no tool that can page, ticket or notify |
 
 ## 4. Scope
 
@@ -83,6 +85,7 @@ The bank's event-streaming platform (**EventHub**, built on Kafka with Kafka Con
 - An explicit memory architecture (Section 10.3).
 - An explicit `SYSTEM_ERROR` output state for unrecoverable failures (Section 8.1).
 - Streamlit UI (Section 15), logging, layered guardrails (Section 14), DeepEval metrics and LangFuse Cloud tracing/dataset tracking.
+- **NEW v0.10:** An MCP server (`incident-tools`) that serves the read-only tools to the LLM agents over the stdio transport, with an in-process fallback (FR-72, FR-73). Out of scope for MCP: remote transports, authentication, MCP resources and prompts.
 
 ### 4.2 Out of scope
 
@@ -117,7 +120,7 @@ The bank's event-streaming platform (**EventHub**, built on Kafka with Kafka Con
 
 | Phase | Content |
 |---|---|
-| **MVP** | Anomaly replay and manual alert/free-text intake; alert correlation and dedup; redaction; the 4 LLM agents and deterministic services in Section 10.2, orchestrated as a LangGraph `StateGraph`; the telemetry, EventHub platform, complaint, knowledge and dispatch tools in Section 10.5; Severity Rules Engine with critical fast path and LLM-down fallback; confidence gate; simulated paging, ITSM and notification; structured output including `SYSTEM_ERROR`; layered guardrails; human review (approve/edit/reject) with ratings; resolution and verification; indexing of verified resolutions; logging; LangFuse Cloud tracing and dataset tracking; DeepEval metrics; 5 scenarios; reviewer-feedback loop; RLHF loop with pairwise comparison sessions and reward score; adaptation engine triggered manually via a script; DPO-format export; memory architecture with the git-commit-before-session-end rule; Streamlit multipage UI |
+| **MVP** | Anomaly replay and manual alert/free-text intake; alert correlation and dedup; redaction; the 4 LLM agents and deterministic services in Section 10.2, orchestrated as a LangGraph `StateGraph`; the telemetry, EventHub platform, complaint, knowledge and dispatch tools in Section 10.5, with the read-only tools served to the agents by the `incident-tools` MCP server; Severity Rules Engine with critical fast path and LLM-down fallback; confidence gate; simulated paging, ITSM and notification; structured output including `SYSTEM_ERROR`; layered guardrails; human review (approve/edit/reject) with ratings; resolution and verification; indexing of verified resolutions; logging; LangFuse Cloud tracing and dataset tracking; DeepEval metrics; 5 scenarios; reviewer-feedback loop; RLHF loop with pairwise comparison sessions and reward score; adaptation engine triggered manually via a script; DPO-format export; memory architecture with the git-commit-before-session-end rule; Streamlit multipage UI |
 | **Stretch** | Cost and latency dashboard in UI; simulated streaming replay of a scenario; comparison against a single-prompt baseline; incident-report export (PDF/MD); automatic (CI-style) re-run of the adaptation scan and DeepEval; system-generated postmortems (FR-35); LangGraph checkpoint persistence for mid-run resume; **an OpenAI preference fine-tuning (DPO) run on the exported preference dataset, evaluated against the prompt-only baseline on the golden set**; **best-of-n reranking of candidate recommendations using the reward score** |
 
 ## 5. Project Team Roles and Deliverables
@@ -337,6 +340,15 @@ Full design in Section 14.
 |---|---|---|
 | FR-21 | Streamlit UI shows: intake form, agent progress per graph node, unified timeline, hypotheses, evidence drill-down, recommendations, stakeholder summary and review controls | Must |
 | FR-70 | **NEW.** The Streamlit app is a multipage app with the pages defined in Section 15, including the simulated outbox, review queue, RLHF comparison and Adaptation History | Must |
+
+### 7.12 Tool access through MCP (NEW v0.10)
+
+| ID | Requirement | Priority |
+|---|---|---|
+| FR-72 | **NEW.** An MCP server named `incident-tools` (`src/mcp_server/server.py`, stdio transport) exposes exactly the read-only tools in Section 10.5 (telemetry, EventHub platform, complaints, dependencies, knowledge-base search), backed by the same implementations as the in-process registry. It never exposes a dispatch tool (page, ITSM, chat, email) or `lookup_stakeholders`. The LLM agents obtain their tools from this server through the MCP client | Must |
+| FR-73 | **NEW.** A configuration switch `TOOL_TRANSPORT` selects `mcp` (default) or `inprocess`. Both return identical results for the same call. If the MCP server cannot start, the run uses the in-process path, logs `mcp_server_error`, and flags the run; a tool call that fails over MCP mid-run follows the normal retry and `SYSTEM_ERROR` handling (Section 13.6) | Must |
+
+The registry's own access policy (FR-66) remains in force for both transports, so a dispatch tool is blocked twice: it is absent from the MCP server, and the registry refuses it to agents.
 
 ## 8. Output Specification
 
@@ -743,6 +755,11 @@ Unchanged in principle from v0.7. v0.8 changes are marked.
 | `query_complaints` | Read | Triage, RCA | Returns clusters, sentiment, impact estimate, first-signal time |
 | `query_connect_status`, `query_acl_audit`, `query_schema_registry`, `query_cluster_quorum` | Read | RCA | **NEW v0.8**, EventHub platform |
 | `get_service_dependencies` | Read | Triage, RCA | Topology and blast radius |
+
+**v0.10:** every tool in the table above is served to the agents by the `incident-tools` MCP server (FR-72). The tools in the table below (the dispatch mocks and `lookup_stakeholders`) are called directly by workflow nodes and the Notification Service, and are never exposed over MCP.
+
+| Tool | Type | Used by | Notes |
+|---|---|---|---|
 | `itsm_upsert_incident`, `itsm_assign` | Dispatch (mock) | Workflow nodes only | Writes to `data/outbox/itsm.jsonl` |
 | `page_oncall` | Dispatch (mock) | Workflow nodes only | Writes to `data/outbox/pages.jsonl` |
 | `send_chat_alert`, `send_email` | Dispatch (mock) | Notification Service only | Writes to `data/outbox/notifications.jsonl` |
@@ -829,6 +846,7 @@ rules:
 | **UI** | **Streamlit (multipage)** | **Section 15** |
 | Logging | Python logging (`python-json-logger`) | |
 | Rules and policy files | YAML/JSON via `pyyaml` | **NEW v0.8:** severity rules, action policy |
+| **Tool protocol** | **MCP** (`mcp` Python SDK 1.x, `langchain-mcp-adapters`) | **NEW v0.10:** read-only tools served by the `incident-tools` MCP server over stdio (FR-72) |
 
 ### 11.1 Requirements and dependencies
 
@@ -842,6 +860,8 @@ langchain==1.4.3
 langchain-core==1.6.6
 langchain-openai==1.6.7
 langchain-text-splitters==1.1.3
+mcp==1.30.0
+langchain-mcp-adapters==0.3.2
 openai==3.24.0
 tiktoken==0.14.0
 faiss-cpu==1.15.1
@@ -863,7 +883,9 @@ pytest==9.1.1
 
 **v0.9:** `langchain==1.4.3` is pinned again. LangFuse's LangChain callback handler fails without it; adding it changed no other pin.
 
-**Verification status (2026-10-06):** installed on the development laptop with Python 3.10.11; `pip check` reports no broken requirements; all libraries import; all 10 functional smoke test checks pass (`scripts/smoke_test.py`, Architecture Spec v1.3 Section 0.4). The same install and smoke test still need to run in Vocareum before OI-3 and OI-9 close.
+**v0.10:** `mcp==1.30.0` and `langchain-mcp-adapters==0.3.2` added. The adapter requires `mcp<2`, so MCP stays on 1.x although MCP 2.x exists (OPS-3). Adding them changed no other pin.
+
+**Verification status:** installed with `pip check` clean and the smoke test passing on the development laptop (Python 3.10.11, 2026-10-06; 11 of 11 checks with the MCP check, 2026-10-08) and in Vocareum (Python 3.10.2, 10 of 10 checks, 2026-10-07). OI-3 and OI-9 are closed. The MCP check runs in Vocareum with the next upload.
 
 ### 11.2 DeepEval and LangFuse: confirmed roles and hosting
 
@@ -873,7 +895,7 @@ Unchanged from v0.7. DeepEval computes metric scores; LangFuse Cloud captures on
 
 ### 11.3 Dependency verification procedure (OI-3)
 
-Steps 1 to 6 passed on the development laptop on 2026-10-06 (`scripts/smoke_test.py` implements step 6). Repeat steps 1 to 6 in Vocareum; run the full procedure again only if a pin changes.
+Steps 1 to 6 passed on the development laptop and in Vocareum (`scripts/smoke_test.py` implements step 6). Run the procedure again whenever a pin changes; `scripts/setup_env.sh` reinstalls automatically when `deployment/requirements.txt` changes.
 
 | Step | Action | Exit criterion |
 |---|---|---|
@@ -882,7 +904,7 @@ Steps 1 to 6 passed on the development laptop on 2026-10-06 (`scripts/smoke_test
 | 3 | Adjust pins, preferring a mutually compatible set over forcing old pins | Dry run passes |
 | 4 | Install for real, then run `pip check` | No broken requirements |
 | 5 | Import smoke test: `langchain_core`, `langchain_openai`, `langchain_text_splitters`, `langgraph`, `openai`, `tiktoken`, `faiss`, `numpy`, `pandas`, `deepeval`, `langfuse`, `streamlit`, `pydantic`, `pydantic_settings`, `pdfplumber`, `pythonjsonlogger`, `yaml` | All imports succeed |
-| 6 | Functional smoke test: embed one string, build and query a small FAISS index, run a minimal 3-node LangGraph graph with one parallel branch and one join, get one structured output from `ChatOpenAI`, emit one LangFuse trace through the LangChain callback handler, run one DeepEval metric and push its score. Confirm the APIs marked "verify" in Architecture Spec v1.2 Section 0.3, and that the configured LLM model is still offered | All succeed |
+| 6 | Functional smoke test: embed one string, build and query a small FAISS index, run a minimal 3-node LangGraph graph with one parallel branch and one join, get one structured output from `ChatOpenAI`, emit one LangFuse trace through the LangChain callback handler, run one DeepEval metric and push its score, start a stdio MCP server and call its tool through the LangChain adapter (async and from a synchronous caller). Confirm the APIs listed in Architecture Spec v1.4 Section 0.3, and that the configured LLM model is still offered | All succeed |
 | 7 | Build the Docker image from `deployment/Dockerfile` | Build succeeds |
 | 8 | Record the final pins and Python version in `docs/engineering_decisions.md`; close OI-3 and OI-9 | Decision recorded |
 
@@ -1160,6 +1182,7 @@ Guardrails are layered, so a failure in one layer is caught by the next.
 |---|---|
 | Read-only agent tools | Agents can call only registered read-only tools (FR-66) |
 | Dispatch isolation | Page, ITSM and notification tools are callable only by deterministic nodes; all are mock adapters writing to the local outbox (FR-20, FR-66) |
+| MCP tool boundary | **NEW v0.10:** agents reach tools only through the `incident-tools` MCP server, whose tool list contains read-only tools only (FR-72). Tool results returned over MCP are redacted by the tool implementations before they leave the server, and are treated as untrusted data like any other tool result |
 | Call budgets | Per-agent tool-call budget (FR-46), per-node retries, per-run cost cap (Section 13.2) |
 | Bounded loops | RCA follow-up at most once; severity re-score at most once (FR-50) |
 
@@ -1243,7 +1266,9 @@ Three log files, as in the blueprint:
 | `component` | Agent, service, tool, LangGraph node, UI page or module |
 | `feedback_id`, `adaptation_id` | **NEW v0.8.** Present on every feedback, preference and adaptation event, so the evidence chain in Section 16.1 can be followed with one filter |
 | `prompt_version_set` | **NEW v0.8.** Present on every agent output and evaluation event, so outputs can be matched to the prompt version that produced them |
-| `event` | Event type. Carried from v0.7: `tool_call`, `llm_call`, `guardrail_block`, `review_decision`, `eval_result`, `feedback_candidate_created`, `feedback_candidate_promoted`, `adaptation_proposed`, `adaptation_applied`, `adaptation_reverted`, `episodic_memory_written`, `episodic_memory_promoted`, `node_retry`, `system_error`. **v0.8:** `adaptation_approved`, `adaptation_rejected`, `rules_change`, `evidence_report_generated`, `anomaly_detected`, `incident_deduplicated`, `severity_rules_evaluated`, `severity_disagreement`, `fast_path_page`, `confidence_gate_flagged`, `dispatch_page`, `dispatch_itsm`, `notification_sent`, `dispatch_suppressed`, `reclassified`, `action_policy_flag`, `tool_access_blocked`, `kill_switch_active`, `resolution_recorded`, `root_cause_verified`, `resolution_indexed`, `rating_recorded`, `pairwise_label_recorded`, `reward_computed`, `dpo_exported` |
+| `event` | Event type. Carried from v0.7: `tool_call`, `llm_call`, `guardrail_block`, `review_decision`, `eval_result`, `feedback_candidate_created`, `feedback_candidate_promoted`, `adaptation_proposed`, `adaptation_applied`, `adaptation_reverted`, `episodic_memory_written`, `episodic_memory_promoted`, `node_retry`, `system_error`. **v0.8:** `adaptation_approved`, `adaptation_rejected`, `rules_change`, `evidence_report_generated`, `anomaly_detected`, `incident_deduplicated`, `severity_rules_evaluated`, `severity_disagreement`, `fast_path_page`, `confidence_gate_flagged`, `dispatch_page`, `dispatch_itsm`, `notification_sent`, `dispatch_suppressed`, `reclassified`, `action_policy_flag`, `tool_access_blocked`, `kill_switch_active`, `resolution_recorded`, `root_cause_verified`, `resolution_indexed`, `rating_recorded`, `pairwise_label_recorded`, `reward_computed`, `dpo_exported`. **v0.10:** `node_completed` (a graph node finished; Architecture Spec 4.4), `feedback_candidate_discarded` (FR-28), `mcp_server_started`, `mcp_server_error` (FR-73) |
+
+**v0.10:** tool calls log the `tool_call` event with a `transport` field, set to `mcp` or `inprocess` (FR-73).
 
 **Content per file**
 
@@ -1377,6 +1402,10 @@ banking_incident_aiops/
 │   │   ├── incident_state_store.py
 │   │   └── templates/                 # v0.8: notification templates (major_chat, major_email, low_medium_chat)
 │   │
+│   ├── mcp_server/                    # v0.10: incident-tools MCP server (FR-72)
+│   │   ├── __init__.py
+│   │   └── server.py                  # FastMCP server over stdio; registers the read-only tools only
+│   │
 │   ├── tool_retrieval/
 │   │   ├── __init__.py
 │   │   ├── document_loader.py
@@ -1473,7 +1502,12 @@ banking_incident_aiops/
 │   ├── outbox/                        # v0.8: simulated pages, tickets, notifications
 │   │   └── archive/                   # v0.8: archived by "reset demo", never deleted
 │   ├── telemetry/
-│   │   ├── sc01_bad_release/ ... sc05_duplicate_debits/   # each incl. eventhub/ files (Section 9.2)
+│   │   ├── sc01_bad_release/          # SC-01; each scenario dir includes eventhub/ files (Section 9.2)
+│   │   ├── sc02_kafka_consumer_lag/   # SC-02
+│   │   ├── sc03_db_saturation/        # SC-03
+│   │   ├── sc04_tls_expiry/           # SC-04
+│   │   ├── sc05_duplicate_debits/     # SC-05
+│   │   │                              # Fixture IDs: FX-FAILURE, FX-LLM-DOWN, FX-ALERT-STORM, FX-INJECTION
 │   │   ├── failure_fixture/
 │   │   ├── llm_down_fixture/          # v0.8
 │   │   ├── alert_storm_fixture/       # v0.8
@@ -1495,19 +1529,19 @@ banking_incident_aiops/
 
 ## 18. Open Items Resolution Log
 
-### 18.1 Decisions applied through v0.8
+### 18.1 Decisions applied through v0.10
 
 | ID | Decision | Status | Where reflected |
 |---|---|---|---|
 | OI-1 | Use LangFuse for agent evaluation | Resolved | Sections 11.2, 12 |
 | OI-2 | Use OpenAI `text-embedding-3-small` | Resolved | Sections 9.1, 11 |
-| OI-3 | Verify dependencies and adjust pins | Open | Section 11.3 |
+| OI-3 | Verify dependencies and adjust pins | **Closed v0.10:** install and smoke test pass on the laptop and in Vocareum | Sections 11.1, 11.3 |
 | OI-4 | Keep only `src/config.py` | Resolved; kept in v0.8 despite the blueprint's root `config.py` | Sections 13.6, 17 |
 | OI-5 | Keep only `deployment/requirements.txt` | Resolved; kept in v0.8 despite the blueprint's root `requirements.txt` | Sections 11.1, 17 |
 | OI-6 | Real banking source documents | Resolved | Section 9.5 |
 | OI-7 | Rename agents to match their roles | Resolved; v0.8 names in Section 10.2 | Section 10.2 |
 | OI-8 | Confirm targets after first evaluation run | Deferred | Section 12.2 |
-| OI-9 | Confirm Python version | Blocked on OI-3 | Section 11 |
+| OI-9 | Confirm Python version | **Closed v0.10:** Python 3.10 (Vocareum 3.10.2, laptop 3.10.11) | Section 11 |
 | OI-10a | DeepEval and LangFuse roles | Resolved | Section 11.2 |
 | OI-10b | LangFuse Cloud | Resolved | Section 11.2 |
 | OI-11 | Router agent merged into core | Resolved; in v0.8 the core is a deterministic workflow engine | Section 10.2 |
@@ -1517,14 +1551,13 @@ banking_incident_aiops/
 | **OI-19** | **NEW v0.8:** Architecture: v0.7 six agents vs. EventHub AIOps v2 | **Resolved: v2 architecture** with 4 LLM agents and deterministic services; complaints become a tool; banking scenarios kept and extended with EventHub telemetry | Sections 2, 7, 9, 10 |
 | **OI-20** | **NEW v0.8:** Paging, ITSM and notification: real or simulated | **Resolved: simulated** through mock adapters writing to `data/outbox/` | Sections 4, 7.5, 10.5, 15 |
 | **OI-21** | **NEW v0.8:** Meaning of RLHF | **Resolved: prompt-level RLHF** with a preference store, reward score and DPO export; weight-level fine-tuning is stretch | Sections 4, 12.6 |
+| **OI-23** | **NEW v0.10:** Demonstrate MCP for tool access | **Resolved: yes.** One stdio MCP server (`incident-tools`) serves the read-only tools to the agents; dispatch tools are never exposed; in-process fallback through `TOOL_TRANSPORT` | Sections 3 (O-13), 4.1, 7.12, 10.5, 11, 14, 16, 17, 19, 20 |
 
 ### 18.2 Remaining open items
 
 | ID | Item | Assumption made | Decision needed |
 |---|---|---|---|
-| OI-3 | Dependency verification | Passed on the development laptop (2026-10-06) | Repeat the install and smoke test in Vocareum, then close |
 | OI-8 | Metric targets | Provisional (Section 12.2) | Confirm after first evaluation run |
-| OI-9 | Python version | 3.10; passes on 3.10.11 locally | Close with OI-3 once Vocareum (3.10.2) passes |
 | OI-12 | Adaptation pattern threshold | Minimum 2 occurrences | Confirm after first cycles |
 | **OI-16** | **NEW:** Confidence-gate threshold | 0.5 | Confirm against confidence-gate precision after first evaluation run |
 | **OI-17** | **NEW:** Severity rule thresholds | Draft in `data/severity_rules.yaml` | SME confirms thresholds per signal |
@@ -1532,6 +1565,7 @@ banking_incident_aiops/
 | A-8 | Vocareum allows outbound HTTPS to LangFuse Cloud | **Confirmed 2026-10-06** (Section 4.3) | Re-check once in the final demo session |
 | OPS-1 | Streamlit behind Vocareum's inbound proxy (`/proxy/8501/`) | May need server options for its websocket connection | Confirm in Phase 7 when the app first runs in Vocareum |
 | OPS-2 | Vocareum OpenAI gateway (`https://openai.vocareum.com/v1`) | **Partly confirmed (2026-10-06):** both models work, from Vocareum and from the development laptop | Confirm the key's budget is enough for golden-set and adaptation runs |
+| OPS-3 | **NEW v0.10:** MCP SDK major version | Pinned to `mcp` 1.30.0 because `langchain-mcp-adapters` 0.3.2 requires `mcp<2`; MCP 2.x is available | Upgrade only when the adapter supports 2.x and the smoke test passes; not needed for the capstone |
 | OI-22 | **NEW v0.9:** DeepEval judge model | gpt-4o-mini (`JUDGE_MODEL`). In the smoke test it scored a faithful answer 0.50 | After the first golden-set run, compare judge scores with SME spot-checks; use a stronger judge model if the gateway offers one and the scores are unreliable |
 
 ## 19. Risks and Mitigations
@@ -1545,6 +1579,8 @@ banking_incident_aiops/
 | Dependencies do not install together (OI-3) | Build failures | Run Section 11.3 early |
 | Current library versions have API changes from what the team knows (LangFuse v4, DeepEval 4, python-json-logger 4) | Code fails at runtime | Smoke test passed; confirmed API names are listed in Architecture Spec v1.3 Section 0.3. APIs not yet exercised (LangFuse datasets, other DeepEval metrics) are tested when first used |
 | **NEW v0.9:** Strict schema structured output makes the model emit runaway output | Calls hang for minutes and waste budget | Function calling for all structured output, output token cap, length-limited responses retried (Section 13.6) |
+| **NEW v0.10:** MCP server subprocess fails to start, or dies mid-run | Agents cannot reach tools | In-process fallback at startup (FR-73); mid-run failures use the normal retry and `SYSTEM_ERROR` path; T-MCP tests |
+| **NEW v0.10:** MCP adapter tools are asynchronous while graph nodes are synchronous | Deadlocks or event-loop errors | One background event loop owned by the tool registry; verified by the smoke test's bridged call |
 | Python 3.10 reaches end-of-life during the project; new library releases drop 3.10 | An unplanned upgrade breaks installs | Keep exact pins; do not upgrade libraries without re-running Section 11.3 |
 | Vocareum network rules differ in the final demo session | No tracing in the demo | Access confirmed 2026-10-06 (A-8); re-check in the demo session; FR-26 fallback |
 | Streamlit UI does not load through Vocareum's inbound proxy | UI unavailable in Vocareum | Check early in Phase 7 (OPS-1); fall back to a local demo if needed |
@@ -1588,6 +1624,7 @@ banking_incident_aiops/
 21. **NEW:** The guardrail test set passes: injection, PII, action policy (destructive action flagged, denied action removed) and tool access (an agent attempt to call a dispatch tool is blocked).
 22. Documentation is complete: `README.md`, the current versions of the requirements and architecture specifications, `problem_framing.md`, `agent_design.md`, `memory_architecture.md`, `safety_guardrails.md`, `rlhf_feedback_loop.md`, `evaluation_report.md`, `engineering_decisions.md`.
 23. The application runs locally, through Docker, and in the Vocareum lab environment, with LangFuse Cloud connectivity confirmed or its fallback demonstrated.
+24. **NEW v0.10:** In the demo, the agents use their tools through the `incident-tools` MCP server: the server's tool list (for example in the MCP Inspector) shows only read-only tools, a live run's `tool_call` log lines show `transport: mcp`, and the same scenario gives the same tool results with `TOOL_TRANSPORT=inprocess`.
 
 ## 21. Glossary
 
@@ -1609,6 +1646,8 @@ banking_incident_aiops/
 | Confidence gate | **NEW:** Flags a recommendation as "Needs human RCA" when top-hypothesis confidence is below threshold |
 | Idempotency key | **NEW:** Key that makes repeated anomaly events update one incident instead of creating new ones |
 | Mock adapter | **NEW:** A stand-in for PagerDuty, ITSM, chat or email with the same interface, writing only to the local outbox |
+| MCP (Model Context Protocol) | **NEW v0.10:** An open protocol through which an AI application discovers and calls tools offered by a separate server. Here, the `incident-tools` server offers the read-only tools to the agents |
+| stdio transport | **NEW v0.10:** MCP over a local subprocess's standard input and output; needs no network port |
 | Incident State Store | **NEW:** Append-only record of incident lifecycle changes; shared, non-RAG context |
 | Verified resolution | **NEW:** A resolution whose root cause a human confirmed; the only kind of past incident indexed for citation |
 | Feedback candidate | A reviewer Edit or Reject captured for possible golden-dataset promotion |

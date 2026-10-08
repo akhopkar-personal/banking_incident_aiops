@@ -326,6 +326,70 @@ def check_deepeval() -> str:
     return f"faithfulness={score:.2f}, {pushed}"
 
 
+MCP_SERVER_SOURCE = '''
+from mcp.server.fastmcp import FastMCP
+
+server = FastMCP("smoke-tools")
+
+
+@server.tool()
+def query_logs(service: str, level: str = "ERROR") -> dict:
+    """Return a log summary for a service at a log level."""
+    return {"service": service, "level": level, "record_count": 3}
+
+
+if __name__ == "__main__":
+    server.run(transport="stdio")
+'''
+
+
+@check("MCP: stdio server, LangChain adapter, async + background-loop call, LLM tool choice")
+def check_mcp() -> str:
+    import asyncio
+    import tempfile
+    import threading
+
+    from langchain_mcp_adapters.client import MultiServerMCPClient
+
+    server_file = Path(tempfile.mkdtemp()) / "smoke_mcp_server.py"
+    server_file.write_text(MCP_SERVER_SOURCE, encoding="utf-8")
+    client = MultiServerMCPClient(
+        {"smoke": {"command": sys.executable, "args": [str(server_file)], "transport": "stdio"}}
+    )
+
+    # 1. Plain async use.
+    async def list_and_call():
+        tools = await client.get_tools()
+        tool = next(t for t in tools if t.name == "query_logs")
+        return tools, await tool.ainvoke({"service": "payments-service"})
+
+    tools, async_result = asyncio.run(list_and_call())
+    if "payments-service" not in str(async_result):
+        raise RuntimeError(f"unexpected MCP tool result: {async_result!r}")
+
+    # 2. Synchronous caller using a background event loop (the bridge the
+    #    tool registry will use so graph nodes stay synchronous).
+    loop = asyncio.new_event_loop()
+    thread = threading.Thread(target=loop.run_forever, daemon=True)
+    thread.start()
+    try:
+        tool = next(t for t in tools if t.name == "query_logs")
+        future = asyncio.run_coroutine_threadsafe(tool.ainvoke({"service": "accounts-service", "level": "WARN"}), loop)
+        bridge_result = future.result(timeout=60)
+    finally:
+        loop.call_soon_threadsafe(loop.stop)
+        thread.join(timeout=10)
+    if "accounts-service" not in str(bridge_result):
+        raise RuntimeError(f"unexpected bridged MCP result: {bridge_result!r}")
+
+    # 3. The LLM can choose an MCP-provided tool.
+    msg = make_llm().bind_tools(tools).invoke("Get ERROR logs for payments-service using the tool.")
+    calls = getattr(msg, "tool_calls", None) or []
+    if not calls or calls[0]["name"] != "query_logs":
+        raise RuntimeError(f"LLM did not call the MCP tool: {calls}")
+    return f"tools={[t.name for t in tools]}, async and bridged calls OK, LLM chose {calls[0]['name']}"
+
+
 @check("Streamlit, pandas, pdfplumber, JSON logger, YAML import and basic use")
 def check_misc() -> str:
     import io

@@ -22,9 +22,6 @@ from pythonjsonlogger.json import JsonFormatter
 from src.safety.redaction import redact_value, register_secret_provider
 
 # Event names from Req. Section 16. Unknown names are rejected.
-# node_completed (Architecture Spec 4.4) and feedback_candidate_discarded
-# (Req. FR-28) are used by the architecture but missing from the Req. list;
-# they are included here and noted for the next requirements version.
 ALLOWED_EVENTS: frozenset[str] = frozenset({
     # Carried from v0.7
     "tool_call", "llm_call", "guardrail_block", "review_decision", "eval_result",
@@ -38,8 +35,8 @@ ALLOWED_EVENTS: frozenset[str] = frozenset({
     "dispatch_suppressed", "reclassified", "action_policy_flag", "tool_access_blocked",
     "kill_switch_active", "resolution_recorded", "root_cause_verified", "resolution_indexed",
     "rating_recorded", "pairwise_label_recorded", "reward_computed", "dpo_exported",
-    # Used by the architecture, pending addition to Req. Section 16
-    "node_completed", "feedback_candidate_discarded",
+    # v0.10
+    "node_completed", "feedback_candidate_discarded", "mcp_server_started", "mcp_server_error",
 })
 
 # Events that belong to one investigation run: they must carry incident_id and run_id.
