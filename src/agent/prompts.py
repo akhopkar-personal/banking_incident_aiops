@@ -109,7 +109,7 @@ Return:
 
 
 def _versions_path() -> Path:
-    return config.get_settings().reference_file("prompt_versions.json")
+    return config.get_settings().prompt_versions_path
 
 
 @lru_cache(maxsize=4)

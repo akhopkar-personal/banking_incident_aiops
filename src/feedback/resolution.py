@@ -14,6 +14,7 @@ from src.logger_setup import log_error, log_interaction
 from src.schemas.enums import IncidentState, SignalType
 from src.schemas.feedback import ResolutionRecord, VerificationRecord
 from src.services import incident_state_store as store
+from src.evaluation import langfuse_tracker
 from src.tool_retrieval import resolution_indexer
 
 from . import preference_store
@@ -40,6 +41,7 @@ def record_resolution(resolution: ResolutionRecord, reviewer_id: str) -> str:
     log_interaction("resolution_recorded", component="resolution", incident_id=resolution.incident_id,
                     run_id=ctx["run_id"], feedback_id=pref.feedback_id, fix_outcome=payload["fix_outcome"],
                     resolution_time_min=resolution.resolution_time_min)
+    langfuse_tracker.attach_scores(ctx["langfuse_trace_id"], {"fix_outcome": payload["fix_outcome"]})
     return pref.feedback_id
 
 
@@ -62,6 +64,7 @@ def record_verification(verification: VerificationRecord, reviewer_id: str) -> d
                  {**payload, "feedback_id": pref.feedback_id}, at=verification.at)
     log_interaction("root_cause_verified", component="resolution", incident_id=verification.incident_id,
                     run_id=ctx["run_id"], feedback_id=pref.feedback_id, verdict=verification.verdict)
+    langfuse_tracker.attach_scores(ctx["langfuse_trace_id"], {"root_cause_verified": verification.verdict})
     result: dict[str, Any] = {"state": state, "feedback_id": pref.feedback_id, "indexed": False, "doc_id": None,
                               "index_error": None}
     if verified:

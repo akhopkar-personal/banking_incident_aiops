@@ -39,7 +39,7 @@ def manifest(scenario_id: str) -> dict:
 @lru_cache(maxsize=1)
 def examples() -> dict[tuple[str, str], str]:
     """The first golden alert JSON and free-text input for each scenario, as starting text."""
-    path = config.get_settings().reference_file("test_inputs.json")
+    path = config.get_settings().golden_dir / "test_inputs.json"
     found: dict[tuple[str, str], str] = {}
     for case in json.loads(path.read_text(encoding="utf-8")):
         found.setdefault((case["scenario_id"], case["input_mode"]), case["raw_input"])

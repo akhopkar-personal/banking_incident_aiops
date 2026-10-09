@@ -1,9 +1,13 @@
-"""Background investigation runs for the Investigate page.
+"""Background work for the UI.
 
 Streamlit stops and restarts the page script whenever the user touches a
 widget. Running the graph inside the script would abandon a half-dispatched
 run, so each investigation runs in its own thread and the page polls its
 progress. A rerun picks the job up again from the session's job ID.
+
+Long learning-loop jobs (golden-set runs, pairwise sessions, adaptation apply,
+fixtures) are `Task`s of one kind, LEARNING: they all make many LLM calls in
+parallel, so only one runs at a time, whichever page started it.
 """
 
 from __future__ import annotations
@@ -19,6 +23,7 @@ from src.logger_setup import log_error
 from .components import NODE_LABELS, describe_update
 
 _MAX_JOBS = 20
+LEARNING = "learning"
 _jobs: dict[str, "Job"] = {}
 _lock = threading.Lock()
 
@@ -97,3 +102,73 @@ def outcome(job: Job) -> Union[str, None]:
     from src.agent.core_agent import IntakeRejection
 
     return "rejection" if isinstance(job.result, IntakeRejection) else "output"
+
+
+# ------------------------------------------------------------- long tasks (Phase 6)
+
+
+@dataclass
+class Task:
+    """A long learning-loop job (golden-set run, pairwise session, adaptation apply), shared by all
+    sessions so a second user sees it running instead of starting it twice."""
+
+    task_id: str
+    kind: str
+    label: str
+    started: float
+    started_by: str = ""
+    message: str = "Starting"
+    done_count: int = 0
+    total: int = 0
+    result: Any = None
+    error: Optional[str] = None
+    finished: Optional[float] = None
+    done: threading.Event = field(default_factory=threading.Event)
+
+    def report(self, message: str, done: Optional[int] = None, total: Optional[int] = None) -> None:
+        self.message = message
+        if done is not None:
+            self.done_count = done
+        if total is not None:
+            self.total = total
+
+    @property
+    def elapsed_s(self) -> float:
+        return (self.finished or time.perf_counter()) - self.started
+
+
+_tasks: dict[str, Task] = {}
+
+
+def start_task(kind: str, label: str, target: Any, started_by: str = "") -> Task:
+    """Run `target(task)` in a thread. One task of a kind runs at a time."""
+    with _lock:
+        busy = running(kind)
+        if busy:
+            raise ValueError(f"{busy[0].label} is still running")
+        task = Task(task_id=uuid.uuid4().hex, kind=kind, label=label, started=time.perf_counter(),
+                    started_by=started_by)
+        _tasks[task.task_id] = task
+
+    def body() -> None:
+        try:
+            task.result = target(task)
+            task.message = "Finished"
+        except Exception as exc:  # noqa: BLE001 - shown on the page; details go to error.log
+            log_error("system_error", component=f"ui.{kind}", exc=exc, incident_id="n/a", run_id="n/a")
+            task.error = f"{type(exc).__name__}: {exc}"[:400]
+        finally:
+            task.finished = time.perf_counter()
+            task.done.set()
+
+    threading.Thread(target=body, name=f"task-{kind}-{task.task_id[:6]}", daemon=True).start()
+    return task
+
+
+def running(kind: Optional[str] = None) -> list[Task]:
+    return [t for t in _tasks.values() if not t.done.is_set() and (kind is None or t.kind == kind)]
+
+
+def latest_task(kind: str) -> Optional[Task]:
+    found = [t for t in _tasks.values() if t.kind == kind]
+    return max(found, key=lambda t: t.started) if found else None

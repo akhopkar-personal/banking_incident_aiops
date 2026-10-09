@@ -98,8 +98,9 @@ def record_review(decision: ReviewDecision, reviewer_id: str) -> dict[str, Any]:
          "issue_type": decision.issue_type.value if decision.issue_type else None,
          "high_risk_confirmations": decision.high_risk_confirmations,
          "output_status": output["status"]}, decision.at))
+    rating_pref = None
     if decision.ratings is not None:
-        preference_store.append(preference_store.make(
+        rating_pref = preference_store.append(preference_store.make(
             SignalType.RATING, ctx, decision.reviewer_role, reviewer_id,
             {**decision.ratings.model_dump(), "mean": decision.ratings.mean}, decision.at))
     candidate = None
@@ -118,11 +119,18 @@ def record_review(decision: ReviewDecision, reviewer_id: str) -> dict[str, Any]:
     log_interaction("review_decision", component="review_store", incident_id=decision.incident_id,
                     run_id=decision.run_id, feedback_id=review_pref.feedback_id, decision=decision.decision,
                     status=status.value, reviewer_role=decision.reviewer_role.value,
-                    issue_type=payload["issue_type"], high_risk_confirmations=decision.high_risk_confirmations)
-    if decision.ratings is not None:
+                    issue_type=payload["issue_type"], high_risk_confirmations=decision.high_risk_confirmations,
+                    reason=decision.reason, prompt_version_set=ctx["prompt_version_set"])
+    if rating_pref is not None:
         log_interaction("rating_recorded", component="review_store", incident_id=decision.incident_id,
-                        run_id=decision.run_id, feedback_id=review_pref.feedback_id,
-                        ratings=decision.ratings.model_dump(), mean=decision.ratings.mean)
+                        run_id=decision.run_id, feedback_id=rating_pref.feedback_id,
+                        review_feedback_id=review_pref.feedback_id, ratings=decision.ratings.model_dump(),
+                        mean=decision.ratings.mean, prompt_version_set=ctx["prompt_version_set"])
+    from src.evaluation import langfuse_tracker
+
+    langfuse_tracker.attach_human_scores(ctx["langfuse_trace_id"],
+                                         decision.ratings.model_dump() if decision.ratings else None,
+                                         status.value)
     return {"status": status, "feedback_id": review_pref.feedback_id,
             "candidate_id": candidate.candidate_id if candidate else None}
 

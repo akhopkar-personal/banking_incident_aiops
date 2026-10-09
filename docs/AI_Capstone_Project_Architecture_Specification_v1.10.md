@@ -2,12 +2,29 @@
 
 | Item | Detail |
 |---|---|
-| **Document version** | v1.9 (draft) |
-| **Supersedes** | v1.8 |
-| **Derived from** | Project Requirements v0.15. "Req." references below point to that document |
+| **Document version** | v1.10 (draft) |
+| **Supersedes** | v1.9 |
+| **Derived from** | Project Requirements v0.16. "Req." references below point to that document |
 | **Purpose** | The contracts needed to generate code: target library versions, data schemas, module and function contracts, LangGraph wiring, algorithms, synthetic data targets, and test hooks. Each section names the source file it governs |
 | **Format** | Contracts are given as tables (fields, types, parameters, returns), not as code. Code is generated in a later step, after this document is reviewed |
-| **Status** | Draft for review. Library versions in Section 0 are installed and pass the smoke test on the development laptop and in Vocareum (Req. OI-3, OI-9 closed). Phase 1 (Sections 3, 13, 15), Phase 2 (Section 16), Phase 3 (Sections 5, 7, 8, 9), Phase 4 (Sections 4, 6) and Phase 5 (Sections 10.1, 10.2, 14) are implemented. Open items in Section 21 |
+| **Status** | Draft for review. Library versions in Section 0 are installed and pass the smoke test on the development laptop and in Vocareum (Req. OI-3, OI-9 closed). Phase 1 (Sections 3, 13, 15), Phase 2 (Section 16), Phase 3 (Sections 5, 7, 8, 9), Phase 4 (Sections 4, 6), Phase 5 (Sections 10.1, 10.2, 14) and Phase 6 (Sections 10, 11, 14) are implemented. Open items in Section 21 |
+
+### Changes from v1.9
+
+Phase 6 (learning loop). Each affected section has an "As built (v1.10)" note.
+
+| Area | Change | Reason |
+|---|---|---|
+| Evaluation isolation | An `evaluation` run uses its own incident store, `incident_state/evaluation/<run_id>/` (Sections 4.6, 5.6) | Golden replays were deduplicated against live incidents and saw their pages |
+| Intended dispatch | In evaluation mode an intended page counts as sent, so the gate records `page_update` instead of overwriting the fast-path page (Section 5.4) | The fast-path decision was lost from `intended` |
+| Evaluation | `golden_dataset.py`, `deepeval_harness.py` (programmatic checks, DeepEval with the judge, fixtures in a live sandbox), results in `data/evaluation/` (Section 11.1) | Section 11.1 contract |
+| Hallucination | Scored against the evidence and documents the answer cites; DeepEval 4.x scores 1 for "consistent" (Section 11.1) | With all evidence as context every unrelated item counted as a contradiction |
+| RLHF | `pairwise_session.py`, `reward_model.py`, `dpo_exporter.py`, `preference_store.pair_outcome`, `agreement`, `reviewer_share` (Sections 10.4 to 10.7) | Section 10 contract |
+| SME promotion | `feedback_loop.promote` and `discard`; promoted cases get the variant `feedback` (Section 10.3) | FR-28 |
+| Adaptation | `adaptation_engine.py` and `evidence_report.py`; reviewer cap made concrete for small patterns (Sections 11.3, 11.4) | Section 11 contract |
+| LLM retries | After a rate-limit error the backoff is 5 s, then 10 s, with jitter (Section 4.4) | Parallel evaluation runs hit the gateway's rate limit |
+| Settings | `golden_dir`, `prompt_versions_path`, `retrieval_aliases_path`, `evaluation_dir`, `evidence_dir`, `eval_concurrency` (2), `langfuse_dataset_name`, `rate_limit_backoff_s` (Section 15.2) | Tests write copies; parallel runs |
+| UI | Pages 4 to 7; long jobs run as one background task at a time (Section 14) | Golden-set runs take minutes |
 
 ### Changes from v1.8
 
@@ -313,6 +330,7 @@ Authoritative file list for code generation. It matches Req. Section 17; each pa
 | `src/agent/llm.py`, `src/agent/agent_support.py`, `scripts/run_investigation.py` (**v1.8**) | 4.4, 6 |
 | `tests/fake_llm.py` (**v1.8**): scripted model for offline graph tests | 19 |
 | `tests/test_feedback.py`, `tests/test_ui.py` (**v1.9**) | 19 |
+| `src/evaluation/golden_dataset.py`, `scripts/run_eval.py`, `tests/test_learning_loop.py` (**v1.10**) | 11.1, 19 |
 | `scripts/commit_state.sh`, `scripts/build_index.py`, `scripts/generate_data.py` | 12, 8, 16 |
 | `tests/` | 19 |
 
@@ -644,6 +662,8 @@ A per-run token and cost counter (from LLM response usage metadata, priced from 
 | `evaluation` | Golden-set runs, pairwise sessions, adaptation before/after runs | Compute the decision, store it in `dispatch.intended`, set `suppressed: true`, log `dispatch_suppressed` with `reason: evaluation_mode`; write nothing to the outbox |
 
 `prompt_version_override` is accepted only in `evaluation` mode.
+
+**As built (v1.10).** An `evaluation` run writes its incident, outputs and sidecars to its own store, `incident_state/evaluation/<run_id>/` (`incident_state_store.scoped`, a context variable inherited by the graph's worker threads), so it is never deduplicated against a live incident and never appears in the UI's incident list; `load_output` finds it there. The harness's fixture checks run in `live` mode with both the store and the outbox scoped to a temporary sandbox. In evaluation mode an intended page counts as sent, so the final gate records `page_update` and the fast-path decision stays in `intended`. After a rate-limit error from the gateway, retries wait 5 s and then 10 s, with jitter (`rate_limit_backoff_s`).
 
 ---
 
@@ -1051,6 +1071,8 @@ Unchanged from v1.1 Section 9.2 (`capture_candidate`, `review_queue`, `promote`,
 
 **As built (v1.9).** `capture_candidate(decision, feedback_id, original_incident, original_output, langfuse_trace_id)` and `review_queue()` are built; candidates (`FC-NNNN`) are kept as a JSON list in `data/feedback/candidates.json`, with every text field PII-checked. `promote` and `discard` are built in Phase 6.
 
+**As built (v1.10).** `promote(candidate_id, ground_truth, role, reviewer_id)` (SME only) appends the candidate's incident as a golden case `GC-<scenario>-FBnnn` with variant `feedback`, its input (scenario, mode, redacted text, window, reference time, withheld sources) and the SME's ground truth (expected dispatch derived from the severity), bumps the version (`golden-v2`, ...), and mirrors the case to the LangFuse dataset. `default_ground_truth` starts from the scenario's seed case with the reviewer's edits applied. `discard` needs a reason. Both log with the candidate's `feedback_id`.
+
 ### 10.4 `preference_store.py` (Req. FR-60, FR-64)
 
 | Function | Behavior |
@@ -1062,6 +1084,8 @@ Unchanged from v1.1 Section 9.2 (`capture_candidate`, `review_queue`, `promote`,
 
 **As built (v1.9).** `append`, `query` (signal type, incident, run, scenario, prompt version set, date; duplicates excluded unless asked) and `make` (a record from a run context) are built; `feedback_id` is `FB-` plus 10 hex characters. `agreement` and `reviewer_share` are built with pairwise sessions in Phase 6.
 
+**As built (v1.10).** `pair_outcome(pair_id)` returns the status and the final choice: two different reviewers who agree make the pair `agreed`; if they disagree it is `disputed` until an SME label makes it `tie_broken`. Agreement is computed when read, from the append-only labels.
+
 ### 10.5 `pairwise_session.py` (Req. FR-59)
 
 | Step | Behavior |
@@ -1071,6 +1095,8 @@ Unchanged from v1.1 Section 9.2 (`capture_candidate`, `review_queue`, `promote`,
 | Label | Each pair needs two labels from different `reviewer_id`s. Disagreement marks the pair `disputed` and queues it for SME tie-break |
 | Held-out | A configurable share of cases (default 50%) is marked `held_out` and never used to create adaptation proposals; they are used only for the win-rate check |
 | Result | `win_rate(version_b over version_a)` over agreed or tie-broken held-out pairs, ties counted as 0.5; logged as `pairwise_label_recorded` summary to `eval.log` |
+
+**As built (v1.10).** Sessions are stored in `data/feedback/pairwise/PS-nnnn.json`: agent, version A and B, case IDs, held-out share, optional `adaptation_id`, and pairs (`PS-nnnn-Pnn`: case, both runs with their run ID, incident ID, trace ID and full version set, `shown_order`, `held_out`). Held-out cases are chosen per case with a generator seeded by the session ID. Reviewers see only the compared agent's part of each output (`AGENT_FIELDS`) as "Output 1" and "Output 2". A label is a `pairwise` preference record on run B; a reviewer labels a pair once; non-SME labels on a disputed pair are refused. `summarize` logs the held-out win rate of B to eval.log (E-9); `length_change_pct` gives the length change of B against A.
 
 ### 10.6 `reward_model.py` (Req. FR-61)
 
@@ -1082,9 +1108,13 @@ Unchanged from v1.1 Section 9.2 (`capture_candidate`, `review_queue`, `promote`,
 | Sufficiency | `sufficient` only if `signal_count >= 10`; otherwise the UI shows "not enough feedback" |
 | Output | `RewardScore`, logged as `reward_computed` to `eval.log`; pushed to LangFuse as `reward_score` |
 
+**As built (v1.10).** The version set key is `agent:version|...` in agent order. Ratings, reviews and fix outcomes are matched on the record's full prompt version set; the win rate comes from decided pairs in which a run used that version set.
+
 ### 10.7 `dpo_exporter.py` (Req. FR-63)
 
 Writes `data/feedback/dpo_export/dpo_<date>.jsonl`. One line per agreed pair: `prompt` (the rendered agent input, redacted), `chosen` and `rejected` (the agent outputs as JSON text), `metadata` (`pair_id`, versions, scenario, agent). Ties and disputed pairs are excluded. Runs the PII check on every line; logs `dpo_exported` with the count.
+
+**As built (v1.10).** Only `agreed` pairs with a winner are exported (SME-decided pairs are left out). `prompt` holds the chosen version's system prompt and the redacted incident fields.
 
 ---
 
@@ -1105,11 +1135,15 @@ DeepEval metrics: `FaithfulnessMetric`, `HallucinationMetric`, `ContextualRecall
 
 **`judge.py`:** `FunctionCallingJudge`, a subclass of `deepeval.models.DeepEvalBaseLLM`. `load_model` returns the project's `ChatOpenAI` (same base URL, `judge_model`, temperature 0, `llm_max_output_tokens`). `generate(prompt, schema=None)` returns plain text without a schema, and otherwise `with_structured_output(schema, method="function_calling")`. `a_generate` runs `generate` in a worker thread. `get_model_name` returns `judge_model`. Metrics run with `async_mode=False`.
 
+**As built (v1.10).** The golden files are read and appended by `golden_dataset.py` (`cases`, `case`, `version`, `add_case`, `next_case_id`). `run_case` runs one case in `evaluation` mode and returns programmatic checks: `severity_match` (and `severity_within_1`), `triage_class_match`, `abstention_correct` (INSUFFICIENT_EVIDENCE or needs human RCA), `change_hit`, `red_herring_rejected` (no manifest red herring linked to a hypothesis; for OI-25), `citation_validity` (hypothesis evidence in the output's evidence, cited documents among the retrieved ones), `retrieval_recall_at_5` (expected runbook among the first five retrieved documents, saved per run as `<run_id>.retrieval.json`), `dispatch_routing_correct` (from `dispatch.intended`), and an evidence rubric for RCA used when the judge is off. With the judge: GEval on hypotheses 1 to 3 (`rca_top1`, `rca_top3`), Faithfulness and Contextual Recall against the output's evidence and the top five retrieved excerpts, and Hallucination against only the cited evidence and documents (DeepEval 4.x scores 1 for consistent; stored as `1 - score`, and a case counts as hallucinated below 0.5). Cases run `eval_concurrency` (2) at a time. Results are saved as `data/evaluation/EVAL-<time>.json` (aggregate and per case) and logged as `eval_result`; each case's scores go to its trace and the golden set is mirrored to the LangFuse dataset. `run_fixtures` runs the four fixtures and SC-01, SC-03, SC-04 live in a temporary sandbox and checks Req. 12.2 outcomes, including the page time against the first `llm_call` log line; results are saved as `FIXT-<time>.json`.
+
 ### 11.2 `langfuse_tracker.py`
 
 As v1.1 Section 10.2, plus `attach_human_scores(trace_id, ratings, decision)`, `attach_pairwise(trace_ids, choice)`, `attach_reward(version_set, score)`. All functions log to `error.log` and return without raising if LangFuse is unreachable (Req. FR-26).
 
 **As built (v1.8, tracing part).** `investigation_trace(run_id, scenario_id, run_mode)` opens the root observation `investigation` and `propagate_attributes(session_id=run_id, tags=[scenario, run mode])`, and yields the trace ID and a LangChain `CallbackHandler` passed to the graph; nodes pass their config to their LLM calls. Verified in LangFuse Cloud for SC-05: one trace, 75 observations (spans for every node and agent, 6 generations). Scores are added in Phase 6.
+
+**As built (v1.10).** `attach_scores`, `attach_human_scores` (at review), `attach_pairwise`, `attach_reward`, `trace_url` and `sync_golden_dataset` (dataset items keyed by case ID). Resolution and verification add `fix_outcome` and `root_cause_verified`.
 
 ### 11.3 `adaptation_engine.py` (Req. FR-31 to FR-34, FR-62)
 
@@ -1123,6 +1157,8 @@ As v1.1 Section 10.2, plus `attach_human_scores(trace_id, ratings, decision)`, `
 | `apply(adaptation_id)` | 1) Before metrics: `run_golden_set` on the active versions. 2) Write a new version in `data/prompt_versions.json` (or append an alias), not yet active. 3) After metrics: `run_golden_set` with the new version as override. 4) Regression check: no other tracked metric drops by more than 5 points. 5) For preference-sourced proposals: pairwise session on held-out cases, win rate ≥ 0.6, and length change ≤ +20% unless the win rate improved. 6) Pass: mark the new version active, log `adaptation_applied`; fail: keep the old version active, log `adaptation_reverted`. 7) Write explanation and metrics to `adaptation_log.json` |
 | `rules_review_summary()` | Groups `severity_disagreement` and re-classification signals by rule ID for the SME |
 
+**As built (v1.10).** Entries are stored in `data/feedback/adaptation_log.json` (`ADP-nnn`); the pattern, eval IDs, regression check and pairwise session ID are kept in `trigger_pattern`, and the target metric in `proposed_change`. Signals: promoted candidates (explicit), ratings of 2 or less on `rca`, `actions` or `summary`, pairwise losers and winners on non-held-out pairs (preference), and cases failing the same metric in the last two golden runs (implicit). Reviewer cap: at most `max(1, int(0.30 × n))` human signals per reviewer, so a two-signal pattern needs two reviewers. `scan_and_propose` records eligible patterns as `proposed` (guideline drafted by the LLM, editable at approval) and others as `waiting` (template text); an open entry for the same pattern is updated, not duplicated. `apply` runs the golden set before (active versions) and after (the new, still inactive version as an override), logs the regression check to eval.log (`phase: regression_check`), and passes only if no tracked metric drops by more than 5 points and the target metric improves. A preference-driven change that passes then waits for a held-out pairwise session (`finish_preference_check`: win rate ≥ 0.6, length change ≤ 20% unless the win rate is met). Applied: the new version becomes active. Reverted: the old version stays active and the new one is kept as history (an alias is removed). The explanation is written with the numbers. Apply can be limited to one scenario's cases for quick trials; the full set is the default.
+
 ### 11.4 `evidence_report.py` (Req. FR-71, 16.1)
 
 | Item | Contract |
@@ -1131,6 +1167,8 @@ As v1.1 Section 10.2, plus `attach_human_scores(trace_id, ratings, decision)`, `
 | Inputs | The three log files, `data/feedback/adaptation_log.json`, `preferences.jsonl`, `candidates.json` |
 | Method | Find the adaptation entry; collect its `feedback_id`s; for each step E-1 to E-10 (Req. 16.1), search for the required event with matching link fields |
 | Output | `docs/evidence/<adaptation_id>.md` with the chain table (step, event, timestamp, log file, key fields), before/after metrics, pairwise result, reward change; any step not found is marked `MISSING`; logs `evidence_report_generated` with the count of missing steps |
+
+**As built (v1.10).** The report is written to `evidence_dir` (default `docs/evidence/`). E-1 matches `review_decision` or `rating_recorded` lines by the adaptation's `feedback_ids` (rating lines now carry the rating record's own ID and the review's), E-8 is the `regression_check` line, E-9 the pairwise summary for the adaptation, E-10 a later `review_decision` whose `prompt_version_set` shows the new version. E-2 and E-3 are "n/a" for preference and implicit sources, E-1 for implicit. Review and rating lines now carry the run's `prompt_version_set`.
 
 ---
 
@@ -1193,6 +1231,8 @@ Role checks are advisory in the MVP (no auth), but every control records the sel
 
 **As built (v1.9).** Built: `app.py` and pages 1 to 3; pages 4 to 7 are built in Phase 6. Each page starts with `components.setup_page`, which sets the page config, exports settings, configures logging once per logs directory, applies the session timeout and draws the sidebar (role selector, reviewer ID, kill-switch warning, "simulated" note). `runner.start(**run_investigation kwargs)` runs the graph in a daemon thread and collects one event per finished node (label, detail, seconds) and the early result; the page polls every 0.25 s and, when the run ends, stores the outcome once and reruns so the form is enabled again. A node's progress detail is chosen by node name (`describe_update`). The Incident page has tabs Summary, Hypotheses and evidence, Changes, Actions, Timeline, Dispatch, Review; evidence IDs open in a popover with the source record; a `SYSTEM_ERROR` run has a separate layout without tabs. Outbox: three tables and "Reset demo" (two-step), which can also call `incident_state_store.archive_state()`. Resolve and Verify: resolution form, verification form and indexing status with a retry button. `.streamlit/config.toml` sets port 8501 and headless mode; Vocareum proxy options stay with OPS-1. Tested headless with Streamlit's `AppTest` (pages are opened from `app.py` so page links resolve).
 
+**As built (v1.10), pages 4 to 7.** Review Queue: pending candidates with the original output and the reviewer's correction, a promote form pre-filled with the ground truth (SME), discard with a reason, decided candidates. Feedback and RLHF: blind labelling of the next pair for the reviewer ID (disputed pairs for the SME), sessions (create, results, log result), reward scores with sample size, DPO export. Adaptation History: scan, approve (with the editable guideline) or reject, apply (judge on or off, all cases or the pattern's scenario), finish the preference check, metrics before and after, explanation, evidence report, rules review summary and rules change log. Evaluation: run the golden set (judge on or off, all cases or one scenario) and the fixture checks, metrics against targets with the previous run, per-case results, latency per stage, trace links. Long jobs are `runner.Task`s of one kind, so only one runs at a time, whichever page started it; `components.task_panel` shows its progress in a fragment refreshed every 2 s and reruns the page when it ends.
+
 ---
 
 ## 15. Configuration — `src/config.py`
@@ -1212,6 +1252,7 @@ Role checks are advisory in the MVP (no auth), but every control records the sel
 | `judge_model` | same as `LLM_MODEL` (`JUDGE_MODEL` in `.env`) | Section 11.1; DeepEval judge |
 | `max_node_retries` | 2 | Req. 13.6 |
 | `retry_backoff_s` (**v1.8**) | 1.0 | Section 4.4; tests use 0 |
+| `rate_limit_backoff_s` (**v1.10**) | 5.0 | Backoff after a rate-limit error; tests use 0 |
 | `cost_cap_usd_per_run` | 0.15 | Req. 13.2 |
 | `token_cap_per_run` | 60000 | Req. 13.2 |
 | `price_per_1k_input`, `price_per_1k_output`, `price_per_1k_embedding` | Set from the provider's price list at build time | Cost estimate |
@@ -1238,6 +1279,10 @@ Role checks are advisory in the MVP (no auth), but every control records the sel
 | `embedding_backend` (**v1.7**) | `openai` (`hash` for tests and LLM-free development) | Section 8 |
 | `embedding_batch_size`, `chunk_size`, `chunk_overlap` (**v1.7**) | 64, 800, 100 | Section 8 |
 | `feedback_dir` (**v1.9**) | Empty: `data_dir/feedback` | Preference store and feedback candidates |
+| `golden_dir`, `prompt_versions_path`, `retrieval_aliases_path` (**v1.10**) | `data_dir`, `data_dir/prompt_versions.json`, `knowledge_dir/retrieval_aliases.json` | Files the learning loop writes; tests point them at copies |
+| `evaluation_dir`, `evidence_dir` (**v1.10**) | `data_dir/evaluation`, `docs/evidence` | Evaluation results and evidence reports |
+| `eval_concurrency` (**v1.10**) | 2 | Golden-set and pairwise runs at a time; 4 hit the gateway's rate limit |
+| `langfuse_dataset_name` (**v1.10**) | `eventhub-aiops-golden` | Section 11.2 |
 | `ui_session_timeout_min` (**v1.9**) | 30 | Req. 15: UI page selections are cleared after this idle time |
 | `outbox_dir`, `incident_state_dir`, `faiss_index_dir`, `processed_dir`, `verified_resolutions_dir` (**v1.7**) | Empty: the defaults under `data_dir` and `knowledge_dir` | Writable stores; tests point them at a temporary directory while reading the committed reference data |
 
@@ -1515,6 +1560,8 @@ sequenceDiagram
 
 Tests marked `llm` make API calls and are deselected by default (`pytest -m llm` runs them).
 
+**v1.10:** `tests/test_learning_loop.py` covers T-FEEDBACK (promotion, version bump), T-RLHF (agreement, tie-break, win rate, reward components, DPO export), T-ADAPT (reviewer cap, waiting, revert without improvement, apply), T-EVIDENCE (E-1 to E-10 found, then MISSING when a line is removed), the harness (isolation from live incidents, metrics, a stub judge through the DeepEval metric code) and the fixture sandbox. `tests/test_ui.py` adds pages 4 to 7, including background tasks. 427 offline tests.
+
 **v1.9:** `tests/test_feedback.py` covers Sections 10.1, 10.2 and 10.4 against scripted runs (review, edit and reject rules, candidates, high-risk confirmation, re-classification, acknowledgement, hand-off, resolution, verification with indexing, failed indexing and retry, duplicate preferences, state archive). `tests/test_ui.py` drives every Phase 5 page headless with `AppTest` (node progress and early result, intake rejection, evaluation mode, review, edit, `SYSTEM_ERROR` layout, acknowledgement, re-classification, role-gated controls, hand-off, outbox reset, resolve and verify, session timeout). The `fake` fixture moved to `tests/conftest.py`. 406 offline tests.
 
 **v1.8:** `tests/test_graph.py` runs the whole graph with the scripted model in `tests/fake_llm.py` (every scenario, fast-path timing, LLM-down, kill switch, failure fixture, schema-invalid, cost cap, confidence gate, insufficient evidence, missing source, disagreement, re-score, evaluation mode, dedup, injection, alert and free-text input, intake rejections, re-classification, MCP transport) plus one `llm` test through the real model. `tests/test_llm_layer.py` covers the LLM layer and prompts.
@@ -1561,7 +1608,7 @@ Tests marked `llm` make API calls and are deselected by default (`pytest -m llm`
 |---|---|---|
 | OI-3 / OI-9 | **Closed (v1.4):** Python 3.10 and the Section 0.1 pins pass the smoke test on the laptop and in Vocareum | None |
 | OPS-3 (**v1.4**) | MCP pinned to 1.x because `langchain-mcp-adapters` requires `mcp<2` | Section 7.5 uses only `FastMCP`, stdio and the adapter's client, which a later 2.x upgrade would need to re-verify with the smoke test |
-| OPS-1 | Streamlit behind Vocareum's inbound proxy | Phase 7: confirm the server options needed for `/proxy/8501/` (Section 0.2.1) |
+| OPS-1 | Streamlit behind Vocareum's inbound proxy | **v1.10:** the UI opened in Vocareum during the Phase 5 test; record the start command and any server options in Phase 7 |
 | OPS-2 | Vocareum OpenAI gateway: confirm both models are allowed, the budget, and whether the key works from outside Vocareum | Phase 0 smoke test. If embeddings are blocked or the budget is too small for golden-set runs, use a personal OpenAI key for those runs (only `.env` changes) |
 | OI-8 | Metric targets | Settings constants only |
 | OI-12 | Adaptation threshold | `adaptation_min_occurrences` |
@@ -1578,7 +1625,8 @@ Tests marked `llm` make API calls and are deselected by default (`pytest -m llm`
 | ALIGN-8 (**v1.7**) | Phase 3 alignment: new log events, tool schemas without run context, `change_correlation_agent` access to `get_service_dependencies`, pseudonym key shared with the MCP server, new files in the folder structure | **Done:** Req. v0.13 Sections 10.5, 13.3, 16, 17 |
 | ALIGN-9 (**v1.8**) | Phase 4 alignment: intake rules, rejection reasons, dedup behaviour in the graph, measured latency and cost, OI-25 | **Done:** Req. v0.14 Sections 6.2, 6.3, 12.2, 18.2 |
 | ALIGN-10 (**v1.9**) | Phase 5 alignment: pages built in Phase 5 and Phase 6, review rules, S2 to S1 re-classification, H-1 and H-2 records and log events, `runner.py` in the folder structure | **Done:** Req. v0.15 Sections 4.1 (FR-53), 13.5, 15, 16, 17 |
-| OI-25 (**v1.8**) | Change correlation still accepts some red herrings with gpt-4o-mini (SC-02, SC-04) | Baseline for the adaptation loop (Phase 6); revisit the prompt only through approved adaptations |
+| ALIGN-11 (**v1.10**) | Phase 6 alignment: first measurements, reviewer cap for small patterns, new files and folders, OPS-1 status | **Done:** Req. v0.16 Sections 12.2, 12.6, 17, 18.2 |
+| OI-25 (**v1.8**) | Change correlation still accepts some red herrings with gpt-4o-mini (SC-02, SC-04) | Baseline for the adaptation loop (Phase 6); revisit the prompt only through approved adaptations. **v1.10:** measured by `red_herring_rejected` per golden case |
 | OI-24 (**v1.6**) | SME validation of the generated ground truth (`eval_rubric.json`, `manifest.json`) and of the 28 knowledge-base drafts | Changes to the ground truth are made in `data/generators/scenarios.py`, then `--write-golden`, before `feedback_loop.promote` adds the first case (promoted cases exist only in the golden files); changes to documents are made in `knowledge/raw/` (or the PDF sources) |
 
-**Code generation order:** 0 smoke test (done) → 3 schemas, 15 config, 13 logging (Phase 1, done) → 16 data generator and reference files (Phase 2, done) → 9 safety → 7 tools, mocks and the MCP server (7.5) → 8 retrieval → 5 services (Phase 3, done) → 6 agents and prompts → 4 graph (Phase 4, done) → 14 UI (Phase 5, done) → 10 feedback and RLHF → 11 evaluation (Phase 6) → packaging (Phase 7). Tests are written with each phase.
+**Code generation order:** 0 smoke test (done) → 3 schemas, 15 config, 13 logging (Phase 1, done) → 16 data generator and reference files (Phase 2, done) → 9 safety → 7 tools, mocks and the MCP server (7.5) → 8 retrieval → 5 services (Phase 3, done) → 6 agents and prompts → 4 graph (Phase 4, done) → 14 UI (Phase 5, done) → 10 feedback and RLHF → 11 evaluation (Phase 6, done) → packaging (Phase 7). Tests are written with each phase.

@@ -189,6 +189,52 @@ def incident_label(view: Any) -> str:
     return f"{view.incident_id} · {service} · {view.state.value}"
 
 
+def task_panel() -> None:
+    """Progress of the current learning-loop task; refreshes itself every 2 s and reruns the page once
+    when the task ends, so the page shows the new results."""
+    from . import runner
+
+    @st.fragment(run_every=2)
+    def panel() -> None:
+        task = runner.latest_task(runner.LEARNING)
+        if task is None:
+            return
+        if not task.done.is_set():
+            st.info(f"Running: **{task.label}** · {task.message} · {task.elapsed_s:.0f} s")
+            if task.total:
+                st.progress(min(task.done_count / task.total, 1.0), text=f"{task.done_count} of {task.total}")
+            return
+        if state.get("task_seen") != task.task_id:
+            state.put("task_seen", task.task_id)
+            st.rerun()
+        if task.error:
+            st.error(f"{task.label} failed: {task.error}")
+        else:
+            st.success(f"{task.label} finished in {task.elapsed_s:.0f} s.")
+
+    panel()
+
+
+def start_learning_task(label: str, target: Any) -> None:
+    """Start a learning-loop task from a button, or explain why it cannot start."""
+    from . import runner
+
+    try:
+        runner.start_task(runner.LEARNING, label, target, started_by=state.reviewer_id())
+        st.rerun()
+    except ValueError as exc:
+        st.warning(str(exc))
+
+
+def role_note(allowed: tuple[ReviewerRole, ...], what: str) -> bool:
+    """True if the current role may do `what`; otherwise show who can."""
+    if state.role() in allowed:
+        return True
+    st.caption(f"{what}: switch the role in the sidebar to "
+               + " or ".join(state.ROLE_LABELS[r] for r in allowed) + ".")
+    return False
+
+
 def json_block(data: Any) -> None:
     st.code(json.dumps(data, indent=1, ensure_ascii=False), language="json")
 

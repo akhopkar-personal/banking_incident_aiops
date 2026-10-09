@@ -2,10 +2,10 @@
 
 | Item | Detail |
 |---|---|
-| **Document version** | v0.15 (draft) |
+| **Document version** | v0.16 (draft) |
 | **Status** | In review. Open items: post-evaluation target review (OI-8), adaptation pattern-detection threshold (OI-12), confidence-gate threshold (OI-16), severity rule thresholds (OI-17), reviewer agreement rule for preference labels (OI-18), DeepEval judge model (OI-22), SME validation of the generated data and documents (OI-24), MCP 2.x upgrade (OPS-3). See Section 18 |
-| **Supersedes** | v0.14 |
-| **Next artifact** | Architecture Specification v1.9 (aligned with this version). Next step: code generation Phase 6 (learning loop: Review Queue, pairwise RLHF, evaluation, adaptation) |
+| **Supersedes** | v0.15 |
+| **Next artifact** | Architecture Specification v1.10 (aligned with this version). Next step: code generation Phase 7 (packaging) |
 
 ### Version history
 
@@ -26,6 +26,7 @@
 | v0.13 | **Phase 3 (rules-only system, tools, MCP server, retrieval, safety) delivered, aligned with Architecture Spec v1.7 (ALIGN-8).** Every scenario can be run without an LLM (`scripts/run_rules_only.py`): detection, one incident per scenario, rules severity, fast-path page, ticket, and page or assignment, with replays deduplicated. The 13 read tools return identical results over MCP and in-process. Tool schemas given to the agents leave out the run context, so a model cannot choose which data a tool reads; the Change Correlation Agent may also use `get_service_dependencies` (Section 10.5). Pseudonym tokens use a per-session key shared with the MCP server process (Section 13.3). New log events `incident_created` and `knowledge_index_built` (Section 16). New files added to Section 17. Vocareum results of the smoke test (11/11, Phase 0) and of the Phase 2 tests (192 passing, identical generated data on Linux) recorded in Section 11.1 |
 | v0.14 | **Phase 4 (LLM agents and the LangGraph workflow) delivered, aligned with Architecture Spec v1.8 (ALIGN-9).** The four agents and the full graph run end to end through gpt-4o-mini: every scenario produces a grounded recommendation with the expected severity, and failures follow the SYSTEM_ERROR and rules-only paths. Intake rules made concrete for the prototype: every run reads one scenario's telemetry, free-text clock times are read on that scenario's date (Sections 6.2, 6.3). Measured cost and latency recorded against the targets (Section 12.2). New open item OI-25: remaining red-herring errors in change correlation (Section 18.2) |
 | v0.15 | **Phase 5 (Streamlit UI) delivered, aligned with Architecture Spec v1.9 (ALIGN-10).** The Investigate, Incident, Outbox and Resolve and Verify pages are built, with the human steps H-1 to H-7 recorded in the Incident State Store, the preference store and the logs; the Review Queue, Feedback and RLHF, Adaptation History and Evaluation pages follow in Phase 6 (Section 15). Re-classification can also raise an S2 incident to S1 (FR-53). Page acknowledgement and the gate hand-off get their own state-store records and log events (Sections 13.5, 16). Phase 4 passed in Vocareum |
+| v0.16 | **Phase 6 (learning loop) delivered, aligned with Architecture Spec v1.10 (ALIGN-11).** SME promotion into the golden dataset, pairwise sessions with blind labelling and SME tie-break, reward scores, DPO export, the evaluation harness with DeepEval metrics, fixture checks, the adaptation engine and the evidence report, with the Review Queue, Feedback and RLHF, Adaptation History and Evaluation pages. Evaluation runs use their own incident store, so they never touch live incidents (Section 10.4). The reviewer cap is made concrete for small patterns (Section 12.6). First measurements recorded (Section 12.2). Phase 5 passed in Vocareum, and the UI opened through Vocareum's proxy (OPS-1) |
 
 ### Architecture diagrams
 
@@ -966,6 +967,8 @@ MTTA and MTTR cannot be measured in a prototype, so the project uses proxy metri
 | **Length-bias check (NEW)** | Change in average output length after a preference-driven adaptation, when win rate did not improve | ≤ +20% | Programmatic |
 | `SYSTEM_ERROR` handling correctness | Broken fixture terminates in `SYSTEM_ERROR` within the retry budget, PII-safe | 100% | Programmatic plus manual demo |
 
+**v0.16 first measurements (development laptop, Vocareum gateway, gpt-4o-mini).** SC-04's five golden cases with the DeepEval judge: RCA top-1 0.75 to 1.0, retrieval recall@5 1.0, citation validity 1.0, severity, triage class and dispatch routing 1.0, faithfulness 0.66 to 0.90, hallucination rate 0.0, about a minute per case with two runs in parallel (four runs in parallel hit the gateway's rate limit). Fixture checks: 7 of 7 (SYSTEM_ERROR handling, LLM-down fallback, alert-storm dedup, injection guardrail, and the S1 page 0.1 to 0.2 s after incident creation, before the first LLM call, for SC-01, SC-03 and SC-04). A full golden-set run and the first adaptation are the next measurements for `docs/evaluation_report.md`.
+
 ### 12.3 Evaluation deliverables
 
 - `deepeval_harness.py`: runs the golden set and writes results to `eval.log`
@@ -1093,7 +1096,7 @@ The reward score is shown with its sample size. A version with fewer than 10 sig
 
 **6. Safeguards specific to RLHF** (also listed in Section 14)
 - Reward hacking: the length-bias check (Section 12.2) and SME review of every proposal.
-- Feedback poisoning: role recording, two-reviewer agreement, duplicate detection, and a cap of 30% of signals from any one reviewer in a proposal's evidence.
+- Feedback poisoning: role recording, two-reviewer agreement, duplicate detection, and a cap of 30% of signals from any one reviewer in a proposal's evidence. **v0.16:** while a pattern is too small for 30% to allow more than one signal, each reviewer may contribute only one, so the minimum pattern of two signals needs two reviewers.
 - Overfitting: the occurrence threshold (OI-12), full golden-set regression check and held-out pairs.
 - Privacy: all signals pass the PII re-check before storage and export.
 
@@ -1374,6 +1377,7 @@ banking_incident_aiops/
 │   ├── generate_data.py               # Generate scenario telemetry and fixtures from data/generators/
 │   ├── run_rules_only.py              # v0.13: run a scenario through the LLM-free workflow (FR-43)
 │   ├── run_investigation.py           # v0.14: run one full investigation from the command line
+│   ├── run_eval.py                    # v0.16: golden-set evaluation and fixture checks
 │   └── smoke_test.py                  # v0.9: library and API smoke test (Section 11.3, step 6)
 │
 ├── docs/
@@ -1473,6 +1477,7 @@ banking_incident_aiops/
 │   ├── evaluation/
 │   │   ├── __init__.py
 │   │   ├── deepeval_harness.py
+│   │   ├── golden_dataset.py          # v0.16: golden files, versioned additions
 │   │   ├── judge.py                   # v0.9: DeepEval judge using function calling
 │   │   ├── langfuse_tracker.py
 │   │   ├── adaptation_engine.py       # Now includes preference-driven proposals
@@ -1526,10 +1531,13 @@ banking_incident_aiops/
 │   │   ├── adaptation_log.json
 │   │   ├── rules_change_log.json      # v0.8: SME-approved severity rule changes
 │   │   ├── preferences.jsonl          # v0.8
+│   │   ├── pairwise/                  # v0.16: one JSON file per pairwise session
 │   │   └── dpo_export/                # v0.8
+│   ├── evaluation/                    # v0.16: golden-set and fixture results, one JSON per run
 │   ├── incident_state/
 │   │   ├── incidents.jsonl            # v0.8: Incident State Store
-│   │   └── outputs/                   # v0.8: final output per run, loaded by human steps
+│   │   ├── outputs/                   # v0.8: final output per run, loaded by human steps
+│   │   └── evaluation/                # v0.16: one store per evaluation run, apart from live incidents
 │   ├── outbox/                        # v0.8: simulated pages, tickets, notifications
 │   │   └── archive/                   # v0.8: archived by "reset demo", never deleted
 │   ├── telemetry/
@@ -1595,7 +1603,7 @@ banking_incident_aiops/
 | **OI-17** | **NEW:** Severity rule thresholds | Draft in `data/severity_rules.yaml` | SME confirms thresholds per signal |
 | **OI-18** | **NEW:** Reviewer agreement rule and reward weights | Two reviewers must agree; weights in Section 12.6 | Confirm after the first pairwise session |
 | A-8 | Vocareum allows outbound HTTPS to LangFuse Cloud | **Confirmed 2026-10-06** (Section 4.3) | Re-check once in the final demo session |
-| OPS-1 | Streamlit behind Vocareum's inbound proxy (`/proxy/8501/`) | May need server options for its websocket connection | Confirm in Phase 7 when the app first runs in Vocareum |
+| OPS-1 | Streamlit behind Vocareum's inbound proxy (`/proxy/8501/`) | **v0.16:** the UI opened in Vocareum during the Phase 5 test | Record the exact start command and server options in the README during Phase 7 |
 | OPS-2 | Vocareum OpenAI gateway (`https://openai.vocareum.com/v1`) | **Partly confirmed (2026-10-06):** both models work, from Vocareum and from the development laptop | Confirm the key's budget is enough for golden-set and adaptation runs |
 | OPS-3 | **NEW v0.10:** MCP SDK major version | Pinned to `mcp` 1.30.0 because `langchain-mcp-adapters` 0.3.2 requires `mcp<2`; MCP 2.x is available | Upgrade only when the adapter supports 2.x and the smoke test passes; not needed for the capstone |
 | OI-24 | **NEW v0.12:** SME validation of the generated data | Draft ground truth (root cause, severity, issue class, runbook, evidence to cite) in `data/eval_rubric.json` and each scenario's `manifest.json`; 28 knowledge-base drafts | Domain Expert reviews before the first golden-set run. Corrections to telemetry and ground truth go into the generator (`data/generators/scenarios.py`), which then rewrites the golden seed (`--write-golden`); do this before the feedback loop promotes its first case, because promoted cases live only in the golden files. Corrections to documents go into `knowledge/raw/` (or the PDF sources) |

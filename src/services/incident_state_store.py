@@ -3,19 +3,25 @@
 Append-only JSON lines in data/incident_state/incidents.jsonl; the current
 state of an incident is the fold of its records. Final outputs of each run are
 kept in outputs/<run_id>.json so human steps can load them after the graph run.
+
+Evaluation runs write to their own directory, evaluation/<run_id>/ (`scoped`),
+so a golden-set replay is never deduplicated against a live incident, never sees
+its page, and never appears in the UI's incident list.
 """
 
 from __future__ import annotations
 
+import contextvars
 import itertools
 import json
 import shutil
 import threading
 import time
+from contextlib import contextmanager
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any, Iterator, Optional
 
 from src import config
 from src.safety.redaction import redact_record
@@ -30,8 +36,29 @@ _PLAIN_KEYS = ("idempotency_key", "ticket_id", "bucket_start", "outbox_id", "que
                "content_hash", "doc_id", "feedback_id", "candidate_id")
 
 
+_scope: contextvars.ContextVar[Optional[Path]] = contextvars.ContextVar("aiops_store_scope", default=None)
+
+
 def _dir() -> Path:
-    return config.get_settings().incident_state_dir
+    return _scope.get() or config.get_settings().incident_state_dir
+
+
+def current_scope() -> Optional[Path]:
+    return _scope.get()
+
+
+@contextmanager
+def scoped(directory: Path) -> Iterator[Path]:
+    """Use `directory` as the store for this context (LangGraph worker threads inherit it)."""
+    token = _scope.set(directory)
+    try:
+        yield directory
+    finally:
+        _scope.reset(token)
+
+
+def evaluation_dir(run_id: str) -> Path:
+    return config.get_settings().incident_state_dir / "evaluation" / run_id
 
 
 def _file() -> Path:
@@ -174,22 +201,47 @@ def recently_paged(incident_id: str, within_min: int) -> bool:
     return bool(view and any(t >= now() - timedelta(minutes=within_min) for t in view.paged_at))
 
 
+def output_dir() -> Path:
+    return _dir() / "outputs"
+
+
 def save_output(output: InvestigationOutput) -> Path:
-    path = _dir() / "outputs" / f"{output.run_id}.json"
+    path = output_dir() / f"{output.run_id}.json"
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(output.to_output_dict(), indent=1), encoding="utf-8")
     return path
 
 
+def _run_file(run_id: str, suffix: str) -> Optional[Path]:
+    """A run's saved file: in the current store, else in that run's evaluation directory."""
+    for directory in (_dir(), evaluation_dir(run_id)):
+        path = directory / "outputs" / f"{run_id}{suffix}"
+        if path.exists():
+            return path
+    return None
+
+
 def load_output(run_id: str) -> Optional[dict[str, Any]]:
-    path = _dir() / "outputs" / f"{run_id}.json"
-    return json.loads(path.read_text(encoding="utf-8")) if path.exists() else None
+    path = _run_file(run_id, ".json")
+    return json.loads(path.read_text(encoding="utf-8")) if path else None
 
 
 def load_incident(run_id: str) -> Optional[dict[str, Any]]:
     """The run's Incident Object, saved next to its output by the graph's finalize step."""
-    path = _dir() / "outputs" / f"{run_id}.incident.json"
-    return json.loads(path.read_text(encoding="utf-8")) if path.exists() else None
+    path = _run_file(run_id, ".incident.json")
+    return json.loads(path.read_text(encoding="utf-8")) if path else None
+
+
+def save_retrieval(run_id: str, documents: list[dict[str, Any]]) -> None:
+    """The documents retrieved for the Recommendation Agent, in rank order (for retrieval metrics)."""
+    path = _dir() / "outputs" / f"{run_id}.retrieval.json"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(documents, indent=1, default=str), encoding="utf-8")
+
+
+def load_retrieval(run_id: str) -> list[dict[str, Any]]:
+    path = _run_file(run_id, ".retrieval.json")
+    return json.loads(path.read_text(encoding="utf-8")) if path else []
 
 
 def archive_state() -> Optional[Path]:

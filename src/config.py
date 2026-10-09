@@ -77,6 +77,7 @@ class Settings(BaseSettings):
     max_node_retries: int = Field(default=2, ge=0)
     # Exponential backoff between retries: 1 s, 2 s (Architecture Spec Section 4.4). Tests set 0.
     retry_backoff_s: float = Field(default=1.0, ge=0)
+    rate_limit_backoff_s: float = Field(default=5.0, ge=0)  # v1.10: after an HTTP 429 from the gateway
     cost_cap_usd_per_run: float = Field(default=0.15, gt=0)
     token_cap_per_run: int = Field(default=60_000, gt=0)
     # USD per 1,000 tokens. gpt-4o-mini and text-embedding-3-small list prices;
@@ -121,12 +122,23 @@ class Settings(BaseSettings):
     processed_dir: Optional[Path] = None
     verified_resolutions_dir: Optional[Path] = None
     feedback_dir: Optional[Path] = None  # v1.9: preferences, feedback candidates
+    # v1.10: files the learning loop writes. Tests point them at copies.
+    golden_dir: Optional[Path] = None  # eval_rubric.json and test_inputs.json; default data_dir
+    prompt_versions_path: Optional[Path] = None  # default data_dir/prompt_versions.json
+    retrieval_aliases_path: Optional[Path] = None  # default knowledge_dir/retrieval_aliases.json
+    evaluation_dir: Optional[Path] = None  # golden-set and fixture results; default data_dir/evaluation
+    evidence_dir: Optional[Path] = None  # evidence reports; default docs/evidence
+
+    # --- Evaluation (Section 11)
+    eval_concurrency: int = Field(default=2, ge=1, le=16)  # v1.10: 4 hit the gateway's rate limit
+    langfuse_dataset_name: str = "eventhub-aiops-golden"
 
     # --- UI (Req. Section 15)
     ui_session_timeout_min: int = Field(default=30, gt=0)
 
     @field_validator("data_dir", "knowledge_dir", "logs_dir", "outbox_dir", "incident_state_dir",
-                     "faiss_index_dir", "processed_dir", "verified_resolutions_dir", "feedback_dir", mode="before")
+                     "faiss_index_dir", "processed_dir", "verified_resolutions_dir", "feedback_dir", "golden_dir",
+                     "prompt_versions_path", "retrieval_aliases_path", "evaluation_dir", "evidence_dir", mode="before")
     @classmethod
     def _resolve_against_repo(cls, value: object) -> Optional[Path]:
         if value is None or (isinstance(value, str) and not value.strip()):
@@ -151,6 +163,11 @@ class Settings(BaseSettings):
         self.outbox_dir = self.outbox_dir or self.data_dir / "outbox"
         self.incident_state_dir = self.incident_state_dir or self.data_dir / "incident_state"
         self.feedback_dir = self.feedback_dir or self.data_dir / "feedback"
+        self.golden_dir = self.golden_dir or self.data_dir
+        self.prompt_versions_path = self.prompt_versions_path or self.data_dir / "prompt_versions.json"
+        self.retrieval_aliases_path = self.retrieval_aliases_path or self.knowledge_dir / "retrieval_aliases.json"
+        self.evaluation_dir = self.evaluation_dir or self.data_dir / "evaluation"
+        self.evidence_dir = self.evidence_dir or REPO_ROOT / "docs" / "evidence"
         self.faiss_index_dir = self.faiss_index_dir or self.knowledge_dir / "faiss_index"
         self.processed_dir = self.processed_dir or self.knowledge_dir / "processed"
         self.verified_resolutions_dir = (self.verified_resolutions_dir
@@ -186,7 +203,8 @@ class Settings(BaseSettings):
     def path_environment(self) -> dict[str, str]:
         """Settings a child process (the MCP server) needs to read and write the same places."""
         names = ("data_dir", "knowledge_dir", "logs_dir", "outbox_dir", "incident_state_dir", "faiss_index_dir",
-                 "processed_dir", "verified_resolutions_dir", "feedback_dir")
+                 "processed_dir", "verified_resolutions_dir", "feedback_dir", "golden_dir", "prompt_versions_path",
+                 "retrieval_aliases_path", "evaluation_dir")
         env = {name.upper(): str(getattr(self, name)) for name in names}
         env["EMBEDDING_BACKEND"] = self.embedding_backend
         env["EMBEDDING_MODEL"] = self.embedding_model

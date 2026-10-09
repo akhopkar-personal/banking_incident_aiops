@@ -100,6 +100,9 @@ def test_documents_cite_only_existing_documents():
             assert cited <= doc_ids, (path.name, cited - doc_ids)
 
 
-def test_retrieval_aliases_start_empty():
+def test_retrieval_aliases_file_shape():
+    """Empty at first; only approved adaptations add aliases (query word -> extra search terms)."""
     aliases = json.loads((REPO_ROOT / "knowledge" / "retrieval_aliases.json").read_text(encoding="utf-8"))
-    assert aliases["aliases"] == {}
+    assert isinstance(aliases["aliases"], dict)
+    assert all(isinstance(k, str) and isinstance(v, list) and all(isinstance(t, str) for t in v)
+               for k, v in aliases["aliases"].items())

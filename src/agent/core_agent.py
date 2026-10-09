@@ -12,6 +12,7 @@ from __future__ import annotations
 import json
 import re
 import time
+from contextlib import nullcontext
 from datetime import datetime, timedelta, timezone
 from functools import lru_cache
 from typing import Any, Callable, Optional, Union
@@ -368,6 +369,9 @@ def node_finalize(state, config=None):
     output, _ = _recheck_output(output)
     store.save_output(output)
     _save_incident(incident)
+    store.save_retrieval(incident.run_id, [d.model_dump(mode="json", include={"doc_id", "section", "title",
+                                                                             "doc_type", "score", "excerpt"})
+                                           for d in state.get("retrieved_documents") or []])
     return {"output": output}
 
 
@@ -380,7 +384,7 @@ def _recheck_output(output: InvestigationOutput) -> tuple[InvestigationOutput, l
 
 
 def _save_incident(incident: IncidentObject) -> None:
-    path = config.get_settings().incident_state_dir / "outputs" / f"{incident.run_id}.incident.json"
+    path = store.output_dir() / f"{incident.run_id}.incident.json"
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(incident.model_dump_json(indent=1), encoding="utf-8")
 
@@ -576,8 +580,12 @@ def run_investigation(raw_input: str = "", *, scenario_id: Optional[str] = None,
                           prompt_version_override=prompt_version_override, run_id=run_id,
                           reference_time=reference_time, withheld_sources=withheld_sources)
     final: dict[str, Any] = dict(state)
+    # Evaluation runs get their own store (Section 4.6): no dedup against live incidents, and they stay
+    # out of the UI's incident list. A caller may already have chosen a store (the harness sandbox).
+    scope = (store.scoped(store.evaluation_dir(run_id))
+             if run_mode == RunMode.EVALUATION and store.current_scope() is None else nullcontext())
     try:
-        with investigation_trace(run_id, scenario_id, run_mode.value) as trace:
+        with scope, investigation_trace(run_id, scenario_id, run_mode.value) as trace:
             state["langfuse_trace_id"] = trace.trace_id
             run_config = {"callbacks": trace.callbacks, "run_name": "investigation",
                           "metadata": {"run_id": run_id, "scenario_id": scenario_id}, "recursion_limit": 60}
@@ -609,8 +617,7 @@ def run_reclassification(incident_id: str, reclassification: Reclassification) -
     if view is None or not view.run_ids:
         raise ValueError(f"unknown incident {incident_id}")
     run_id = view.run_ids[-1]
-    path = config.get_settings().incident_state_dir / "outputs" / f"{run_id}.incident.json"
-    incident = IncidentObject.model_validate_json(path.read_text(encoding="utf-8"))
+    incident = IncidentObject.model_validate(store.load_incident(run_id))
     saved = store.load_output(run_id) or {}
     final = SeverityAssessment(level=reclassification.to_level,
                                rationale=f"Re-classified by {reclassification.reviewer_role.value}: "

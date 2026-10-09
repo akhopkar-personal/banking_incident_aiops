@@ -7,13 +7,15 @@ Nothing here makes a network call.
 
 from __future__ import annotations
 
+import contextvars
 import json
 import shutil
 import threading
 import uuid
+from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any, Iterator, Optional
 
 from src import config
 from src.safety.redaction import redact_record
@@ -23,8 +25,21 @@ FILES = {"pages": "pages.jsonl", "itsm": "itsm.jsonl", "notifications": "notific
 _lock = threading.Lock()
 
 
+_scope: contextvars.ContextVar[Optional[Path]] = contextvars.ContextVar("aiops_outbox_scope", default=None)
+
+
 def outbox_dir() -> Path:
-    return config.get_settings().outbox_dir
+    return _scope.get() or config.get_settings().outbox_dir
+
+
+@contextmanager
+def scoped(directory: Path) -> Iterator[Path]:
+    """Write to `directory` in this context: the evaluation harness measures live dispatch in a sandbox."""
+    token = _scope.set(directory)
+    try:
+        yield directory
+    finally:
+        _scope.reset(token)
 
 
 def new_outbox_id(prefix: str) -> str:

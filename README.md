@@ -2,7 +2,7 @@
 
 AI capstone project: a multi-agent system that investigates banking incidents across telemetry, the EventHub (Kafka) platform and customer complaints, and returns an evidence-backed recommendation for human review.
 
-**Status:** Phases 0 to 5 are complete: environment and smoke test, schemas and logging, synthetic data and knowledge base, the rules-only system (detection, dedup, severity rules, simulated paging and ticketing), read tools, MCP server, retrieval, safety guardrails, the four LLM agents in the LangGraph workflow, and the Streamlit UI (Investigate, Incident, Outbox, Resolve and Verify) with review, re-classification, resolution and verification. Next: Phase 6 (learning loop: Review Queue, pairwise RLHF, evaluation, adaptation).
+**Status:** Phases 0 to 6 are complete: environment and smoke test, schemas and logging, synthetic data and knowledge base, the rules-only system (detection, dedup, severity rules, simulated paging and ticketing), read tools, MCP server, retrieval, safety guardrails, the four LLM agents in the LangGraph workflow, the Streamlit UI with its eight pages, and the learning loop (golden-set evaluation with DeepEval, SME review queue, pairwise RLHF, reward scores, adaptation with before/after checks, evidence reports). Next: Phase 7 (packaging).
 
 **Contents**
 
@@ -175,7 +175,7 @@ If the lab was reset and the folder is gone, repeat [3.1](#31-first-time-setup).
 
 ### 3.4 Saving long-term data
 
-Vocareum sessions can be reset. Before a session ends, anything the project should remember (the `data/` folder, verified resolutions, logs) must be committed to git (`scripts/commit_state.sh`, added in a later phase) or downloaded (Req. Section 10.3.4).
+Vocareum sessions can be reset. Before a session ends, anything the project should remember (the `data/` folder, verified resolutions, logs) must be committed to git or downloaded (Req. Section 10.3.4). Run `bash scripts/commit_state.sh` (it stages `data/`, verified resolutions, retrieval aliases, `logs/` and evidence reports, never `.env`), then `git push` or upload a zip. On a laptop this is optional.
 
 ---
 
@@ -211,6 +211,11 @@ Run from the `banking_incident_aiops` folder with the environment active.
 | Full investigation with the LLM agents (about $0.004 and 45 s per run; writes to `data/outbox/`) | `python scripts\run_investigation.py SC-01` | `python scripts/run_investigation.py SC-01` |
 | Same, from free text | `python scripts\run_investigation.py SC-05 --text "Customers charged twice since 10:20 UTC"` | `python scripts/run_investigation.py SC-05 --text "Customers charged twice since 10:20 UTC"` |
 | Start the UI (open http://localhost:8501) | `streamlit run src/ui/app.py` (environment active), or without activating: `.\.venv\Scripts\python -m streamlit run src/ui/app.py` | `streamlit run src/ui/app.py` (reaching it through Vocareum's proxy is settled in Phase 7) |
+| Golden-set evaluation with the DeepEval judge (about 12 minutes and $0.15 to $0.25; nothing is dispatched) | `python scripts\run_eval.py` | `python scripts/run_eval.py` |
+| Same, cheaper: one scenario, programmatic metrics only | `python scripts\run_eval.py --scenario SC-03 --no-judge` | `python scripts/run_eval.py --scenario SC-03 --no-judge` |
+| Fixture checks (failure, LLM down, alert storm, injection, S1 page latency; about $0.02) | `python scripts\run_eval.py --fixtures` | `python scripts/run_eval.py --fixtures` |
+| Evidence report for an adaptation | `python -m src.evaluation.evidence_report --adaptation-id ADP-001` | `python -m src.evaluation.evidence_report --adaptation-id ADP-001` |
+| Save the session's data (incidents, feedback, evaluations, logs) to git before Vocareum ends | (not needed) | `bash scripts/commit_state.sh` (add `--push` to push) |
 | Run a scenario without the LLM (writes to `data/outbox/`) | `python scripts\run_rules_only.py SC-01` | `python scripts/run_rules_only.py SC-01` |
 | Same, but dispatch nothing | `python scripts\run_rules_only.py SC-01 --evaluation` | `python scripts/run_rules_only.py SC-01 --evaluation` |
 | Rebuild the knowledge-base index | `python scripts\build_index.py` | `python scripts/build_index.py` |
@@ -237,6 +242,7 @@ Run from the `banking_incident_aiops` folder with the environment active.
 | A change to `deployment/requirements.txt` is not picked up in Vocareum | Run `source scripts/setup_env.sh`; it reinstalls when the file changes |
 | "no FAISS index ... run python scripts/build_index.py" | The knowledge-base index has not been built in this environment; run that command |
 | A run says "deduplicated" and pages nothing | That incident already exists (same scenario replayed). Expected behaviour; to start over, use **Reset demo** on the Outbox page with "Also archive the incident records" ticked (nothing is deleted) |
+| An evaluation case ends in `SYSTEM_ERROR` with `OpenAIRateLimitError` in `logs/error.log` | The gateway throttles parallel runs. Runs retry after 5 s and 10 s; if it still happens, set `EVAL_CONCURRENCY=1` in `.env` |
 | The UI shows a warning that `OPENAI_API_KEY` is not set | The agents cannot run, so every investigation falls back to rules-only dispatch and ends as `SYSTEM_ERROR`. Add the key to `.env` and restart Streamlit |
 
 ---
@@ -245,8 +251,8 @@ Run from the `banking_incident_aiops` folder with the environment active.
 
 | Document | Path |
 |---|---|
-| Requirements specification | [docs/AI_Capstone_Project_Requirements_v0.15.md](docs/AI_Capstone_Project_Requirements_v0.15.md) |
-| Architecture specification | [docs/AI_Capstone_Project_Architecture_Specification_v1.9.md](docs/AI_Capstone_Project_Architecture_Specification_v1.9.md) |
+| Requirements specification | [docs/AI_Capstone_Project_Requirements_v0.16.md](docs/AI_Capstone_Project_Requirements_v0.16.md) |
+| Architecture specification | [docs/AI_Capstone_Project_Architecture_Specification_v1.10.md](docs/AI_Capstone_Project_Architecture_Specification_v1.10.md) |
 | Architecture diagrams (Mermaid sources and PNG exports) | [docs/diagrams/](docs/diagrams/) |
 | Synthetic scenarios and fixtures (one folder each, with `manifest.json`) | [data/telemetry/](data/telemetry/) |
 | Knowledge-base documents (drafts for SME review) | [knowledge/raw/](knowledge/raw/) |

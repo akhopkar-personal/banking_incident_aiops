@@ -17,17 +17,31 @@ def t0() -> datetime:
 _ENV_NAMES = ("OPENAI_API_KEY", "OPENAI_BASE_URL", "LANGFUSE_PUBLIC_KEY", "LANGFUSE_SECRET_KEY", "LANGFUSE_HOST",
               "LLM_MODEL", "JUDGE_MODEL", "LLM_ENABLED", "LOG_LEVEL", "TOOL_TRANSPORT", "EMBEDDING_BACKEND",
               "OUTBOX_DIR", "INCIDENT_STATE_DIR", "LOGS_DIR", "FAISS_INDEX_DIR", "PROCESSED_DIR",
-              "VERIFIED_RESOLUTIONS_DIR", "DATA_DIR", "KNOWLEDGE_DIR", "FEEDBACK_DIR")
+              "VERIFIED_RESOLUTIONS_DIR", "DATA_DIR", "KNOWLEDGE_DIR", "FEEDBACK_DIR", "GOLDEN_DIR",
+              "PROMPT_VERSIONS_PATH", "RETRIEVAL_ALIASES_PATH", "EVALUATION_DIR", "EVIDENCE_DIR")
 
 
 def sandbox_settings(root, **overrides) -> Settings:
     """Settings that read the committed reference data and write only under `root`, with offline
-    hash embeddings and in-process tools unless overridden."""
+    hash embeddings and in-process tools unless overridden. The files the learning loop writes
+    (golden dataset, prompt versions, retrieval aliases) are copied under `root` first."""
+    import shutil
+
+    from src.config import REPO_ROOT
+
+    golden = root / "golden"
+    golden.mkdir(parents=True, exist_ok=True)
+    for name in ("eval_rubric.json", "test_inputs.json", "prompt_versions.json"):
+        shutil.copy(REPO_ROOT / "data" / name, golden / name)
+    shutil.copy(REPO_ROOT / "knowledge" / "retrieval_aliases.json", golden / "retrieval_aliases.json")
     values = dict(logs_dir=root / "logs", outbox_dir=root / "outbox", incident_state_dir=root / "state",
                   faiss_index_dir=root / "index", processed_dir=root / "processed",
                   verified_resolutions_dir=root / "verified", feedback_dir=root / "feedback",
-                  embedding_backend="hash", tool_transport="inprocess",
-                  retry_backoff_s=0)
+                  golden_dir=golden, prompt_versions_path=golden / "prompt_versions.json",
+                  retrieval_aliases_path=golden / "retrieval_aliases.json", evaluation_dir=root / "evaluation",
+                  evidence_dir=root / "evidence",
+                  embedding_backend="hash", tool_transport="inprocess", retry_backoff_s=0,
+                  rate_limit_backoff_s=0)
     values.update(overrides)
     return Settings(_env_file=None, **values)
 

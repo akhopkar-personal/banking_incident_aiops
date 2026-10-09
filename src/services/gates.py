@@ -90,8 +90,9 @@ def _page(state: dict[str, Any], node: str, summary: str, *, fast_path: bool) ->
     dispatch: DispatchRecord = state.get("dispatch") or DispatchRecord()
     view = store.current(incident.incident_id)
     # Paged before, in this run or an earlier one (a deduplicated repeat): attach to that page,
-    # never page twice (FR-38, FR-51). This also keeps FR-69's one page per 15 minutes.
-    if dispatch.paged or (view is not None and view.paged_at):
+    # never page twice (FR-38, FR-51). This also keeps FR-69's one page per 15 minutes. In evaluation
+    # mode an intended page counts as sent, so the intended record mirrors a live run.
+    if dispatch.paged or "page" in dispatch.intended or (view is not None and view.paged_at):
         if _evaluation(state):
             return _suppressed(state, "page_update", {"team": ESCALATION_TEAM, "summary": summary}, node)
         line = get_registry().call("page_oncall", {"incident_id": incident.incident_id, "team": ESCALATION_TEAM,
@@ -187,7 +188,8 @@ def final_severity(state: dict[str, Any]) -> dict[str, Any]:
         flags.append("ai_suggests_higher_severity")
         incident = state["incident"]
         log_interaction("severity_disagreement", component="final_severity_gate", rules_level=rules.level.value,
-                        llm_proposed_level=proposed.value, incident_id=incident.incident_id, run_id=incident.run_id)
+                        llm_proposed_level=proposed.value, incident_id=incident.incident_id, run_id=incident.run_id,
+                        scenario_id=incident.scenario_id, rule_ids=[r.rule_id for r in rules.rules_fired])
     assessment = SeverityAssessment(level=rules.level, rationale=_rules_text(rules), llm_proposed_level=proposed,
                                     rules_fired=rules.rules_fired, rescored=state.get("rules_rescore") is not None,
                                     flags=flags)

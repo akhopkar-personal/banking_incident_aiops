@@ -13,6 +13,7 @@
 
 from __future__ import annotations
 
+import random
 import threading
 import time
 from dataclasses import dataclass, field
@@ -105,7 +106,8 @@ def release_budget(run_id: str) -> Optional[RunBudget]:
 # ---------------------------------------------------------------- retries
 
 def with_retries(fn: Callable[[], T], what: str, component: str, incident_id: str, run_id: str) -> T:
-    """Call fn; retry RecoverableError up to MAX_NODE_RETRIES times (backoff 1 s, 2 s, ...)."""
+    """Call fn; retry RecoverableError up to MAX_NODE_RETRIES times (backoff 1 s, 2 s; 5 s, 10 s plus jitter
+    after a rate-limit error)."""
     s = config.get_settings()
     attempts = 0
     while True:
@@ -118,7 +120,10 @@ def with_retries(fn: Callable[[], T], what: str, component: str, incident_id: st
                 raise
             log_error("node_retry", component=component, what=what, attempt=attempts, error_type=exc.error_type.value,
                       error=str(exc), incident_id=incident_id, run_id=run_id)
-            time.sleep(s.retry_backoff_s * (2 ** (attempts - 1)))
+            delay = s.retry_backoff_s * (2 ** (attempts - 1))
+            if "RateLimit" in str(exc):  # the gateway throttles parallel evaluation runs: wait longer, de-synced
+                delay = max(delay, s.rate_limit_backoff_s * (2 ** (attempts - 1)) * random.uniform(1.0, 1.5))
+            time.sleep(delay)
 
 
 def _classify(exc: Exception) -> RecoverableError:

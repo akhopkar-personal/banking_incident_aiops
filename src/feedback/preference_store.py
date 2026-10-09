@@ -88,3 +88,43 @@ def make(signal_type: SignalType, context: dict[str, Any], reviewer_role, review
                             scenario_id=context.get("scenario_id"),
                             prompt_version_set=context.get("prompt_version_set") or {}, agent=agent,
                             reviewer_role=reviewer_role, reviewer_id=reviewer_id, payload=payload, created_at=at)
+
+
+# ------------------------------------------------------- pairwise agreement (FR-64)
+
+
+def pair_labels(pair_id: str) -> list[PreferenceRecord]:
+    return [r for r in query(SignalType.PAIRWISE) if r.payload.get("pair_id") == pair_id]
+
+
+def pair_outcome(pair_id: str) -> tuple[str, Optional[str]]:
+    """(agreement status, final choice A/B/tie or None). Two different reviewers who agree make the pair
+    `agreed`; if they disagree it is `disputed` until the SME breaks the tie (`tie_broken`)."""
+    labels = pair_labels(pair_id)
+    reviewers: dict[str, str] = {}
+    sme_choice: Optional[str] = None
+    for r in labels:
+        if r.reviewer_role.value == "sme" and len(reviewers) >= 2:
+            sme_choice = sme_choice or r.payload["choice"]
+        else:
+            reviewers.setdefault(r.reviewer_id, r.payload["choice"])
+    choices = list(reviewers.values())[:2]
+    if not choices:
+        return "none", None
+    if len(choices) == 1:
+        return "single", None
+    if choices[0] == choices[1]:
+        return "agreed", choices[0]
+    return ("tie_broken", sme_choice) if sme_choice else ("disputed", None)
+
+
+def agreement(pair_id: str) -> str:
+    """Architecture Spec Section 10.4: `agreed`, `disputed`, `tie_broken`, `single` (or `none`)."""
+    return pair_outcome(pair_id)[0]
+
+
+def reviewer_share(feedback_ids: list[str]) -> dict[str, float]:
+    """Share of the given signals per reviewer, for the 30% cap on any one reviewer (FR-64)."""
+    wanted = set(feedback_ids)
+    owners = [r.reviewer_id for r in records() if r.feedback_id in wanted]
+    return {rid: owners.count(rid) / len(owners) for rid in dict.fromkeys(owners)} if owners else {}

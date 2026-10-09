@@ -314,16 +314,19 @@ def test_baselines_file():
 # --- golden dataset seed (Req. Section 12.1)
 
 def test_golden_dataset_shape():
+    """The 25-case seed is intact; promoted feedback cases (Phase 6) may follow it."""
     inputs = read_json("test_inputs.json")
     rubric = read_json("eval_rubric.json")
     cases = rubric["cases"]
-    assert len(inputs) == len(cases) == 25
-    assert Counter(c["scenario_id"] for c in cases) == {s: 5 for s in SCENARIOS}
-    assert Counter(c["variant"] for c in cases) == {v: 5 for v in
-                                                    ("replay", "free_text", "narrow_window", "wide_window",
-                                                     "missing_source")}
+    seed = [c for c in cases if c["version_added"] == "golden-v1"]
+    assert len(seed) == 25
+    assert Counter(c["scenario_id"] for c in seed) == {s: 5 for s in SCENARIOS}
+    assert Counter(c["variant"] for c in seed) == {v: 5 for v in
+                                                   ("replay", "free_text", "narrow_window", "wide_window",
+                                                    "missing_source")}
     assert [c["input_id"] for c in cases] == [i["input_id"] for i in inputs]
-    assert len({c["case_id"] for c in cases}) == 25
+    assert len({c["case_id"] for c in cases}) == len(cases)
+    assert rubric["version"].startswith("golden-v")
 
 
 @pytest.mark.parametrize("case", json.loads((DATA / "eval_rubric.json").read_text(encoding="utf-8"))["cases"],

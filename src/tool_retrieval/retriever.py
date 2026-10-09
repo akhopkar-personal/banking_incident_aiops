@@ -31,7 +31,7 @@ _loaded: dict[str, tuple[float, object, dict]] = {}
 
 
 def load_aliases(path: Optional[Path] = None) -> dict[str, list[str]]:
-    path = path or config.get_settings().knowledge_dir / "retrieval_aliases.json"
+    path = path or config.get_settings().retrieval_aliases_path
     if not path.exists():
         return {}
     return json.loads(path.read_text(encoding="utf-8")).get("aliases", {})
