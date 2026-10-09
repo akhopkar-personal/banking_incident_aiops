@@ -1,0 +1,29 @@
+{
+  "version": "policy-v1",
+  "action_types": {
+    "investigate_further":    {"risk_level": "low",    "requires_runbook": false, "can_be_first_step": true,  "two_step_confirmation": false},
+    "customer_communication": {"risk_level": "low",    "requires_runbook": false, "can_be_first_step": true,  "two_step_confirmation": false},
+    "restart_service":        {"risk_level": "low",    "requires_runbook": false, "can_be_first_step": true,  "two_step_confirmation": false},
+    "scale_out":              {"risk_level": "low",    "requires_runbook": false, "can_be_first_step": true,  "two_step_confirmation": false},
+    "rollback_release":       {"risk_level": "medium", "requires_runbook": true,  "can_be_first_step": true,  "two_step_confirmation": false},
+    "revert_config_change":   {"risk_level": "medium", "requires_runbook": true,  "can_be_first_step": true,  "two_step_confirmation": false},
+    "throttle_traffic":       {"risk_level": "medium", "requires_runbook": true,  "can_be_first_step": true,  "two_step_confirmation": false},
+    "renew_certificate":      {"risk_level": "medium", "requires_runbook": true,  "can_be_first_step": true,  "two_step_confirmation": false},
+    "failover_payment_route": {"risk_level": "medium", "requires_runbook": true,  "can_be_first_step": true,  "two_step_confirmation": false},
+    "reschedule_batch_job":   {"risk_level": "medium", "requires_runbook": true,  "can_be_first_step": true,  "two_step_confirmation": false},
+    "pause_connector":        {"risk_level": "medium", "requires_runbook": true,  "can_be_first_step": true,  "two_step_confirmation": false},
+    "reset_consumer_offsets": {"risk_level": "high",   "requires_runbook": true,  "can_be_first_step": false, "two_step_confirmation": true},
+    "remove_acl":             {"risk_level": "high",   "requires_runbook": true,  "can_be_first_step": false, "two_step_confirmation": true},
+    "force_broker_failover":  {"risk_level": "high",   "requires_runbook": true,  "can_be_first_step": false, "two_step_confirmation": true},
+    "kill_db_sessions":       {"risk_level": "high",   "requires_runbook": true,  "can_be_first_step": false, "two_step_confirmation": true},
+    "reverse_duplicate_debits": {"risk_level": "high", "requires_runbook": true,  "can_be_first_step": false, "two_step_confirmation": true}
+  },
+  "deny": [
+    "delete_topic",
+    "purge_data",
+    "drop_table",
+    "disable_tls",
+    "disable_authentication",
+    "bypass_idempotency_check"
+  ]
+}

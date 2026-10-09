@@ -1,0 +1,14 @@
+[
+{"timestamp": "2026-04-02T07:30:00Z", "record_id": "SRG-0001", "service": "kafka-platform", "environment": "prod", "subject": "payments.transactions-value", "version": 7, "compatibility": "BACKWARD"},
+{"timestamp": "2026-04-02T07:30:00Z", "record_id": "SRG-0002", "service": "kafka-platform", "environment": "prod", "subject": "accounts.balance-updates-value", "version": 3, "compatibility": "BACKWARD"},
+{"timestamp": "2026-04-02T07:45:00Z", "record_id": "SRG-0003", "service": "kafka-platform", "environment": "prod", "subject": "payments.transactions-value", "version": 7, "compatibility": "BACKWARD"},
+{"timestamp": "2026-04-02T07:45:00Z", "record_id": "SRG-0004", "service": "kafka-platform", "environment": "prod", "subject": "accounts.balance-updates-value", "version": 3, "compatibility": "BACKWARD"},
+{"timestamp": "2026-04-02T08:00:00Z", "record_id": "SRG-0005", "service": "kafka-platform", "environment": "prod", "subject": "payments.transactions-value", "version": 7, "compatibility": "BACKWARD"},
+{"timestamp": "2026-04-02T08:00:00Z", "record_id": "SRG-0006", "service": "kafka-platform", "environment": "prod", "subject": "accounts.balance-updates-value", "version": 3, "compatibility": "BACKWARD"},
+{"timestamp": "2026-04-02T08:15:00Z", "record_id": "SRG-0007", "service": "kafka-platform", "environment": "prod", "subject": "payments.transactions-value", "version": 7, "compatibility": "BACKWARD"},
+{"timestamp": "2026-04-02T08:15:00Z", "record_id": "SRG-0008", "service": "kafka-platform", "environment": "prod", "subject": "accounts.balance-updates-value", "version": 3, "compatibility": "BACKWARD"},
+{"timestamp": "2026-04-02T08:30:00Z", "record_id": "SRG-0009", "service": "kafka-platform", "environment": "prod", "subject": "payments.transactions-value", "version": 7, "compatibility": "BACKWARD"},
+{"timestamp": "2026-04-02T08:30:00Z", "record_id": "SRG-0010", "service": "kafka-platform", "environment": "prod", "subject": "accounts.balance-updates-value", "version": 3, "compatibility": "BACKWARD"},
+{"timestamp": "2026-04-02T08:45:00Z", "record_id": "SRG-0011", "service": "kafka-platform", "environment": "prod", "subject": "payments.transactions-value", "version": 7, "compatibility": "BACKWARD"},
+{"timestamp": "2026-04-02T08:45:00Z", "record_id": "SRG-0012", "service": "kafka-platform", "environment": "prod", "subject": "accounts.balance-updates-value", "version": 3, "compatibility": "BACKWARD"}
+]

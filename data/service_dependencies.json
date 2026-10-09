@@ -1,0 +1,57 @@
+{
+  "mobile-app": {
+    "depends_on": ["api-gateway"],
+    "customer_facing": true,
+    "owner_team": "mobile-channels"
+  },
+  "net-banking": {
+    "depends_on": ["api-gateway"],
+    "customer_facing": true,
+    "owner_team": "web-channels"
+  },
+  "api-gateway": {
+    "depends_on": ["auth-service", "payments-service", "accounts-service"],
+    "customer_facing": true,
+    "owner_team": "platform-gateway"
+  },
+  "auth-service": {
+    "depends_on": [],
+    "customer_facing": true,
+    "owner_team": "identity"
+  },
+  "payments-service": {
+    "depends_on": ["core-banking-db", "payment-network-gateway", "kafka-platform"],
+    "customer_facing": true,
+    "owner_team": "payments"
+  },
+  "accounts-service": {
+    "depends_on": ["core-banking-db"],
+    "customer_facing": true,
+    "owner_team": "accounts"
+  },
+  "notification-service": {
+    "depends_on": ["kafka-platform"],
+    "customer_facing": false,
+    "owner_team": "notifications"
+  },
+  "ledger-consumer": {
+    "depends_on": ["kafka-platform", "core-banking-db"],
+    "customer_facing": false,
+    "owner_team": "ledger"
+  },
+  "core-banking-db": {
+    "depends_on": [],
+    "customer_facing": false,
+    "owner_team": "core-banking-dba"
+  },
+  "payment-network-gateway": {
+    "depends_on": [],
+    "customer_facing": false,
+    "owner_team": "payments-network"
+  },
+  "kafka-platform": {
+    "depends_on": [],
+    "customer_facing": false,
+    "owner_team": "eventhub-platform"
+  }
+}

@@ -1,0 +1,36 @@
+{
+  "dataset_id": "FX-ALERT-STORM",
+  "kind": "fixture",
+  "title": "200 extra anomaly-producing samples from one broker failure: exactly one incident, one ticket and one page (FR-38, FR-69)",
+  "base_scenario": "SC-02",
+  "generator_version": "gen-v1",
+  "seed": 2026032102,
+  "window_start": "2026-03-21T12:30:00Z",
+  "window_end": "2026-03-21T14:00:00Z",
+  "onset": "2026-03-21T13:00:00Z",
+  "reference_time": "2026-03-21T13:15:00Z",
+  "key_evidence": {
+    "broker_down_event": "KFK-0231",
+    "broker_io_error_log": "LOG-0083",
+    "first_balance_complaint": "CMP-0007",
+    "first_rebalance": "KFK-0272",
+    "peak_lag_sample": "KFK-0661",
+    "red_herring_change": "DEP-0012",
+    "red_herring_schema_warning": "SRG-0003",
+    "urp_sample": "KFK-0370"
+  },
+  "storm_records_added": 200,
+  "record_counts": {
+    "logs/app_logs.json": 471,
+    "kafka/kafka_events.json": 941,
+    "api_metrics/api_metrics.csv": 900,
+    "db_infra_metrics/db_infra_metrics.csv": 90,
+    "network/network_events.json": 360,
+    "deployments/deployments.json": 3,
+    "complaints/complaints.json": 80,
+    "eventhub/connect_status.json": 54,
+    "eventhub/acl_audit.json": 27,
+    "eventhub/schema_registry.json": 13,
+    "eventhub/cluster_quorum.json": 90
+  }
+}

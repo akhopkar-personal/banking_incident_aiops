@@ -1,0 +1,47 @@
+{
+  "dataset_id": "SC-03",
+  "kind": "scenario",
+  "title": "Core banking DB saturation",
+  "base_scenario": null,
+  "generator_version": "gen-v1",
+  "seed": 2026032703,
+  "window_start": "2026-03-27T17:32:00Z",
+  "window_end": "2026-03-27T19:02:00Z",
+  "onset": "2026-03-27T18:02:00Z",
+  "reference_time": "2026-03-27T18:07:00Z",
+  "key_evidence": {
+    "auth_latency_spike": "API-0344",
+    "batch_start_log": "LOG-0085",
+    "causal_change": "DEP-0021",
+    "db_saturation_sample": "DBM-0033",
+    "first_login_complaint": "CMP-0008",
+    "first_pool_exhausted_log": "LOG-0102",
+    "red_herring_change": "DEP-0023"
+  },
+  "must_cite_evidence_ids": [
+    "LOG-0085",
+    "DBM-0033",
+    "LOG-0102"
+  ],
+  "causal_change_id": "DEP-0021",
+  "red_herring_ids": [
+    "DEP-0023"
+  ],
+  "expected_rules_pass1": [
+    "R-S1-LAT"
+  ],
+  "ground_truth_status": "draft, pending SME validation",
+  "record_counts": {
+    "logs/app_logs.json": 872,
+    "kafka/kafka_events.json": 720,
+    "api_metrics/api_metrics.csv": 900,
+    "db_infra_metrics/db_infra_metrics.csv": 90,
+    "network/network_events.json": 360,
+    "deployments/deployments.json": 3,
+    "complaints/complaints.json": 46,
+    "eventhub/connect_status.json": 54,
+    "eventhub/acl_audit.json": 27,
+    "eventhub/schema_registry.json": 12,
+    "eventhub/cluster_quorum.json": 90
+  }
+}

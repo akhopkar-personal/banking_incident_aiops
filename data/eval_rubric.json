@@ -1,0 +1,703 @@
+{
+  "version": "golden-v1",
+  "status": "draft: ground truth pending SME validation (Req. Section 9.4)",
+  "cases": [
+    {
+      "case_id": "GC-SC01-REPLAY",
+      "input_id": "TI-SC01-REPLAY",
+      "scenario_id": "SC-01",
+      "variant": "replay",
+      "expected_root_cause": "Release v2.14.0 of payments-service (DEP-0007) reduced the DB client query timeout from 5000 ms to 1000 ms, so payment inserts time out under normal load",
+      "expected_severity": "S1",
+      "expected_issue_class": "release_regression",
+      "expected_runbook_id": "RB-PAY-003",
+      "expected_doc_ids": [
+        "RB-PAY-003",
+        "PM-2025-011"
+      ],
+      "must_cite_evidence_ids": [
+        "DEP-0007",
+        "LOG-0094",
+        "API-0355"
+      ],
+      "expected_causal_change_id": "DEP-0007",
+      "expected_dispatch": {
+        "route": "page",
+        "fast_path": true,
+        "queue": "incident-escalation"
+      },
+      "expected_regulatory_flag": false,
+      "expected_abstention": false,
+      "version_added": "golden-v1"
+    },
+    {
+      "case_id": "GC-SC01-FREETEXT",
+      "input_id": "TI-SC01-FREETEXT",
+      "scenario_id": "SC-01",
+      "variant": "free_text",
+      "expected_root_cause": "Release v2.14.0 of payments-service (DEP-0007) reduced the DB client query timeout from 5000 ms to 1000 ms, so payment inserts time out under normal load",
+      "expected_severity": "S1",
+      "expected_issue_class": "release_regression",
+      "expected_runbook_id": "RB-PAY-003",
+      "expected_doc_ids": [
+        "RB-PAY-003",
+        "PM-2025-011"
+      ],
+      "must_cite_evidence_ids": [
+        "DEP-0007",
+        "LOG-0094",
+        "API-0355"
+      ],
+      "expected_causal_change_id": "DEP-0007",
+      "expected_dispatch": {
+        "route": "page",
+        "fast_path": true,
+        "queue": "incident-escalation"
+      },
+      "expected_regulatory_flag": false,
+      "expected_abstention": false,
+      "version_added": "golden-v1"
+    },
+    {
+      "case_id": "GC-SC01-NARROW",
+      "input_id": "TI-SC01-NARROW",
+      "scenario_id": "SC-01",
+      "variant": "narrow_window",
+      "expected_root_cause": "Release v2.14.0 of payments-service (DEP-0007) reduced the DB client query timeout from 5000 ms to 1000 ms, so payment inserts time out under normal load",
+      "expected_severity": "S1",
+      "expected_issue_class": "release_regression",
+      "expected_runbook_id": "RB-PAY-003",
+      "expected_doc_ids": [
+        "RB-PAY-003",
+        "PM-2025-011"
+      ],
+      "must_cite_evidence_ids": [
+        "DEP-0007",
+        "LOG-0094",
+        "API-0355"
+      ],
+      "expected_causal_change_id": "DEP-0007",
+      "expected_dispatch": {
+        "route": "page",
+        "fast_path": true,
+        "queue": "incident-escalation"
+      },
+      "expected_regulatory_flag": false,
+      "expected_abstention": false,
+      "version_added": "golden-v1"
+    },
+    {
+      "case_id": "GC-SC01-WIDE",
+      "input_id": "TI-SC01-WIDE",
+      "scenario_id": "SC-01",
+      "variant": "wide_window",
+      "expected_root_cause": "Release v2.14.0 of payments-service (DEP-0007) reduced the DB client query timeout from 5000 ms to 1000 ms, so payment inserts time out under normal load",
+      "expected_severity": "S1",
+      "expected_issue_class": "release_regression",
+      "expected_runbook_id": "RB-PAY-003",
+      "expected_doc_ids": [
+        "RB-PAY-003",
+        "PM-2025-011"
+      ],
+      "must_cite_evidence_ids": [
+        "DEP-0007",
+        "LOG-0094",
+        "API-0355"
+      ],
+      "expected_causal_change_id": "DEP-0007",
+      "expected_dispatch": {
+        "route": "page",
+        "fast_path": true,
+        "queue": "incident-escalation"
+      },
+      "expected_regulatory_flag": false,
+      "expected_abstention": false,
+      "version_added": "golden-v1"
+    },
+    {
+      "case_id": "GC-SC01-MISSING",
+      "input_id": "TI-SC01-MISSING",
+      "scenario_id": "SC-01",
+      "variant": "missing_source",
+      "expected_root_cause": "Release v2.14.0 of payments-service (DEP-0007) reduced the DB client query timeout from 5000 ms to 1000 ms, so payment inserts time out under normal load",
+      "expected_severity": "S1",
+      "expected_issue_class": "release_regression",
+      "expected_runbook_id": "RB-PAY-003",
+      "expected_doc_ids": [
+        "RB-PAY-003",
+        "PM-2025-011"
+      ],
+      "must_cite_evidence_ids": [
+        "LOG-0094",
+        "API-0355"
+      ],
+      "expected_causal_change_id": null,
+      "expected_dispatch": {
+        "route": "page",
+        "fast_path": true,
+        "queue": "incident-escalation"
+      },
+      "expected_regulatory_flag": false,
+      "expected_abstention": true,
+      "version_added": "golden-v1"
+    },
+    {
+      "case_id": "GC-SC02-REPLAY",
+      "input_id": "TI-SC02-REPLAY",
+      "scenario_id": "SC-02",
+      "variant": "replay",
+      "expected_root_cause": "Failure of kafka-broker-2 (disk I/O error) left 6 partitions under-replicated and set off repeated consumer-group rebalances, so ledger-consumer and notification-service fell behind on payments.transactions",
+      "expected_severity": "S2",
+      "expected_issue_class": "eventhub_broker",
+      "expected_runbook_id": "RB-KFK-001",
+      "expected_doc_ids": [
+        "RB-KFK-001",
+        "PM-2025-014"
+      ],
+      "must_cite_evidence_ids": [
+        "KFK-0228",
+        "KFK-0270",
+        "KFK-0461"
+      ],
+      "expected_causal_change_id": null,
+      "expected_dispatch": {
+        "route": "page",
+        "fast_path": false,
+        "queue": "incident-escalation"
+      },
+      "expected_regulatory_flag": false,
+      "expected_abstention": false,
+      "version_added": "golden-v1"
+    },
+    {
+      "case_id": "GC-SC02-FREETEXT",
+      "input_id": "TI-SC02-FREETEXT",
+      "scenario_id": "SC-02",
+      "variant": "free_text",
+      "expected_root_cause": "Failure of kafka-broker-2 (disk I/O error) left 6 partitions under-replicated and set off repeated consumer-group rebalances, so ledger-consumer and notification-service fell behind on payments.transactions",
+      "expected_severity": "S2",
+      "expected_issue_class": "eventhub_broker",
+      "expected_runbook_id": "RB-KFK-001",
+      "expected_doc_ids": [
+        "RB-KFK-001",
+        "PM-2025-014"
+      ],
+      "must_cite_evidence_ids": [
+        "KFK-0228",
+        "KFK-0270",
+        "KFK-0461"
+      ],
+      "expected_causal_change_id": null,
+      "expected_dispatch": {
+        "route": "page",
+        "fast_path": false,
+        "queue": "incident-escalation"
+      },
+      "expected_regulatory_flag": false,
+      "expected_abstention": false,
+      "version_added": "golden-v1"
+    },
+    {
+      "case_id": "GC-SC02-NARROW",
+      "input_id": "TI-SC02-NARROW",
+      "scenario_id": "SC-02",
+      "variant": "narrow_window",
+      "expected_root_cause": "Failure of kafka-broker-2 (disk I/O error) left 6 partitions under-replicated and set off repeated consumer-group rebalances, so ledger-consumer and notification-service fell behind on payments.transactions",
+      "expected_severity": "S2",
+      "expected_issue_class": "eventhub_broker",
+      "expected_runbook_id": "RB-KFK-001",
+      "expected_doc_ids": [
+        "RB-KFK-001",
+        "PM-2025-014"
+      ],
+      "must_cite_evidence_ids": [
+        "KFK-0228",
+        "KFK-0270",
+        "KFK-0461"
+      ],
+      "expected_causal_change_id": null,
+      "expected_dispatch": {
+        "route": "page",
+        "fast_path": false,
+        "queue": "incident-escalation"
+      },
+      "expected_regulatory_flag": false,
+      "expected_abstention": false,
+      "version_added": "golden-v1"
+    },
+    {
+      "case_id": "GC-SC02-WIDE",
+      "input_id": "TI-SC02-WIDE",
+      "scenario_id": "SC-02",
+      "variant": "wide_window",
+      "expected_root_cause": "Failure of kafka-broker-2 (disk I/O error) left 6 partitions under-replicated and set off repeated consumer-group rebalances, so ledger-consumer and notification-service fell behind on payments.transactions",
+      "expected_severity": "S2",
+      "expected_issue_class": "eventhub_broker",
+      "expected_runbook_id": "RB-KFK-001",
+      "expected_doc_ids": [
+        "RB-KFK-001",
+        "PM-2025-014"
+      ],
+      "must_cite_evidence_ids": [
+        "KFK-0228",
+        "KFK-0270",
+        "KFK-0461"
+      ],
+      "expected_causal_change_id": null,
+      "expected_dispatch": {
+        "route": "page",
+        "fast_path": false,
+        "queue": "incident-escalation"
+      },
+      "expected_regulatory_flag": false,
+      "expected_abstention": false,
+      "version_added": "golden-v1"
+    },
+    {
+      "case_id": "GC-SC02-MISSING",
+      "input_id": "TI-SC02-MISSING",
+      "scenario_id": "SC-02",
+      "variant": "missing_source",
+      "expected_root_cause": "Failure of kafka-broker-2 (disk I/O error) left 6 partitions under-replicated and set off repeated consumer-group rebalances, so ledger-consumer and notification-service fell behind on payments.transactions",
+      "expected_severity": "S2",
+      "expected_issue_class": "eventhub_broker",
+      "expected_runbook_id": "RB-KFK-001",
+      "expected_doc_ids": [
+        "RB-KFK-001",
+        "PM-2025-014"
+      ],
+      "must_cite_evidence_ids": [],
+      "expected_causal_change_id": null,
+      "expected_dispatch": {
+        "route": "page",
+        "fast_path": false,
+        "queue": "incident-escalation"
+      },
+      "expected_regulatory_flag": false,
+      "expected_abstention": true,
+      "version_added": "golden-v1"
+    },
+    {
+      "case_id": "GC-SC03-REPLAY",
+      "input_id": "TI-SC03-REPLAY",
+      "scenario_id": "SC-03",
+      "variant": "replay",
+      "expected_root_cause": "The EOD reconciliation and interest accrual batch jobs, moved to 18:00 UTC by DEP-0021, ran during peak traffic, exhausted the core-banking-db connection pool and locked hot tables",
+      "expected_severity": "S1",
+      "expected_issue_class": "database_capacity",
+      "expected_runbook_id": "RB-DB-002",
+      "expected_doc_ids": [
+        "RB-DB-002",
+        "PM-2025-019"
+      ],
+      "must_cite_evidence_ids": [
+        "LOG-0085",
+        "DBM-0033",
+        "LOG-0102"
+      ],
+      "expected_causal_change_id": "DEP-0021",
+      "expected_dispatch": {
+        "route": "page",
+        "fast_path": true,
+        "queue": "incident-escalation"
+      },
+      "expected_regulatory_flag": false,
+      "expected_abstention": false,
+      "version_added": "golden-v1"
+    },
+    {
+      "case_id": "GC-SC03-FREETEXT",
+      "input_id": "TI-SC03-FREETEXT",
+      "scenario_id": "SC-03",
+      "variant": "free_text",
+      "expected_root_cause": "The EOD reconciliation and interest accrual batch jobs, moved to 18:00 UTC by DEP-0021, ran during peak traffic, exhausted the core-banking-db connection pool and locked hot tables",
+      "expected_severity": "S1",
+      "expected_issue_class": "database_capacity",
+      "expected_runbook_id": "RB-DB-002",
+      "expected_doc_ids": [
+        "RB-DB-002",
+        "PM-2025-019"
+      ],
+      "must_cite_evidence_ids": [
+        "LOG-0085",
+        "DBM-0033",
+        "LOG-0102"
+      ],
+      "expected_causal_change_id": "DEP-0021",
+      "expected_dispatch": {
+        "route": "page",
+        "fast_path": true,
+        "queue": "incident-escalation"
+      },
+      "expected_regulatory_flag": false,
+      "expected_abstention": false,
+      "version_added": "golden-v1"
+    },
+    {
+      "case_id": "GC-SC03-NARROW",
+      "input_id": "TI-SC03-NARROW",
+      "scenario_id": "SC-03",
+      "variant": "narrow_window",
+      "expected_root_cause": "The EOD reconciliation and interest accrual batch jobs, moved to 18:00 UTC by DEP-0021, ran during peak traffic, exhausted the core-banking-db connection pool and locked hot tables",
+      "expected_severity": "S1",
+      "expected_issue_class": "database_capacity",
+      "expected_runbook_id": "RB-DB-002",
+      "expected_doc_ids": [
+        "RB-DB-002",
+        "PM-2025-019"
+      ],
+      "must_cite_evidence_ids": [
+        "LOG-0085",
+        "DBM-0033",
+        "LOG-0102"
+      ],
+      "expected_causal_change_id": "DEP-0021",
+      "expected_dispatch": {
+        "route": "page",
+        "fast_path": true,
+        "queue": "incident-escalation"
+      },
+      "expected_regulatory_flag": false,
+      "expected_abstention": false,
+      "version_added": "golden-v1"
+    },
+    {
+      "case_id": "GC-SC03-WIDE",
+      "input_id": "TI-SC03-WIDE",
+      "scenario_id": "SC-03",
+      "variant": "wide_window",
+      "expected_root_cause": "The EOD reconciliation and interest accrual batch jobs, moved to 18:00 UTC by DEP-0021, ran during peak traffic, exhausted the core-banking-db connection pool and locked hot tables",
+      "expected_severity": "S1",
+      "expected_issue_class": "database_capacity",
+      "expected_runbook_id": "RB-DB-002",
+      "expected_doc_ids": [
+        "RB-DB-002",
+        "PM-2025-019"
+      ],
+      "must_cite_evidence_ids": [
+        "LOG-0085",
+        "DBM-0033",
+        "LOG-0102"
+      ],
+      "expected_causal_change_id": "DEP-0021",
+      "expected_dispatch": {
+        "route": "page",
+        "fast_path": true,
+        "queue": "incident-escalation"
+      },
+      "expected_regulatory_flag": false,
+      "expected_abstention": false,
+      "version_added": "golden-v1"
+    },
+    {
+      "case_id": "GC-SC03-MISSING",
+      "input_id": "TI-SC03-MISSING",
+      "scenario_id": "SC-03",
+      "variant": "missing_source",
+      "expected_root_cause": "The EOD reconciliation and interest accrual batch jobs, moved to 18:00 UTC by DEP-0021, ran during peak traffic, exhausted the core-banking-db connection pool and locked hot tables",
+      "expected_severity": "S1",
+      "expected_issue_class": "database_capacity",
+      "expected_runbook_id": "RB-DB-002",
+      "expected_doc_ids": [
+        "RB-DB-002",
+        "PM-2025-019"
+      ],
+      "must_cite_evidence_ids": [
+        "LOG-0085",
+        "LOG-0102"
+      ],
+      "expected_causal_change_id": "DEP-0021",
+      "expected_dispatch": {
+        "route": "page",
+        "fast_path": true,
+        "queue": "incident-escalation"
+      },
+      "expected_regulatory_flag": false,
+      "expected_abstention": true,
+      "version_added": "golden-v1"
+    },
+    {
+      "case_id": "GC-SC04-REPLAY",
+      "input_id": "TI-SC04-REPLAY",
+      "scenario_id": "SC-04",
+      "variant": "replay",
+      "expected_root_cause": "The client certificate for the card route from payment-network-gateway to the external payment switch expired at 08:00 UTC, so every TLS handshake on that route fails",
+      "expected_severity": "S1",
+      "expected_issue_class": "network_tls",
+      "expected_runbook_id": "RB-NET-004",
+      "expected_doc_ids": [
+        "RB-NET-004",
+        "PM-2025-023"
+      ],
+      "must_cite_evidence_ids": [
+        "NET-0121",
+        "LOG-0097",
+        "API-0338"
+      ],
+      "expected_causal_change_id": null,
+      "expected_dispatch": {
+        "route": "page",
+        "fast_path": true,
+        "queue": "incident-escalation"
+      },
+      "expected_regulatory_flag": false,
+      "expected_abstention": false,
+      "version_added": "golden-v1"
+    },
+    {
+      "case_id": "GC-SC04-FREETEXT",
+      "input_id": "TI-SC04-FREETEXT",
+      "scenario_id": "SC-04",
+      "variant": "free_text",
+      "expected_root_cause": "The client certificate for the card route from payment-network-gateway to the external payment switch expired at 08:00 UTC, so every TLS handshake on that route fails",
+      "expected_severity": "S1",
+      "expected_issue_class": "network_tls",
+      "expected_runbook_id": "RB-NET-004",
+      "expected_doc_ids": [
+        "RB-NET-004",
+        "PM-2025-023"
+      ],
+      "must_cite_evidence_ids": [
+        "NET-0121",
+        "LOG-0097",
+        "API-0338"
+      ],
+      "expected_causal_change_id": null,
+      "expected_dispatch": {
+        "route": "page",
+        "fast_path": true,
+        "queue": "incident-escalation"
+      },
+      "expected_regulatory_flag": false,
+      "expected_abstention": false,
+      "version_added": "golden-v1"
+    },
+    {
+      "case_id": "GC-SC04-NARROW",
+      "input_id": "TI-SC04-NARROW",
+      "scenario_id": "SC-04",
+      "variant": "narrow_window",
+      "expected_root_cause": "The client certificate for the card route from payment-network-gateway to the external payment switch expired at 08:00 UTC, so every TLS handshake on that route fails",
+      "expected_severity": "S1",
+      "expected_issue_class": "network_tls",
+      "expected_runbook_id": "RB-NET-004",
+      "expected_doc_ids": [
+        "RB-NET-004",
+        "PM-2025-023"
+      ],
+      "must_cite_evidence_ids": [
+        "NET-0121",
+        "LOG-0097",
+        "API-0338"
+      ],
+      "expected_causal_change_id": null,
+      "expected_dispatch": {
+        "route": "page",
+        "fast_path": true,
+        "queue": "incident-escalation"
+      },
+      "expected_regulatory_flag": false,
+      "expected_abstention": false,
+      "version_added": "golden-v1"
+    },
+    {
+      "case_id": "GC-SC04-WIDE",
+      "input_id": "TI-SC04-WIDE",
+      "scenario_id": "SC-04",
+      "variant": "wide_window",
+      "expected_root_cause": "The client certificate for the card route from payment-network-gateway to the external payment switch expired at 08:00 UTC, so every TLS handshake on that route fails",
+      "expected_severity": "S1",
+      "expected_issue_class": "network_tls",
+      "expected_runbook_id": "RB-NET-004",
+      "expected_doc_ids": [
+        "RB-NET-004",
+        "PM-2025-023"
+      ],
+      "must_cite_evidence_ids": [
+        "NET-0121",
+        "LOG-0097",
+        "API-0338"
+      ],
+      "expected_causal_change_id": null,
+      "expected_dispatch": {
+        "route": "page",
+        "fast_path": true,
+        "queue": "incident-escalation"
+      },
+      "expected_regulatory_flag": false,
+      "expected_abstention": false,
+      "version_added": "golden-v1"
+    },
+    {
+      "case_id": "GC-SC04-MISSING",
+      "input_id": "TI-SC04-MISSING",
+      "scenario_id": "SC-04",
+      "variant": "missing_source",
+      "expected_root_cause": "The client certificate for the card route from payment-network-gateway to the external payment switch expired at 08:00 UTC, so every TLS handshake on that route fails",
+      "expected_severity": "S1",
+      "expected_issue_class": "network_tls",
+      "expected_runbook_id": "RB-NET-004",
+      "expected_doc_ids": [
+        "RB-NET-004",
+        "PM-2025-023"
+      ],
+      "must_cite_evidence_ids": [
+        "LOG-0097",
+        "API-0338"
+      ],
+      "expected_causal_change_id": null,
+      "expected_dispatch": {
+        "route": "page",
+        "fast_path": true,
+        "queue": "incident-escalation"
+      },
+      "expected_regulatory_flag": false,
+      "expected_abstention": true,
+      "version_added": "golden-v1"
+    },
+    {
+      "case_id": "GC-SC05-REPLAY",
+      "input_id": "TI-SC05-REPLAY",
+      "scenario_id": "SC-05",
+      "variant": "replay",
+      "expected_root_cause": "The retry-policy change DEP-0041 (max_attempts 1 to 3 on gateway timeout) resubmitted payments without an idempotency key, creating duplicate debits",
+      "expected_severity": "S2",
+      "expected_issue_class": "data_integrity",
+      "expected_runbook_id": "RB-PAY-005",
+      "expected_doc_ids": [
+        "RB-PAY-005",
+        "REG-001",
+        "PM-2025-027"
+      ],
+      "must_cite_evidence_ids": [
+        "DEP-0041",
+        "KFK-0169",
+        "LOG-0074"
+      ],
+      "expected_causal_change_id": "DEP-0041",
+      "expected_dispatch": {
+        "route": "page",
+        "fast_path": false,
+        "queue": "incident-escalation"
+      },
+      "expected_regulatory_flag": true,
+      "expected_abstention": false,
+      "version_added": "golden-v1"
+    },
+    {
+      "case_id": "GC-SC05-FREETEXT",
+      "input_id": "TI-SC05-FREETEXT",
+      "scenario_id": "SC-05",
+      "variant": "free_text",
+      "expected_root_cause": "The retry-policy change DEP-0041 (max_attempts 1 to 3 on gateway timeout) resubmitted payments without an idempotency key, creating duplicate debits",
+      "expected_severity": "S2",
+      "expected_issue_class": "data_integrity",
+      "expected_runbook_id": "RB-PAY-005",
+      "expected_doc_ids": [
+        "RB-PAY-005",
+        "REG-001",
+        "PM-2025-027"
+      ],
+      "must_cite_evidence_ids": [
+        "DEP-0041",
+        "KFK-0169",
+        "LOG-0074"
+      ],
+      "expected_causal_change_id": "DEP-0041",
+      "expected_dispatch": {
+        "route": "page",
+        "fast_path": false,
+        "queue": "incident-escalation"
+      },
+      "expected_regulatory_flag": true,
+      "expected_abstention": false,
+      "version_added": "golden-v1"
+    },
+    {
+      "case_id": "GC-SC05-NARROW",
+      "input_id": "TI-SC05-NARROW",
+      "scenario_id": "SC-05",
+      "variant": "narrow_window",
+      "expected_root_cause": "The retry-policy change DEP-0041 (max_attempts 1 to 3 on gateway timeout) resubmitted payments without an idempotency key, creating duplicate debits",
+      "expected_severity": "S2",
+      "expected_issue_class": "data_integrity",
+      "expected_runbook_id": "RB-PAY-005",
+      "expected_doc_ids": [
+        "RB-PAY-005",
+        "REG-001",
+        "PM-2025-027"
+      ],
+      "must_cite_evidence_ids": [
+        "DEP-0041",
+        "KFK-0169",
+        "LOG-0074"
+      ],
+      "expected_causal_change_id": "DEP-0041",
+      "expected_dispatch": {
+        "route": "page",
+        "fast_path": false,
+        "queue": "incident-escalation"
+      },
+      "expected_regulatory_flag": true,
+      "expected_abstention": false,
+      "version_added": "golden-v1"
+    },
+    {
+      "case_id": "GC-SC05-WIDE",
+      "input_id": "TI-SC05-WIDE",
+      "scenario_id": "SC-05",
+      "variant": "wide_window",
+      "expected_root_cause": "The retry-policy change DEP-0041 (max_attempts 1 to 3 on gateway timeout) resubmitted payments without an idempotency key, creating duplicate debits",
+      "expected_severity": "S2",
+      "expected_issue_class": "data_integrity",
+      "expected_runbook_id": "RB-PAY-005",
+      "expected_doc_ids": [
+        "RB-PAY-005",
+        "REG-001",
+        "PM-2025-027"
+      ],
+      "must_cite_evidence_ids": [
+        "DEP-0041",
+        "KFK-0169",
+        "LOG-0074"
+      ],
+      "expected_causal_change_id": "DEP-0041",
+      "expected_dispatch": {
+        "route": "page",
+        "fast_path": false,
+        "queue": "incident-escalation"
+      },
+      "expected_regulatory_flag": true,
+      "expected_abstention": false,
+      "version_added": "golden-v1"
+    },
+    {
+      "case_id": "GC-SC05-MISSING",
+      "input_id": "TI-SC05-MISSING",
+      "scenario_id": "SC-05",
+      "variant": "missing_source",
+      "expected_root_cause": "The retry-policy change DEP-0041 (max_attempts 1 to 3 on gateway timeout) resubmitted payments without an idempotency key, creating duplicate debits",
+      "expected_severity": "S2",
+      "expected_issue_class": "data_integrity",
+      "expected_runbook_id": "RB-PAY-005",
+      "expected_doc_ids": [
+        "RB-PAY-005",
+        "REG-001",
+        "PM-2025-027"
+      ],
+      "must_cite_evidence_ids": [
+        "DEP-0041",
+        "LOG-0074"
+      ],
+      "expected_causal_change_id": "DEP-0041",
+      "expected_dispatch": {
+        "route": "page",
+        "fast_path": false,
+        "queue": "incident-escalation"
+      },
+      "expected_regulatory_flag": true,
+      "expected_abstention": true,
+      "version_added": "golden-v1"
+    }
+  ]
+}

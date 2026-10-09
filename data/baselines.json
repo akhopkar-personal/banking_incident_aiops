@@ -1,0 +1,22 @@
+{
+  "version": "baselines-v1",
+  "description": "Anomaly Detection Service settings (Architecture Spec Section 5.1). Statistical baselines are computed from the first minutes of telemetry in the window; the hard thresholds below flag a bucket regardless of its z-score.",
+  "bucket_minutes": 1,
+  "baseline_minutes": 20,
+  "zscore_threshold": 3.0,
+  "std_floor_pct_of_mean": 1.0,
+  "hard_thresholds": {
+    "api_error_rate": {"source": "API", "field": "error_rate", "operator": ">", "value": 0.05},
+    "db_connections_used_pct": {"source": "DBM", "field": "active_connections/max_connections", "operator": ">", "value": 0.9},
+    "db_cpu_pct": {"source": "DBM", "field": "cpu_pct", "operator": ">", "value": 85},
+    "kafka_under_replicated": {"source": "KFK", "field": "under_replicated", "operator": ">", "value": 0},
+    "kafka_consumer_lag": {"source": "KFK", "field": "lag", "operator": ">", "value": 10000},
+    "kafka_broker_down": {"source": "KFK", "field": "event_type", "operator": "==", "value": "broker_down"},
+    "quorum_offline_partitions": {"source": "QRM", "field": "offline_partitions", "operator": ">", "value": 0},
+    "quorum_unhealthy": {"source": "QRM", "field": "quorum_healthy", "operator": "==", "value": false},
+    "tls_not_ok": {"source": "NET", "field": "tls_status", "operator": "!=", "value": "ok"},
+    "network_packet_loss_pct": {"source": "NET", "field": "packet_loss_pct", "operator": ">", "value": 2.0},
+    "connect_task_failed": {"source": "CON", "field": "state", "operator": "==", "value": "FAILED"},
+    "acl_denied": {"source": "ACL", "field": "result", "operator": "==", "value": "DENIED"}
+  }
+}

@@ -1,0 +1,5 @@
+[
+{"timestamp": "2026-04-02T04:50:00Z", "record_id": "DEP-0029", "service": "payment-network-gateway", "environment": "prod", "deployment_id": "CR-25402", "change_type": "infra", "author": "network-security-oncall", "change_summary": "Firewall rule review: no functional change", "rollback_available": false},
+{"timestamp": "2026-04-02T05:30:00Z", "record_id": "DEP-0031", "service": "payment-network-gateway", "environment": "prod", "deployment_id": "CR-25409", "version": "v4.3.0", "change_type": "release", "author": "payments-network-release-pipeline", "change_summary": "payment-network-gateway v4.3.0: UPI retry tuning", "rollback_available": true},
+{"timestamp": "2026-04-02T07:40:00Z", "record_id": "DEP-0033", "service": "accounts-service", "environment": "prod", "deployment_id": "CR-25433", "change_type": "config", "author": "accounts-config-pipeline", "change_summary": "Feature flag balance_cache_ttl_v2 enabled for 10% of traffic", "rollback_available": true}
+]

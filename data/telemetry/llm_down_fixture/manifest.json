@@ -1,0 +1,33 @@
+{
+  "dataset_id": "FX-LLM-DOWN",
+  "kind": "fixture",
+  "title": "SC-01 with the LLM disabled: the S1 page still goes out and the run ends in SYSTEM_ERROR with rules_severity (FR-43, FR-68)",
+  "base_scenario": "SC-01",
+  "generator_version": "gen-v1",
+  "seed": 2026031401,
+  "window_start": "2026-03-14T09:35:00Z",
+  "window_end": "2026-03-14T11:05:00Z",
+  "onset": "2026-03-14T10:05:00Z",
+  "reference_time": "2026-03-14T10:08:00Z",
+  "key_evidence": {
+    "causal_change": "DEP-0007",
+    "db_client_config_log": "LOG-0066",
+    "first_db_timeout_log": "LOG-0094",
+    "first_transfer_complaint": "CMP-0009",
+    "payments_error_spike": "API-0355",
+    "red_herring_change": "DEP-0005"
+  },
+  "record_counts": {
+    "logs/app_logs.json": 1113,
+    "kafka/kafka_events.json": 720,
+    "api_metrics/api_metrics.csv": 900,
+    "db_infra_metrics/db_infra_metrics.csv": 90,
+    "network/network_events.json": 360,
+    "deployments/deployments.json": 4,
+    "complaints/complaints.json": 264,
+    "eventhub/connect_status.json": 54,
+    "eventhub/acl_audit.json": 27,
+    "eventhub/schema_registry.json": 12,
+    "eventhub/cluster_quorum.json": 90
+  }
+}

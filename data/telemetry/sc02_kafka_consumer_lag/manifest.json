@@ -1,0 +1,51 @@
+{
+  "dataset_id": "SC-02",
+  "kind": "scenario",
+  "title": "Kafka consumer lag after broker failure",
+  "base_scenario": null,
+  "generator_version": "gen-v1",
+  "seed": 2026032102,
+  "window_start": "2026-03-21T12:30:00Z",
+  "window_end": "2026-03-21T14:00:00Z",
+  "onset": "2026-03-21T13:00:00Z",
+  "reference_time": "2026-03-21T13:15:00Z",
+  "key_evidence": {
+    "broker_down_event": "KFK-0228",
+    "broker_io_error_log": "LOG-0083",
+    "first_balance_complaint": "CMP-0007",
+    "first_rebalance": "KFK-0241",
+    "peak_lag_sample": "KFK-0461",
+    "red_herring_change": "DEP-0012",
+    "red_herring_schema_warning": "SRG-0003",
+    "urp_sample": "KFK-0270"
+  },
+  "must_cite_evidence_ids": [
+    "KFK-0228",
+    "KFK-0270",
+    "KFK-0461"
+  ],
+  "causal_change_id": null,
+  "red_herring_ids": [
+    "DEP-0012",
+    "SRG-0003"
+  ],
+  "expected_rules_pass1": [
+    "R-S2-URP",
+    "R-S2-LAG",
+    "R-S2-CMP"
+  ],
+  "ground_truth_status": "draft, pending SME validation",
+  "record_counts": {
+    "logs/app_logs.json": 471,
+    "kafka/kafka_events.json": 741,
+    "api_metrics/api_metrics.csv": 900,
+    "db_infra_metrics/db_infra_metrics.csv": 90,
+    "network/network_events.json": 360,
+    "deployments/deployments.json": 3,
+    "complaints/complaints.json": 80,
+    "eventhub/connect_status.json": 54,
+    "eventhub/acl_audit.json": 27,
+    "eventhub/schema_registry.json": 13,
+    "eventhub/cluster_quorum.json": 90
+  }
+}

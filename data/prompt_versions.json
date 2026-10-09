@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "description": "Procedural memory (Req. Section 10.3.2; Architecture Spec Section 6.1). Versioned additions to each agent's base prompt in src/agent/prompts.py. Only an approved adaptation adds a version or changes `active`.",
+  "agents": {
+    "triage_agent": {
+      "active": "v1",
+      "versions": {
+        "v1": {"guidelines": [], "few_shot": [], "created_by_adaptation": null, "created_at": "2026-10-09T00:00:00Z"}
+      }
+    },
+    "rca_agent": {
+      "active": "v1",
+      "versions": {
+        "v1": {"guidelines": [], "few_shot": [], "created_by_adaptation": null, "created_at": "2026-10-09T00:00:00Z"}
+      }
+    },
+    "change_correlation_agent": {
+      "active": "v1",
+      "versions": {
+        "v1": {"guidelines": [], "few_shot": [], "created_by_adaptation": null, "created_at": "2026-10-09T00:00:00Z"}
+      }
+    },
+    "recommendation_agent": {
+      "active": "v1",
+      "versions": {
+        "v1": {"guidelines": [], "few_shot": [], "created_by_adaptation": null, "created_at": "2026-10-09T00:00:00Z"}
+      }
+    }
+  }
+}

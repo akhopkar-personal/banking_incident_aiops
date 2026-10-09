@@ -1,0 +1,5 @@
+[
+{"timestamp": "2026-03-27T15:02:00Z", "record_id": "DEP-0019", "service": "core-banking-db", "environment": "prod", "deployment_id": "CR-25204", "change_type": "infra", "author": "core-banking-dba-oncall", "change_summary": "Storage volume for cbdb-prod-01 expanded from 4 TB to 6 TB", "rollback_available": false},
+{"timestamp": "2026-03-27T16:47:00Z", "record_id": "DEP-0021", "service": "core-banking-db", "environment": "prod", "deployment_id": "CR-25230", "change_type": "config", "author": "batch-scheduler-config", "change_summary": "EOD reconciliation batch schedule moved from 22:00 to 18:00 UTC to meet the new reporting cut-off (OPS-771)", "rollback_available": true},
+{"timestamp": "2026-03-27T17:37:00Z", "record_id": "DEP-0023", "service": "mobile-app", "environment": "prod", "deployment_id": "CR-25241", "version": "v5.2.1", "change_type": "release", "author": "mobile-release-pipeline", "change_summary": "mobile-app v5.2.1: UI copy and icon updates", "rollback_available": true}
+]

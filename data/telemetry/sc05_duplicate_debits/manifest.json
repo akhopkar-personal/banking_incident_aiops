@@ -1,0 +1,46 @@
+{
+  "dataset_id": "SC-05",
+  "kind": "scenario",
+  "title": "Silent duplicate debits after a retry-policy change",
+  "base_scenario": null,
+  "generator_version": "gen-v1",
+  "seed": 2026040905,
+  "window_start": "2026-04-09T10:00:00Z",
+  "window_end": "2026-04-09T11:30:00Z",
+  "onset": "2026-04-09T10:30:00Z",
+  "reference_time": "2026-04-09T10:50:00Z",
+  "key_evidence": {
+    "causal_change": "DEP-0041",
+    "first_duplicate_event": "KFK-0169",
+    "first_idempotency_log": "LOG-0074",
+    "linked_double_charge_complaint": "CMP-0007",
+    "red_herring_change": "DEP-0043"
+  },
+  "must_cite_evidence_ids": [
+    "DEP-0041",
+    "KFK-0169",
+    "LOG-0074"
+  ],
+  "causal_change_id": "DEP-0041",
+  "red_herring_ids": [
+    "DEP-0043"
+  ],
+  "expected_rules_pass1": [
+    "R-S2-DUP",
+    "R-S2-CMP"
+  ],
+  "ground_truth_status": "draft, pending SME validation",
+  "record_counts": {
+    "logs/app_logs.json": 626,
+    "kafka/kafka_events.json": 860,
+    "api_metrics/api_metrics.csv": 900,
+    "db_infra_metrics/db_infra_metrics.csv": 90,
+    "network/network_events.json": 360,
+    "deployments/deployments.json": 3,
+    "complaints/complaints.json": 98,
+    "eventhub/connect_status.json": 54,
+    "eventhub/acl_audit.json": 27,
+    "eventhub/schema_registry.json": 12,
+    "eventhub/cluster_quorum.json": 90
+  }
+}

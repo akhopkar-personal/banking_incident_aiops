@@ -1,0 +1,102 @@
+# Severity Rules Engine definitions (Req. Section 10.6; Architecture Spec Section 5.3).
+# Thresholds are provisional (Req. OI-17). Only the SME changes this file, and every
+# change bumps `version` and adds a RulesChangeEntry to data/feedback/rules_change_log.json.
+#
+# Pass-1 rules compare one signal (Architecture Spec Section 5.3.2) with a threshold.
+# `sustained_minutes` means the condition held for that many consecutive 1-minute buckets.
+# Pass-2 rules match fields of the Triage Agent's result and can only raise severity.
+
+version: "rules-v1"
+rules:
+  - id: R-S1-ERR
+    pass: 1
+    severity: S1
+    description: Customer-facing error rate above 15% for 3 minutes
+    signal: customer_error_rate_pct
+    scope: customer_facing_services
+    operator: ">"
+    threshold: 15
+    sustained_minutes: 3
+
+  - id: R-S1-ROUTE
+    pass: 1
+    severity: S1
+    description: Failure rate of 50% or more on any payment route for 3 minutes
+    signal: payment_route_failure_pct
+    operator: ">="
+    threshold: 50
+    sustained_minutes: 3
+
+  - id: R-S1-LAT
+    pass: 1
+    severity: S1
+    description: p95 latency above 3x baseline on 2 or more customer-facing services for 5 minutes
+    signal: latency_ratio_services_over_3x
+    scope: customer_facing_services
+    operator: ">="
+    threshold: 2
+    # The 5-minute duration is part of the signal definition (Section 5.3.2).
+
+  - id: R-S1-OFFLINE
+    pass: 1
+    severity: S1
+    description: Offline partitions on a topic used by payments-service
+    signal: offline_partitions
+    operator: ">"
+    threshold: 0
+
+  - id: R-S2-URP
+    pass: 1
+    severity: S2
+    description: Under-replicated partitions on kafka-platform for 5 minutes
+    signal: under_replicated_partitions
+    operator: ">"
+    threshold: 0
+    sustained_minutes: 5
+
+  - id: R-S2-LAG
+    pass: 1
+    severity: S2
+    description: Consumer lag on payments.transactions above 10,000 messages for 5 minutes
+    signal: consumer_lag_payments
+    operator: ">"
+    threshold: 10000
+    sustained_minutes: 5
+
+  - id: R-S2-DUP
+    pass: 1
+    severity: S2
+    description: Duplicate transaction IDs produced in the window
+    signal: duplicate_transaction_ids
+    operator: ">"
+    threshold: 0
+    flags: [regulatory_flag]
+
+  - id: R-S2-CMP
+    pass: 1
+    severity: S2
+    description: 50 or more complaints about one product within 30 minutes
+    signal: complaints_per_product_30min
+    operator: ">="
+    threshold: 50
+
+  - id: R-S3-DEG
+    pass: 1
+    severity: S3
+    description: One customer-facing service with error rate above 2% or p95 above 2x baseline for 5 minutes
+    signal: single_service_degraded
+    operator: "=="
+    threshold: true
+
+  - id: R-P2-INTEG
+    pass: 2
+    min_severity: S2
+    description: Triage classified the incident as a data-integrity issue
+    when: {issue_class: data_integrity}
+    flags: [regulatory_flag]
+
+  - id: R-P2-CHANNEL
+    pass: 2
+    min_severity: S3
+    description: A customer channel is among the affected services
+    when: {affected_services_any: [mobile-app, net-banking, call-centre]}

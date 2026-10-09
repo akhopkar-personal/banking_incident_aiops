@@ -1,0 +1,47 @@
+{
+  "dataset_id": "SC-04",
+  "kind": "scenario",
+  "title": "Expired TLS certificate on the card payment route",
+  "base_scenario": null,
+  "generator_version": "gen-v1",
+  "seed": 2026040204,
+  "window_start": "2026-04-02T07:30:00Z",
+  "window_end": "2026-04-02T09:00:00Z",
+  "onset": "2026-04-02T08:00:00Z",
+  "reference_time": "2026-04-02T08:03:00Z",
+  "key_evidence": {
+    "card_route_failure": "API-0338",
+    "cert_expired_log": "LOG-0097",
+    "first_card_complaint": "CMP-0007",
+    "payments_error_spike": "API-0335",
+    "red_herring_change": "DEP-0033",
+    "tls_expired_event": "NET-0121"
+  },
+  "must_cite_evidence_ids": [
+    "NET-0121",
+    "LOG-0097",
+    "API-0338"
+  ],
+  "causal_change_id": null,
+  "red_herring_ids": [
+    "DEP-0033"
+  ],
+  "expected_rules_pass1": [
+    "R-S1-ROUTE",
+    "R-S1-ERR"
+  ],
+  "ground_truth_status": "draft, pending SME validation",
+  "record_counts": {
+    "logs/app_logs.json": 812,
+    "kafka/kafka_events.json": 720,
+    "api_metrics/api_metrics.csv": 900,
+    "db_infra_metrics/db_infra_metrics.csv": 90,
+    "network/network_events.json": 360,
+    "deployments/deployments.json": 3,
+    "complaints/complaints.json": 51,
+    "eventhub/connect_status.json": 54,
+    "eventhub/acl_audit.json": 27,
+    "eventhub/schema_registry.json": 12,
+    "eventhub/cluster_quorum.json": 90
+  }
+}

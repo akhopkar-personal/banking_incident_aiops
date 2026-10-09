@@ -1,0 +1,5 @@
+{
+  "schema_version": 1,
+  "description": "Query-expansion aliases used by src/tool_retrieval/retriever.py (procedural memory). Written only by approved adaptations (Req. Section 12.5).",
+  "aliases": {}
+}

@@ -1,0 +1,75 @@
+%PDF-1.4
+%‚„œ”
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [5 0 R] /Count 1 >>
+endobj
+3 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>
+endobj
+4 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>
+endobj
+5 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 3 0 R /F2 4 0 R >> >> /Contents 6 0 R >>
+endobj
+6 0 obj
+<< /Length 3047 >>
+stream
+BT /F2 16 Tf 56 752 Td (REG-001: Incident reporting obligations \(internal summary\)) Tj ET
+BT /F1 10 Tf 56 730 Td (This is the bank's internal summary of its incident reporting obligations, prepared by) Tj ET
+BT /F1 10 Tf 56 716 Td (Compliance for the fictional bank used in this project. It is synthetic and does not) Tj ET
+BT /F1 10 Tf 56 702 Td (describe any real regulator's rules.) Tj ET
+BT /F2 12 Tf 56 666 Td (1. Which incidents are reportable) Tj ET
+BT /F1 10 Tf 56 644 Td (An incident is reportable when any of the following applies:) Tj ET
+BT /F1 10 Tf 56 622 Td (- A customer-facing payment or account service is unavailable or seriously degraded for) Tj ET
+BT /F1 10 Tf 56 608 Td (   more than 60 minutes.) Tj ET
+BT /F1 10 Tf 56 594 Td (- Customer funds or balances are, or may be, incorrect: duplicate debits or credits,) Tj ET
+BT /F1 10 Tf 56 580 Td (   missing postings, wrong amounts.) Tj ET
+BT /F1 10 Tf 56 566 Td (- Customer personal data may have been exposed.) Tj ET
+BT /F1 10 Tf 56 552 Td (- More than 5,000 customers are affected, whatever the duration.) Tj ET
+BT /F1 10 Tf 56 530 Td (Data-integrity incidents \(duplicate or missing transactions\) are always reportable, even) Tj ET
+BT /F1 10 Tf 56 516 Td (when the technical impact looks small.) Tj ET
+BT /F2 12 Tf 56 480 Td (2. Deadlines) Tj ET
+BT /F1 10 Tf 56 458 Td (- Initial notification to the regulator: within 4 hours of the incident being classified) Tj ET
+BT /F1 10 Tf 56 444 Td (   as reportable.) Tj ET
+BT /F1 10 Tf 56 430 Td (- Intermediate report: within 72 hours, with the root cause if known and the number of) Tj ET
+BT /F1 10 Tf 56 416 Td (   customers affected.) Tj ET
+BT /F1 10 Tf 56 402 Td (- Final report: within 20 business days, with the confirmed root cause, remediation and) Tj ET
+BT /F1 10 Tf 56 388 Td (   preventive actions.) Tj ET
+BT /F2 12 Tf 56 352 Td (3. Who does what) Tj ET
+BT /F1 10 Tf 56 330 Td (- The incident commander tells the compliance officer as soon as an incident may be) Tj ET
+BT /F1 10 Tf 56 316 Td (   reportable. Do not wait for the root cause.) Tj ET
+BT /F1 10 Tf 56 302 Td (- The compliance officer decides whether the incident is reportable and submits the) Tj ET
+BT /F1 10 Tf 56 288 Td (   notifications.) Tj ET
+BT /F1 10 Tf 56 274 Td (- The service owner provides the impact figures: customers affected, amounts, duration.) Tj ET
+BT /F2 12 Tf 56 238 Td (4. Customer remediation) Tj ET
+BT /F1 10 Tf 56 216 Td (- Customers who were charged incorrectly must be refunded, and the refund must be) Tj ET
+BT /F1 10 Tf 56 202 Td (   completed within 2 business days of the error being confirmed.) Tj ET
+BT /F1 10 Tf 56 188 Td (- Customers must be told what happened in plain language, following REG-002.) Tj ET
+BT /F1 10 Tf 56 174 Td (- No fees or interest may result from the bank's error.) Tj ET
+BT /F2 12 Tf 56 138 Td (5. Records) Tj ET
+BT /F1 10 Tf 56 116 Td (Keep the incident timeline, the evidence used, every decision with its approver, and all) Tj ET
+BT /F1 10 Tf 56 102 Td (customer communication for 7 years.) Tj ET
+endstream
+endobj
+7 0 obj
+<< /Title (Incident reporting obligations \(internal summary\)) /DocId (REG-001) /DocType (regulatory) /LastVerified (2026-09-01) /CitationStatus (verified) /Author (compliance) >>
+endobj
+xref
+0 8
+0000000000 65535 f 
+0000000015 00000 n 
+0000000064 00000 n 
+0000000121 00000 n 
+0000000218 00000 n 
+0000000320 00000 n 
+0000000456 00000 n 
+0000003554 00000 n 
+trailer
+<< /Size 8 /Root 1 0 R /Info 7 0 R >>
+startxref
+3750
+%%EOF

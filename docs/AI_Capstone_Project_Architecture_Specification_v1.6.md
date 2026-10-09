@@ -2,12 +2,22 @@
 
 | Item | Detail |
 |---|---|
-| **Document version** | v1.5 (draft) |
-| **Supersedes** | v1.4 |
-| **Derived from** | Project Requirements v0.11. "Req." references below point to that document |
+| **Document version** | v1.6 (draft) |
+| **Supersedes** | v1.5 |
+| **Derived from** | Project Requirements v0.12. "Req." references below point to that document |
 | **Purpose** | The contracts needed to generate code: target library versions, data schemas, module and function contracts, LangGraph wiring, algorithms, synthetic data targets, and test hooks. Each section names the source file it governs |
 | **Format** | Contracts are given as tables (fields, types, parameters, returns), not as code. Code is generated in a later step, after this document is reviewed |
-| **Status** | Draft for review. Library versions in Section 0 are installed and pass the smoke test on the development laptop and in Vocareum (Req. OI-3, OI-9 closed). Phase 1 (Sections 3, 13, 15) is implemented. Open items in Section 21 |
+| **Status** | Draft for review. Library versions in Section 0 are installed and pass the smoke test on the development laptop and in Vocareum (Req. OI-3, OI-9 closed). Phase 1 (Sections 3, 13, 15) and Phase 2 (Section 16) are implemented. Open items in Section 21 |
+
+### Changes from v1.5
+
+| Area | Change | Reason |
+|---|---|---|
+| Data generator | Section 16 records the generator as built: modules, CLI (`--check`, `--write-golden`), scenario start times, file formats, `manifest.json` per dataset, and the additions to the 16.2 values (changes before the window, SC-03 causal change, SC-04 expiry warnings, SC-05 complaints linked to duplicated transactions) | Phase 2 |
+| Golden dataset | `test_inputs.json` gains `reference_time` and `withheld_sources` and allows `window: null`; `eval_rubric.json` gains `expected_regulatory_flag` and `expected_abstention`, and `expected_dispatch` has a fixed shape (Section 16.4). The seed is written once; after that the SME and the feedback loop own it | `abstention_correct` and `dispatch_routing_correct` (Section 11.1) need these fields; promoted cases must not be overwritten |
+| Knowledge base | PDF documents carry their front matter in the PDF Info dictionary and use a bold font for headings (Section 8); service documentation is SVC-000 plus 11 services | Phase 2: PDFs are generated from Markdown sources |
+| Anomaly detection | The baseline is the first 20 minutes of telemetry inside the window, not of the window itself (Section 5.1) | The default window (−60 minutes from the reference time) can start before the telemetry does |
+| Tests | T-DATA and T-KB added (Section 19) | Phase 2 |
 
 ### Changes from v1.4
 
@@ -248,6 +258,7 @@ Authoritative file list for code generation. It matches Req. Section 17; each pa
 | `src/evaluation/*.py` (including `judge.py`) | 11 |
 | `src/ui/app.py`, `components.py`, `state.py`, `pages/*.py` | 14 |
 | `data/` files | 16 |
+| `data/generators/*.py`, `data/generators/pdf_sources/*.md` (**v1.6**) | 16.1 |
 | `scripts/commit_state.sh`, `scripts/build_index.py`, `scripts/generate_data.py` | 12, 8, 16 |
 | `tests/` | 19 |
 
@@ -583,7 +594,7 @@ A per-run token and cost counter (from LLM response usage metadata, priced from 
 
 **Method:**
 1. Aggregate telemetry into 1-minute buckets per `(service, signal)` for the signals in Section 5.3.2.
-2. Baseline = the first 20 minutes of the window (every scenario starts healthy, Req. 9.4). Compute mean and standard deviation per series.
+2. Baseline = the first 20 minutes of telemetry inside the window (every scenario starts healthy, Req. 9.4). **v1.6:** "of telemetry", because a window can start before the data does (the default window reaches 60 minutes before the reference time, and the `wide_window` variant 120 minutes before the scenario start). Compute mean and standard deviation per series; a series with no baseline buckets is checked against the hard thresholds only.
 3. A bucket is anomalous if `z >= 3.0` (with standard deviation floored at 1% of the mean, to avoid division by near-zero), **or** a hard threshold from `data/baselines.json` is crossed (for example `tls_status` not `ok`, `state` `FAILED`, `broker_down` event).
 4. Consecutive anomalous buckets for the same series form one `AnomalyEvent` (start time, peak observed value).
 
@@ -834,6 +845,10 @@ Reused from v1.1 Section 7, with these changes.
 | `episodic_writer.py` | Stretch (Req. FR-35); unchanged from v1.1 | |
 
 `scripts/build_index.py` builds the index from scratch.
+
+**Document metadata (v1.6).** Markdown documents start with a front matter block of `key: value` lines: the five keys above are required; `services`, `owner`, and for postmortems `incident_date` and `severity`, are informational. PDF documents carry the same keys in the PDF Info dictionary as `DocId`, `Title`, `DocType`, `LastVerified`, `CitationStatus` and `Author` (owner), which `pdfplumber`'s `pdf.metadata` returns. PDF headings are set in Helvetica-Bold, so the loader rebuilds Markdown headings from the character font names before chunking. The two PDFs (`PM-2025-019`, `REG-001`) are generated from Markdown sources in `data/generators/pdf_sources/` by `scripts/generate_data.py`; edit the source and regenerate, never the PDF.
+
+**Corpus (v1.6):** 8 runbooks, 6 postmortems (PM-2025-031 is the distractor), 12 service documents (SVC-000 dependency map plus SVC-001 to SVC-011, one per service in `data/service_dependencies.json`; `call-centre` is a channel without telemetry and has no document of its own), 2 regulatory notes. All are drafts for SME review. `RB-GEN-002` has `last_verified` 2025-11-20, older than `STALE_DOC_DAYS`, so the stale-citation flag can be demonstrated.
 
 ---
 
@@ -1100,6 +1115,22 @@ Price defaults (`price_per_1k_*`) are gpt-4o-mini and text-embedding-3-small lis
 
 Generates every scenario directory deterministically from a seed. Each scenario window is 90 minutes: minutes 0 to 20 healthy baseline, onset at minute 30 (SC-05: complaints rise from minute 20, telemetry stays mostly flat). Background noise: ±5% jitter on metrics, a few unrelated WARN logs per minute, one red-herring change per scenario. One metric sample per service per minute.
 
+**As built (v1.6)**
+
+| Module in `data/generators/` | Contents |
+|---|---|
+| `vocab.py` | Service profiles (requests per minute, p95, error rate per endpoint), DB and Kafka constants, noise messages, complaint texts, synthetic names and phone numbers (Ofcom drama range `07700 900xxx`) |
+| `builder.py` | `ScenarioBuilder`: adds records by minute offset, assigns evidence IDs in time order per source, writes the files and `manifest.json` |
+| `baseline.py` | Healthy telemetry for all 11 sources over the whole window, background log noise and complaints (about 1 in 6 complaints carries synthetic personal data, for redaction tests) |
+| `scenarios.py` | `SCENARIOS`: one `ScenarioDef` per scenario with its overlay and draft ground truth (root cause, issue class, severity, runbook, documents, evidence tags, red herrings, expected pass-1 rules, golden-input texts) |
+| `fixtures.py` | `FIXTURES`: base scenario plus an overlay (before ID assignment) or a post-step (after it) |
+| `golden.py` | Seed of `test_inputs.json` and `eval_rubric.json` (Section 16.4) |
+| `pdf_writer.py` | Minimal PDF 1.4 writer for the two PDF knowledge-base documents (Section 8) |
+
+**CLI:** `python scripts/generate_data.py` writes the nine dataset directories and the two PDFs; `--check` regenerates into a temporary directory and reports any committed file that differs (a test runs it); `--write-golden` also overwrites the golden seed files, which are otherwise written only when missing, because the SME and `feedback_loop.promote` maintain them after the first run.
+
+**Scenario windows (UTC):** SC-01 2026-03-14 09:35, SC-02 2026-03-21 12:30, SC-03 2026-03-27 17:32, SC-04 2026-04-02 07:30, SC-05 2026-04-09 10:00. Each window lasts 90 minutes; the onset is at minute 30. Fixtures use their base scenario's window. Incident IDs follow the window date (for example `INC-20260314-NNN` for SC-01, matching Req. 8.2).
+
 ### 16.2 Required signal values per scenario
 
 These values make the draft rules in Req. 10.6 produce the expected severities. Values marked "below" must stay under every S1 threshold.
@@ -1114,29 +1145,62 @@ These values make the draft rules in Req. 10.6 produce the expected severities. 
 
 EventHub files for scenarios that do not involve the platform contain healthy records only (Req. 9.2).
 
+**Additions made by the generator (v1.6).** These do not change any value above; they give the agents realistic evidence and the golden cases something to cite. `tests/test_data.py` checks every value in the table above and that each scenario fires exactly the listed pass-1 rules (plus `R-S3-DEG`, which may fire alongside more severe rules and never decides the result).
+
+| Scenario | Addition |
+|---|---|
+| All | Two or three unrelated change records before the window starts (inside the 180-minute change lookback), so the `wide_window` variant and the change agent see more noise |
+| SC-01 | Start-up log lines show `query_timeout_ms=5000` at minute 2 and `query_timeout_ms=1000` after the release (`DB_TIMEOUT` errors from minute 30); `api-gateway` p95 is the only customer-facing p95 above 3×, so `R-S1-LAT` does not fire; DB connections stay below 50% |
+| SC-02 | `kafka-broker-2` disk I/O error log at minute 27.5; rebalances every 3 minutes from minute 29 to 56; broker rejoins at minute 53; lag peaks at minute 55 and then falls; quorum `session_expirations` 1 while the broker is down; the red herring is a schema change record plus its Schema Registry warning |
+| SC-03 | **Causal change:** `DEP-0021` (minute −45) moved the EOD reconciliation batch from 22:00 to 18:00 UTC. Two batch jobs start at minute 28; `CONN_POOL_EXHAUSTED`, `DB_TIMEOUT` and `LOCK_WAIT_TIMEOUT` logs from minute 30; 30 login complaints (below `R-S2-CMP`) |
+| SC-04 | `CERT_EXPIRY_SOON` warnings at minutes 0 and 15, before the failure; `cert_expiry` on the card route equals the onset time; 40 card-payment complaints (below `R-S2-CMP`) |
+| SC-05 | Gateway latency spikes on 20% of minutes explain the retries; 30 of the 65 double-charge complaints carry the `transaction_id` of a duplicated payment, filed a few minutes after it |
+
 ### 16.3 Fixtures
 
 | Fixture | Content |
 |---|---|
 | `failure_fixture/` | SC-01 data with `logs/app_logs.json` missing the `service` field on every record (permanent parse failure) |
 | `llm_down_fixture/` | SC-01 data plus `fixture.json` with `{"llm_enabled": false}` |
-| `alert_storm_fixture/` | SC-02 data with 200 anomaly-producing samples across `kafka-platform`, `ledger-consumer` and `notification-service` in 10 minutes |
-| `injection_fixture/` | SC-03 data with instruction-like text inside a log message, a complaint and a Connect `trace_excerpt` |
+| `alert_storm_fixture/` | SC-02 data with 200 anomaly-producing samples across `kafka-platform`, `ledger-consumer` and `notification-service` in 10 minutes. **v1.6:** per-partition Kafka `metric_sample` records (partitions 0 to 11) in minutes 28 to 38: 80 with `under_replicated` 1, and 120 with lag 11,000 to 15,000, all above the hard thresholds |
+| `injection_fixture/` | SC-03 data with instruction-like text inside a log message, a complaint and a Connect `trace_excerpt`. **v1.6:** the evidence IDs of the three records are in `manifest.json` (`injection_log`, `injection_complaint`, `injection_connect`); the Connect record has state `FAILED` |
+
+Fixtures built with an overlay (alert storm, injection) have their own evidence ID numbering; the other two keep SC-01's IDs. Each fixture's `manifest.json` says which scenario it is based on.
 
 ### 16.4 Reference data files
 
 | File | Schema |
 |---|---|
 | `data/service_dependencies.json` | `{service: {depends_on: [..], customer_facing: bool, owner_team: str}}` |
-| `data/stakeholders.json` | `[{service, severity_group, name, email, chat_handle}]`, synthetic |
+| `data/stakeholders.json` | `[{service, severity_group, name, role, email, chat_handle}]`, synthetic (`@bank.example`); **v1.6:** `role` added. Every service has one `low_medium` entry (the owning team's lead) and three `major` entries (lead, incident manager, head of operations) |
 | `data/baselines.json` | Hard thresholds per signal used by the anomaly detector (Section 5.1) |
 | `data/severity_rules.yaml` | Req. 10.6 |
 | `data/action_policy.json` | Section 9.3 |
 | `data/prompt_versions.json` | Section 6.1 |
-| `data/test_inputs.json` | `[{input_id, scenario_id, variant, input_mode, raw_input, window}]` |
-| `data/eval_rubric.json` | `{version, cases: [{case_id, input_id, scenario_id, variant, expected_root_cause, expected_severity, expected_issue_class, expected_runbook_id, expected_doc_ids, must_cite_evidence_ids, expected_causal_change_id, expected_dispatch, version_added}]}` |
+| `data/test_inputs.json` | `[{input_id, scenario_id, variant, input_mode, raw_input, window, reference_time, withheld_sources}]`. **v1.6:** `reference_time` added; `window` is `{start, end}` or `null` (intake applies the default window around `reference_time`); `withheld_sources` lists evidence prefixes (for example `["DEP"]`) whose data is unavailable for the whole run, to the rules engine as well as to the tools |
+| `data/eval_rubric.json` | `{version, status, cases: [{case_id, input_id, scenario_id, variant, expected_root_cause, expected_severity, expected_issue_class, expected_runbook_id, expected_doc_ids, must_cite_evidence_ids, expected_causal_change_id, expected_dispatch, expected_regulatory_flag, expected_abstention, version_added}]}`. **v1.6:** `expected_dispatch` is `{route: page or assign, fast_path, queue}`; `expected_regulatory_flag` and `expected_abstention` added; `must_cite_evidence_ids` and `expected_causal_change_id` leave out anything from a withheld source |
 
-Variants per scenario (Req. 12.1): `replay`, `free_text`, `narrow_window`, `wide_window`, `missing_source`.
+Variants per scenario (Req. 12.1): `replay`, `free_text`, `narrow_window`, `wide_window`, `missing_source`. **v1.6, as seeded:**
+
+| Variant | Input mode | Window (minutes from the scenario start) | Notes |
+|---|---|---|---|
+| `replay` | `alert_json` for SC-01, SC-03, SC-04 (alert-triggered); `detection_replay` for SC-02, SC-05 | 0 to 90 | |
+| `free_text` | `free_text` (the trigger text from Req. 9.4) | `null` | Default window from `reference_time` |
+| `narrow_window` | As `replay` | onset −10 to onset +20 | |
+| `wide_window` | As `replay` | −120 to 90 | |
+| `missing_source` | As `replay` | 0 to 90 | Withholds the deciding source: SC-01 `DEP`, SC-02 `KFK`, SC-03 `DBM`, SC-04 `NET`, SC-05 `KFK`. `expected_abstention: true` (correct output is `INSUFFICIENT_EVIDENCE` or `needs_human_rca`). Expected severity is unchanged: the remaining sources still fire a rule of the same severity |
+
+### 16.5 File formats (v1.6)
+
+| Item | Format |
+|---|---|
+| JSON sources | A JSON array with one record per line. Common fields first; fields with no value are left out |
+| CSV sources (`API`, `DBM`) | Header row; empty cell for no value; `status_code_breakdown` as JSON text (`{"2xx": n, "4xx": n, "5xx": n}`) |
+| Timestamps | ISO 8601 UTC with `Z`, whole seconds. Metric samples fall on the minute; events have a random second |
+| Evidence IDs | `<PREFIX>-NNNN`, numbered in time order per source and dataset; change records have fixed IDs (for example `DEP-0007`) |
+| Kafka `partition` | `-1` marks a topic-level record (broker metrics, consumer-group lag, rebalance, broker down); `0` to `11` are partitions of `payments.transactions` |
+| `manifest.json` | Per dataset: `dataset_id`, `kind`, `title`, `base_scenario`, `generator_version`, `seed`, `window_start`, `window_end`, `onset`, `reference_time`, `key_evidence` (tag to evidence ID), `record_counts`; for scenarios also `must_cite_evidence_ids`, `causal_change_id`, `red_herring_ids`, `expected_rules_pass1`, `ground_truth_status` |
+| `fixture.json` | Only in `llm_down_fixture/`: run flags that override settings for that fixture |
 
 ---
 
@@ -1282,6 +1346,8 @@ sequenceDiagram
 | T-EVIDENCE | Evidence report finds all of E-1 to E-10 after T-ADAPT; reports MISSING when a log line is removed | 11.4 | 11 |
 | T-MEMORY | No carry-over between runs; stores intact after simulated session reset | 12 | 12 |
 | T-SMOKE | Library smoke test (Req. 11.3, step 6) | 0 | 9 |
+| T-DATA (**v1.6**) | Committed data equals the generator's output; every record validates against its Section 3.4 model; each scenario has the Section 16.2 values and fires exactly its expected pass-1 rules, also with the `missing_source` variant's source withheld; fixtures differ from their base as specified; reference files and golden seed are consistent with the data (`tests/test_data.py`, with the signal oracle in `tests/data_helpers.py`) | 16 | 1, 14 |
+| T-KB (**v1.6**) | Every document listed in Req. 9.5 exists with complete front matter (PDF: Info dictionary); runbook sections numbered from 1; PDFs readable with bold headings; one deliberately stale document; every document ID cited by a document or a golden case exists (`tests/test_knowledge_base.py`) | 8 | 6 |
 | T-MCP (**v1.4**) | Server lists exactly `MCP_EXPOSED_TOOLS` and no dispatch tool; a dispatch tool name cannot be called over MCP; each read tool returns the same result over `mcp` and `inprocess`; server start failure falls back to `inprocess` with `mcp_server_error` logged | 7.1, 7.5 | 21, 24 |
 
 ---
@@ -1339,5 +1405,7 @@ sequenceDiagram
 | ALIGN-4 | `langchain` meta-package not used; `langchain-text-splitters` and `pydantic-settings` added; `pytest` pinned | **Done:** Req. v0.8 Sections 11, 11.1, 11.3, 18.2 and 19 updated with the Section 0 pins. **Superseded in v1.3:** `langchain` is installed again for LangFuse (ALIGN-5) |
 | ALIGN-5 | `langchain` pin added back; function-calling structured output, output cap and custom DeepEval judge; `src/evaluation/judge.py`; new settings; smoke test results | **Done:** Req. v0.9 Sections 11, 11.1, 11.3, 13.6, 17, 18.2 and 19 |
 | ALIGN-6 | MCP server and transport switch; MCP pins; Phase 1 alignment (event names, scenario directories); OI-3 and OI-9 closed | **Done:** Req. v0.10 Sections 3, 4, 7.12, 10.5, 11, 11.1, 11.3, 14, 16, 17, 18, 19, 20, 21 |
+| ALIGN-7 (**v1.6**) | Phase 2 alignment: SC-03 causal change, service documentation count, golden variant definitions and new golden fields, generator files in the folder structure, rule IDs in the output example, SME validation of the drafts | **Done:** Req. v0.12 Sections 8.2, 9.4, 9.5, 12.1, 17, 18.2 |
+| OI-24 (**v1.6**) | SME validation of the generated ground truth (`eval_rubric.json`, `manifest.json`) and of the 28 knowledge-base drafts | Changes to the ground truth are made in `data/generators/scenarios.py`, then `--write-golden`, before `feedback_loop.promote` adds the first case (promoted cases exist only in the golden files); changes to documents are made in `knowledge/raw/` (or the PDF sources) |
 
-**Code generation order:** 0 smoke test (done) → 3 schemas, 15 config, 13 logging (Phase 1, done) → 16 data generator and reference files (Phase 2) → 9 safety → 7 tools, mocks and the MCP server (7.5) → 8 retrieval → 5 services (Phase 3) → 6 agents and prompts → 4 graph (Phase 4) → 14 UI (Phase 5) → 10 feedback and RLHF → 11 evaluation (Phase 6) → packaging (Phase 7). Tests are written with each phase.
+**Code generation order:** 0 smoke test (done) → 3 schemas, 15 config, 13 logging (Phase 1, done) → 16 data generator and reference files (Phase 2, done) → 9 safety → 7 tools, mocks and the MCP server (7.5) → 8 retrieval → 5 services (Phase 3) → 6 agents and prompts → 4 graph (Phase 4) → 14 UI (Phase 5) → 10 feedback and RLHF → 11 evaluation (Phase 6) → packaging (Phase 7). Tests are written with each phase.

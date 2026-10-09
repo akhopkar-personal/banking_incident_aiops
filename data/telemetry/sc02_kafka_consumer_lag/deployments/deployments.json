@@ -1,0 +1,5 @@
+[
+{"timestamp": "2026-03-21T09:50:00Z", "record_id": "DEP-0009", "service": "kafka-platform", "environment": "prod", "deployment_id": "CR-25003", "change_type": "infra", "author": "eventhub-platform-oncall", "change_summary": "Broker JVM heap alert threshold raised from 80% to 85%", "rollback_available": true},
+{"timestamp": "2026-03-21T10:50:00Z", "record_id": "DEP-0011", "service": "ledger-consumer", "environment": "prod", "deployment_id": "CR-25010", "version": "v1.9.0", "change_type": "release", "author": "ledger-release-pipeline", "change_summary": "ledger-consumer v1.9.0: batch insert size tuned from 200 to 500 records", "rollback_available": true},
+{"timestamp": "2026-03-21T12:41:00Z", "record_id": "DEP-0012", "service": "kafka-platform", "environment": "prod", "deployment_id": "CR-25031", "change_type": "schema", "author": "marketing-schema-pipeline", "change_summary": "Register marketing.offers-value schema v4 (field promo_code removed)", "rollback_available": true}
+]
