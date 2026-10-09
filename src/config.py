@@ -75,6 +75,8 @@ class Settings(BaseSettings):
 
     # --- Reliability and cost (Req. 13.2, 13.6)
     max_node_retries: int = Field(default=2, ge=0)
+    # Exponential backoff between retries: 1 s, 2 s (Architecture Spec Section 4.4). Tests set 0.
+    retry_backoff_s: float = Field(default=1.0, ge=0)
     cost_cap_usd_per_run: float = Field(default=0.15, gt=0)
     token_cap_per_run: int = Field(default=60_000, gt=0)
     # USD per 1,000 tokens. gpt-4o-mini and text-embedding-3-small list prices;

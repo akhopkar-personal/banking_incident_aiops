@@ -25,7 +25,8 @@ def sandbox_settings(root, **overrides) -> Settings:
     hash embeddings and in-process tools unless overridden."""
     values = dict(logs_dir=root / "logs", outbox_dir=root / "outbox", incident_state_dir=root / "state",
                   faiss_index_dir=root / "index", processed_dir=root / "processed",
-                  verified_resolutions_dir=root / "verified", embedding_backend="hash", tool_transport="inprocess")
+                  verified_resolutions_dir=root / "verified", embedding_backend="hash", tool_transport="inprocess",
+                  retry_backoff_s=0)
     values.update(overrides)
     return Settings(_env_file=None, **values)
 

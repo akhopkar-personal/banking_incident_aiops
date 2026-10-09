@@ -10,13 +10,14 @@ by the latest write.
 
 from __future__ import annotations
 
+from datetime import datetime
 from typing import Annotated, Any, Optional, TypedDict
 
 from .analysis import ChangeCorrelationResult, RcaResult, RecommendationResult, RetrievedDocument, RulesResult, TriageResult
 from .enums import ErrorType, RunMode
 from .evidence import EvidenceItem
 from .incident import IncidentObject
-from .output import DispatchRecord, InvestigationOutput, SeverityAssessment
+from .output import DispatchRecord, InvestigationOutput, RecommendedAction, SeverityAssessment
 
 # ------------------------------------------------------------------ reducers
 
@@ -32,6 +33,11 @@ def sum_by_key(left: Optional[dict], right: Optional[dict]) -> dict:
     for key, value in (right or {}).items():
         merged[key] = merged.get(key, 0) + value
     return merged
+
+
+def keep_first(left: Any, right: Any) -> Any:
+    """Keep the first value set: when parallel nodes both fail, the first failure is reported."""
+    return left if left is not None else right
 
 
 def append_list(left: Optional[list], right: Optional[list]) -> list:
@@ -95,8 +101,15 @@ class GraphState(TypedDict, total=False):
     scenario_id: Optional[str]
     prompt_version_override: Optional[dict[str, str]]
     langfuse_trace_id: Optional[str]
+    run_id: str  # v1.8: assigned at entry, before the incident exists
+    reference_time: Optional[datetime]  # v1.8: evaluation inputs supply it; otherwise intake derives it
+    withheld_sources: list[str]  # v1.8: golden missing-source variant
+    llm_available: bool  # v1.8: false for the LLM-down fixture (Architecture Spec Section 16.3)
 
     # Intake and rules.
+    intake: dict[str, Any]  # v1.8: normalized input (mode, times, reported service) before the incident exists
+    intake_rejection: Optional[dict[str, str]]  # v1.8: {reason, message}; the run ends without an incident
+    deduplicated: bool  # v1.8: the incident already existed; no new incident, ticket or page
     incident: IncidentObject
     rules_pass1: Optional[RulesResult]
     rules_pass2: Optional[RulesResult]
@@ -110,6 +123,12 @@ class GraphState(TypedDict, total=False):
     evidence: Annotated[dict[str, EvidenceItem], merge_by_key]
     retrieved_documents: Annotated[list[RetrievedDocument], append_unique_documents]
 
+    # Output guardrails (v1.8): the checked actions and summary, and whether evidence was insufficient.
+    recommended_actions: list[RecommendedAction]
+    stakeholder_summary: Optional[str]
+    insufficient_evidence: bool
+    action_policy_version: Optional[str]
+
     # Gates and dispatch.
     needs_human_rca: bool
     final_severity: Optional[SeverityAssessment]
@@ -118,8 +137,8 @@ class GraphState(TypedDict, total=False):
     # Bookkeeping.
     guardrail_flags: Annotated[list[str], append_list]
     node_status: Annotated[dict[str, NodeStatus], merge_by_key]
-    failed_node: Optional[str]
-    error_type: Optional[ErrorType]
+    failed_node: Annotated[Optional[str], keep_first]
+    error_type: Annotated[Optional[ErrorType], keep_first]
     token_usage: Annotated[dict[str, int], sum_by_key]
     latency_ms: Annotated[dict[str, int], sum_by_key]
     prompt_version_set: Annotated[dict[str, str], merge_by_key]
@@ -135,6 +154,9 @@ def initial_state(
     supplied_window: Optional[dict[str, Any]] = None,
     scenario_id: Optional[str] = None,
     prompt_version_override: Optional[dict[str, str]] = None,
+    run_id: str = "RUN-0",
+    reference_time: Optional[datetime] = None,
+    withheld_sources: Optional[list[str]] = None,
 ) -> GraphState:
     """A fresh state for a new run. Nothing carries over between runs (Req. 10.3.1)."""
     if prompt_version_override and run_mode != RunMode.EVALUATION:
@@ -145,6 +167,16 @@ def initial_state(
         supplied_window=supplied_window,
         scenario_id=scenario_id,
         prompt_version_override=prompt_version_override,
+        run_id=run_id,
+        reference_time=reference_time,
+        withheld_sources=list(withheld_sources or []),
+        llm_available=True,
+        intake_rejection=None,
+        deduplicated=False,
+        recommended_actions=[],
+        stakeholder_summary=None,
+        insufficient_evidence=False,
+        action_policy_version=None,
         evidence={},
         retrieved_documents=[],
         dispatch=DispatchRecord(),

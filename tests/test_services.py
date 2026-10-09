@@ -191,11 +191,11 @@ def test_fast_page_only_for_s1_and_page_attaches_instead_of_repaging(sandbox):
     assert '"event": "fast_path_page"' in log
 
 
-def test_page_rate_limit(sandbox):
-    state = state_for("SC-01")
-    gates.fast_page(state)
-    second = gates.fast_page(state_for("SC-01"))  # a new run state, same incident, within 15 minutes
-    assert second["dispatch"].suppressed and len(outbox.read("pages")) == 1
+def test_an_incident_is_never_paged_twice(sandbox):
+    """FR-38, FR-69: a later run for the same incident attaches to the existing page."""
+    gates.fast_page(state_for("SC-01"))
+    second = gates.fast_page(state_for("SC-01"))  # a new run state, same incident
+    assert second["dispatch"].paged and [p["mode"] for p in outbox.read("pages")] == ["new", "update"]
 
 
 def test_evaluation_mode_dispatches_nothing(sandbox):

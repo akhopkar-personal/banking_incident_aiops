@@ -200,5 +200,46 @@ def minute_buckets(rows: Iterable[Row]) -> dict[datetime, list[Row]]:
     return buckets
 
 
+def describe(src: str, row: Row) -> str:
+    """A one-line summary of any record, for evidence looked up by ID."""
+    d = row.data
+    text = {
+        "LOG": lambda: f"{d['level']} {d['service']} {d.get('error_code') or ''}: {d['message']}",
+        "KFK": lambda: f"{d['event_type']} on {d['topic']}" + "".join(
+            f", {k} {d[k]}" for k in ("consumer_group", "lag", "under_replicated", "error", "transaction_id") if d.get(k)),
+        "API": lambda: f"{d['service']} {d['endpoint']} error rate {d['error_rate']:.1%}, p95 {d['p95_latency_ms']:.0f} ms",
+        "DBM": lambda: f"{d['db_instance']} connections {d['active_connections']}/{d['max_connections']}, CPU "
+                       f"{d['cpu_pct']}%, lock wait {d['lock_wait_ms']} ms",
+        "NET": lambda: f"{d['source']} -> {d['destination']} ({d.get('route')}): TLS {d['tls_status']}, "
+                       f"latency {d['latency_ms']} ms",
+        "DEP": lambda: f"{d['change_type']} on {d['service']}: {d['change_summary']}",
+        "CMP": lambda: f"Complaint ({d['product']}): {d['text']}",
+        "CON": lambda: f"Connector {d['connector']} task {d['task_id']} {d['state']}",
+        "ACL": lambda: f"{d['result']} {d['operation']} on {d['resource']} for {d['principal']}",
+        "SRG": lambda: f"{d['subject']} v{d['version']}: {d.get('error') or 'compatible'}",
+        "QRM": lambda: f"Quorum healthy={d['quorum_healthy']}, session expirations {d['session_expirations']}, "
+                       f"offline partitions {d['offline_partitions']}",
+    }[src]()
+    return f"{text} at {row.ts:%H:%M:%S}Z"
+
+
+def lookup_evidence(ctx: ToolContext, evidence_ids: Iterable[str]) -> list[EvidenceItem]:
+    """Evidence items (redacted) for record IDs, for example the records behind anomaly events.
+    Unknown IDs and withheld or unreadable sources are skipped."""
+    wanted: dict[str, set[str]] = {}
+    for evidence_id in evidence_ids:
+        src = evidence_id.split("-", 1)[0]
+        if src in SOURCE_FILES and src not in ctx.withheld_sources:
+            wanted.setdefault(src, set()).add(evidence_id)
+    items = []
+    for src, ids in wanted.items():
+        try:
+            rows = load_rows(ctx, src)
+        except RecoverableError:
+            continue
+        items += [evidence(src, row, describe(src, row)) for row in rows if row.record_id in ids]
+    return sorted(items, key=lambda i: (i.timestamp, i.evidence_id))
+
+
 def clear_cache() -> None:
     _load.cache_clear()

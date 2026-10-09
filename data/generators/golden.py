@@ -24,7 +24,7 @@ def _window(b: ScenarioBuilder, start: int, end: int) -> dict[str, str]:
 
 def _inputs_for(s: ScenarioDef, b: ScenarioBuilder) -> list[dict[str, Any]]:
     code = s.scenario_id.replace("-", "")
-    replay_raw = json.dumps({**s.alert, "fired_at": iso(b.at(s.reference_minute))}) if s.alert else ""
+    replay_raw = json.dumps({**s.alert, "timestamp": iso(b.at(s.reference_minute))}) if s.alert else ""
     common = {"scenario_id": s.scenario_id, "reference_time": iso(b.at(s.reference_minute)),
               "withheld_sources": []}
     replay = {**common, "input_mode": s.replay_mode, "raw_input": replay_raw}

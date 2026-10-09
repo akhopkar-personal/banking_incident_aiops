@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Literal
 
 from src import config
-from src.errors import RecoverableError
+from src.errors import InvalidToolArguments
 from src.schemas.evidence import DependencyInfo
 
 
@@ -53,7 +53,7 @@ def get_service_dependencies(service: str, direction: Literal["upstream", "downs
                              ) -> DependencyInfo:
     deps = load_dependency_map()
     if service not in deps:
-        raise RecoverableError(f"unknown service {service!r}")
+        raise InvalidToolArguments(f"unknown service {service!r}")
     up = upstream_of(service, deps) if direction in ("upstream", "both") else []
     down = downstream_of(service, deps)
     blast = [s for s in [service, *down] if deps.get(s, {}).get("customer_facing")]

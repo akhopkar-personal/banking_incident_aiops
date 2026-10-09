@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from typing import Annotated
 
-from pydantic import AfterValidator, AwareDatetime, BaseModel, ConfigDict, Field
+from pydantic import AfterValidator, AwareDatetime, BaseModel, BeforeValidator, ConfigDict, Field
 
 
 def _to_utc(value: datetime) -> datetime:
@@ -28,6 +28,19 @@ IncidentId = Annotated[str, Field(pattern=INCIDENT_ID_PATTERN)]
 RunId = Annotated[str, Field(pattern=RUN_ID_PATTERN)]
 AnomalyId = Annotated[str, Field(pattern=ANOMALY_ID_PATTERN)]
 EvidenceId = Annotated[str, Field(pattern=EVIDENCE_ID_PATTERN)]
+
+
+def _as_list(value: object) -> object:
+    """LLMs often answer a list-of-strings field with one string: accept it as a one-item list
+    (an empty string as an empty list)."""
+    if isinstance(value, str):
+        return [value] if value.strip() else []
+    return value
+
+
+# For list-of-string fields an LLM fills in (Architecture Spec Section 6.1).
+LenientStrList = Annotated[list[str], BeforeValidator(_as_list)]
+LenientEvidenceIds = Annotated[list[EvidenceId], BeforeValidator(_as_list)]
 
 
 def utc_now() -> datetime:

@@ -15,7 +15,9 @@ from ._common import ServiceArg, TimeArg, ToolContext, evidence, select, summary
 
 # Checked in order; the first topic whose keywords match wins.
 TOPICS: list[tuple[str, tuple[str, ...]]] = [
-    ("double_charge", ("twice", "two times", "double", "charged again", "same payment")),
+    # About being charged: "my transfer failed twice" is a failure, not a double charge.
+    ("double_charge", ("charged twice", "charged two times", "double charge", "charged again", "same payment",
+                       "appears two times", "debited twice")),
     ("card_declined", ("declined",)),
     ("missing_alert", ("alert", "sms", "notification")),
     ("stale_balance", ("balance",)),

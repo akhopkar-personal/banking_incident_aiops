@@ -2,12 +2,28 @@
 
 | Item | Detail |
 |---|---|
-| **Document version** | v1.7 (draft) |
-| **Supersedes** | v1.6 |
-| **Derived from** | Project Requirements v0.13. "Req." references below point to that document |
+| **Document version** | v1.8 (draft) |
+| **Supersedes** | v1.7 |
+| **Derived from** | Project Requirements v0.14. "Req." references below point to that document |
 | **Purpose** | The contracts needed to generate code: target library versions, data schemas, module and function contracts, LangGraph wiring, algorithms, synthetic data targets, and test hooks. Each section names the source file it governs |
 | **Format** | Contracts are given as tables (fields, types, parameters, returns), not as code. Code is generated in a later step, after this document is reviewed |
-| **Status** | Draft for review. Library versions in Section 0 are installed and pass the smoke test on the development laptop and in Vocareum (Req. OI-3, OI-9 closed). Phase 1 (Sections 3, 13, 15), Phase 2 (Section 16) and Phase 3 (Sections 5, 7, 8, 9) are implemented. Open items in Section 21 |
+| **Status** | Draft for review. Library versions in Section 0 are installed and pass the smoke test on the development laptop and in Vocareum (Req. OI-3, OI-9 closed). Phase 1 (Sections 3, 13, 15), Phase 2 (Section 16), Phase 3 (Sections 5, 7, 8, 9) and Phase 4 (Sections 4, 6) are implemented. Open items in Section 21 |
+
+### Changes from v1.7
+
+Phase 4 (LLM agents and the LangGraph workflow). Each affected section has an "As built (v1.8)" note.
+
+| Area | Change | Reason |
+|---|---|---|
+| Graph | All 22 nodes and the Section 4.3 edges built in `core_agent.py`; `failed_node` and `error_type` keep the first failure (parallel nodes can both fail); new state fields for intake, dedup and guardrail results (Sections 3.14, 4) | Phase 4 |
+| Intake | Every run needs a scenario (the data source); free-text clock times are read on the scenario's date; alert JSON needs `service` and `timestamp`; no LLM fallback for classification; rejection reasons `no_data_source` and `internal_error` added (Section 4.1) | The prototype reads all telemetry from scenario files |
+| Dedup in the graph | A repeat of an existing incident is investigated again, but is never paged twice: any earlier page turns a new page into an update (Sections 4.1, 5.4) | FR-38 and FR-69 together |
+| LLM layer | New `src/agent/llm.py`: model factory, `with_retries`, `RunBudget` (cost cap), structured and tool-calling calls; schema errors include the first validation error (Sections 4.4, 4.5, 6.1) | One place for the Section 6.1 call rules |
+| Agent output | Each agent's LLM-facing schema is narrow; facts the code can compute (counts, times, dependency path, top confidence) are set by code. List-of-string fields accept a single string (Sections 3.6, 3.7, 6) | gpt-4o-mini returned a string for a list field and failed validation three times in the first real run |
+| Prompts | No real-looking evidence or document IDs in templates; class definitions for triage; strict red-herring rules for change correlation (Section 6.1) | Example IDs were copied into hypotheses; SC-01 was classified as data integrity |
+| Tools | `call_for_llm` checks the model's arguments first and returns argument errors to the model; compact tool JSON for prompts (Section 7.1) | A model's mistake must not end the run in SYSTEM_ERROR |
+| Tracing | `langfuse_tracker.investigation_trace`: one trace per run (Section 11.2) | Verified in LangFuse Cloud: node spans and generations under one trace |
+| Settings | `retry_backoff_s` (Section 15.2) | Tests run retries without waiting |
 
 ### Changes from v1.6
 
@@ -279,6 +295,8 @@ Authoritative file list for code generation. It matches Req. Section 17; each pa
 | `src/safety/pii_names.py` (**v1.7**): synthetic name list shared by redaction and the generator | 9.2 |
 | `src/tools/implementations/_common.py`, `src/tools/dispatch_mocks/outbox.py`, `src/tools/mcp_bridge.py` (**v1.7**) | 7.2, 7.4, 7.5 |
 | `src/services/rules_only_runner.py`, `scripts/run_rules_only.py` (**v1.7**) | 5.7 |
+| `src/agent/llm.py`, `src/agent/agent_support.py`, `scripts/run_investigation.py` (**v1.8**) | 4.4, 6 |
+| `tests/fake_llm.py` (**v1.8**): scripted model for offline graph tests | 19 |
 | `scripts/commit_state.sh`, `scripts/build_index.py`, `scripts/generate_data.py` | 12, 8, 16 |
 | `tests/` | 19 |
 
@@ -503,6 +521,8 @@ One typed state object. Fields written by nodes that run in parallel use a merge
 | `prompt_version_set` | dict | Agents | Merge by key |
 | `output` | `InvestigationOutput`, opt | `finalize`, `system_error` | Replace |
 
+**As built (v1.8).** Added fields: `run_id` (set at entry), `reference_time` and `withheld_sources` (evaluation inputs), `llm_available` (false for the LLM-down fixture), `intake` (normalized input before the incident exists), `intake_rejection`, `deduplicated`, and the output-guardrail results `recommended_actions`, `stakeholder_summary`, `insufficient_evidence`, `action_policy_version`. `failed_node` and `error_type` use a keep-first reducer, so two parallel failures in one step are allowed and the first is reported.
+
 ---
 
 ## 4. LangGraph Orchestration — `src/agent/core_agent.py`
@@ -516,6 +536,8 @@ One typed state object. Fields written by nodes that run in parallel use a merge
 | `build_graph` | none | compiled graph | Section 4.2 and 4.3 |
 
 `IntakeRejection` (`reason`: `not_an_incident_report`, `alert_json_missing_required_fields`, `no_time_window`; `message`) is returned without entering the rest of the graph, as in v1.1 Section 4.4. `classify_request()` keeps the v1.1 decision tree, with `detection_replay` added as a mode that skips text classification.
+
+**As built (v1.8).** `run_investigation(raw_input, *, scenario_id, supplied_window, run_mode, prompt_version_override, progress_callback, reference_time, withheld_sources)`. Every run needs `scenario_id`, the data source (reason `no_data_source` otherwise). An empty `raw_input` is a detection replay over the scenario's window. Alert JSON needs `service` and `timestamp` (ISO 8601); `severity` words map to S1 to S4 (informational). Free text must contain an incident word (no LLM fallback: deterministic and free); a clock time such as "10:05 UTC" is read on the scenario's date, and a time without a zone is UTC and flagged `timezone_assumed_utc`. Without any time or window: `no_time_window`. A failure before an incident exists returns `internal_error`. A `fixture.json` with `llm_enabled: false` (the LLM-down fixture) makes every LLM call fail with `llm_unavailable`, so the run follows FR-43 exactly as in the Req. 8.2 example. A repeat of an existing incident (dedup) is investigated again but never paged twice (Section 5.4). Progress is streamed with `graph.stream(stream_mode=["updates", "values"])`. `run_reclassification` runs the final gate, page and notify functions in sequence with the human's level (flag `human_reclassified`) instead of a separate graph.
 
 ### 4.2 Node inventory
 
@@ -591,6 +613,8 @@ Every node function is wrapped by one helper in `core_agent.py`:
 | 5 | On exhausted retries or any other exception: write `node_status[node] = {ok: false, attempts, last_error}`, set `failed_node` and `error_type`, log to `error.log` with stack trace, and return the state without raising. The guarded edge then routes to `rules_only_dispatch` |
 
 LangGraph's own retry policy is not used, so that a failed node always leaves a usable state behind for the fallback path. `ChatOpenAI` is created with `max_retries=0` for the same reason.
+
+**As built (v1.8).** Retries happen per call in `llm.with_retries` (tool and LLM calls), with backoff `retry_backoff_s × 2^n`; the exception that escapes carries `attempts`, which becomes `retry_count`. The wrapper sets the logging context in every node (LangGraph worker threads), logs `node_completed`, and on failure logs `system_error` with `stage: node_failed` and the stack trace. Routing: a failure in `correlate_dedup` goes straight to `system_error`; an intake rejection ends the run; the kill switch sets `failed_node: kill_switch`. Measured on the laptop: 40 to 50 s per full run (gateway LLM time) and about $0.004; the S1 page is written before the first LLM answer (T-FAST).
 
 ### 4.5 Cost cap
 
@@ -741,6 +765,7 @@ The store also persists the final `InvestigationOutput` of each run under `data/
 **Common LLM call rules (all agents and the judge):**
 - Structured output always uses `method="function_calling"`, never strict `json_schema` (Section 0.4, finding 1).
 - Every call sets `max_tokens` to `llm_max_output_tokens` (1500).
+- **v1.8:** templates contain no real-looking evidence or document IDs (models copy examples); each agent uses a narrow LLM-facing schema and the code sets every fact it can compute; list-of-string fields accept a single string; a validation error message names the first failing field.
 - A response with `finish_reason` `length`, or one that fails schema validation, raises `RecoverableError` (`schema_invalid`) and is retried by the node wrapper (Section 4.4).
 - LLM-facing output schemas prefer required fields (an empty string or empty list where there is nothing to say) over optional ones, which reduces malformed output.
 
@@ -801,6 +826,17 @@ The store also persists the final `InvestigationOutput` of each run under `data/
 | Output | `RecommendationResult` |
 | Adaptation target for | `citation_error`, `verbosity`, `missing_evidence` (actions) |
 
+**As built (v1.8).**
+
+| Agent | As built |
+|---|---|
+| Triage | Knowledge-base query from the redacted input and the anomaly signals; evidence for the anomaly events is looked up by ID; the prompt defines each issue class (failed payments are not `data_integrity`); returned evidence IDs are filtered to known ones |
+| RCA | LLM-facing `RcaDraft` (no ranks or counters). All RCA tools are bound; the starting set for the issue class is recommended in the prompt. Tool results return as `ToolMessage`s inside `<untrusted_data>` tags. Ranks come from confidence order; timeline events must cite collected evidence; `tool_calls_used` and `followup_used` are set by code; severity inputs are limited to the rule signal names |
+| Change Correlation | Searched range: `CHANGE_LOOKBACK_MIN` before the earlier of onset and window start, to the window end. `on_dependency_path` means the change is on an origin service or a service an origin depends on (customer channels showing symptoms are not on the path). The LLM returns `ChangeRanking` (`contributes`, `rationale`); type, service and minutes before onset come from the record. No changes: no LLM call |
+| Recommendation | `top_confidence` is the top hypothesis confidence. A change is linked to a hypothesis that cites it, or to hypothesis 1 when the recommendation cites it (the RCA Agent cannot see change records). A regulatory search is added when the rules set `regulatory_flag`. The allowed action types come from the policy |
+
+**Baseline quality (v1.8, gpt-4o-mini, one live run per scenario).** All five end `PENDING_REVIEW` with the expected severity and issue class and grounded actions (SC-01 rollback, SC-03 reschedule batch, SC-04 renew certificate, SC-05 revert config with regulatory notes). The causal change is found in SC-01, SC-03 and SC-05. Red herrings are still accepted in SC-02 (schema change) and SC-04 (gateway release): this is the baseline the adaptation loop (Section 11.3) is meant to improve, and is recorded as OI-25.
+
 ---
 
 ## 7. Tools — `src/tools/`
@@ -814,6 +850,7 @@ The store also persists the final `InvestigationOutput` of each run under `data/
 | Policy | `read` tools: callable by the agents listed in Req. 10.5 and by workflow nodes. `dispatch` tools: callable only by workflow nodes in `DISPATCH_CALLERS` (`dispatch_fast_page`, `itsm_upsert`, `dispatch_page`, `dispatch_itsm_assign`, `notify`, `rules_only_dispatch`) |
 | Violation | Raise `ToolAccessDenied`, log `tool_access_blocked` to `error.log`, add guardrail flag; for an LLM tool call, return an error message to the model instead of a result |
 | LangChain wrapping | `as_langchain_tools(agent)` returns only the read tools that agent may use, for `bind_tools` |
+| Arguments from a model (**v1.8**) | `call_for_llm` validates the model's arguments against the tool schema and the known service names before calling; a problem is returned to the model as an error message, so a model's mistake does not fail the node. `InvalidToolArguments` (a `RecoverableError`) marks argument errors. Data failures still fail the node (FR-36). Results reach the model as compact JSON: notable items keep their summary line but not their full record |
 | Transport (**v1.4**) | `settings.tool_transport` is `mcp` (default) or `inprocess`. With `mcp`, `as_langchain_tools(agent)` returns the tools listed by the `incident-tools` MCP server (Section 7.5), filtered to that agent's allowed set; with `inprocess`, it wraps the Python implementations directly. Agents and graph nodes do not know which transport is in use |
 | Calling MCP tools synchronously | The registry owns one background event loop (a daemon thread started on first use). A synchronous `call(name, args, caller)` submits `tool.ainvoke(args)` to that loop and waits with a timeout of `tool_call_timeout_s`; the agent's tool loop uses this, so graph nodes stay synchronous |
 | Logging | Every call logs `tool_call` with `tool`, `caller`, `transport` and `latency_ms` |
@@ -1048,6 +1085,8 @@ DeepEval metrics: `FaithfulnessMetric`, `HallucinationMetric`, `ContextualRecall
 
 As v1.1 Section 10.2, plus `attach_human_scores(trace_id, ratings, decision)`, `attach_pairwise(trace_ids, choice)`, `attach_reward(version_set, score)`. All functions log to `error.log` and return without raising if LangFuse is unreachable (Req. FR-26).
 
+**As built (v1.8, tracing part).** `investigation_trace(run_id, scenario_id, run_mode)` opens the root observation `investigation` and `propagate_attributes(session_id=run_id, tags=[scenario, run mode])`, and yields the trace ID and a LangChain `CallbackHandler` passed to the graph; nodes pass their config to their LLM calls. Verified in LangFuse Cloud for SC-05: one trace, 75 observations (spans for every node and agent, 6 generations). Scores are added in Phase 6.
+
 ### 11.3 `adaptation_engine.py` (Req. FR-31 to FR-34, FR-62)
 
 | Function | Behavior |
@@ -1146,6 +1185,7 @@ Role checks are advisory in the MVP (no auth), but every control records the sel
 | `structured_output_method` | `function_calling` | Section 6.1; fixed, not to be changed to `json_schema` |
 | `judge_model` | same as `LLM_MODEL` (`JUDGE_MODEL` in `.env`) | Section 11.1; DeepEval judge |
 | `max_node_retries` | 2 | Req. 13.6 |
+| `retry_backoff_s` (**v1.8**) | 1.0 | Section 4.4; tests use 0 |
 | `cost_cap_usd_per_run` | 0.15 | Req. 13.2 |
 | `token_cap_per_run` | 60000 | Req. 13.2 |
 | `price_per_1k_input`, `price_per_1k_output`, `price_per_1k_embedding` | Set from the provider's price list at build time | Cost estimate |
@@ -1447,6 +1487,8 @@ sequenceDiagram
 
 Tests marked `llm` make API calls and are deselected by default (`pytest -m llm` runs them).
 
+**v1.8:** `tests/test_graph.py` runs the whole graph with the scripted model in `tests/fake_llm.py` (every scenario, fast-path timing, LLM-down, kill switch, failure fixture, schema-invalid, cost cap, confidence gate, insufficient evidence, missing source, disagreement, re-score, evaluation mode, dedup, injection, alert and free-text input, intake rejections, re-classification, MCP transport) plus one `llm` test through the real model. `tests/test_llm_layer.py` covers the LLM layer and prompts.
+
 ---
 
 ## 20. Traceability Matrix
@@ -1504,6 +1546,8 @@ Tests marked `llm` make API calls and are deselected by default (`pytest -m llm`
 | ALIGN-6 | MCP server and transport switch; MCP pins; Phase 1 alignment (event names, scenario directories); OI-3 and OI-9 closed | **Done:** Req. v0.10 Sections 3, 4, 7.12, 10.5, 11, 11.1, 11.3, 14, 16, 17, 18, 19, 20, 21 |
 | ALIGN-7 (**v1.6**) | Phase 2 alignment: SC-03 causal change, service documentation count, golden variant definitions and new golden fields, generator files in the folder structure, rule IDs in the output example, SME validation of the drafts | **Done:** Req. v0.12 Sections 8.2, 9.4, 9.5, 12.1, 17, 18.2 |
 | ALIGN-8 (**v1.7**) | Phase 3 alignment: new log events, tool schemas without run context, `change_correlation_agent` access to `get_service_dependencies`, pseudonym key shared with the MCP server, new files in the folder structure | **Done:** Req. v0.13 Sections 10.5, 13.3, 16, 17 |
+| ALIGN-9 (**v1.8**) | Phase 4 alignment: intake rules, rejection reasons, dedup behaviour in the graph, measured latency and cost, OI-25 | **Done:** Req. v0.14 Sections 6.2, 6.3, 12.2, 18.2 |
+| OI-25 (**v1.8**) | Change correlation still accepts some red herrings with gpt-4o-mini (SC-02, SC-04) | Baseline for the adaptation loop (Phase 6); revisit the prompt only through approved adaptations |
 | OI-24 (**v1.6**) | SME validation of the generated ground truth (`eval_rubric.json`, `manifest.json`) and of the 28 knowledge-base drafts | Changes to the ground truth are made in `data/generators/scenarios.py`, then `--write-golden`, before `feedback_loop.promote` adds the first case (promoted cases exist only in the golden files); changes to documents are made in `knowledge/raw/` (or the PDF sources) |
 
-**Code generation order:** 0 smoke test (done) → 3 schemas, 15 config, 13 logging (Phase 1, done) → 16 data generator and reference files (Phase 2, done) → 9 safety → 7 tools, mocks and the MCP server (7.5) → 8 retrieval → 5 services (Phase 3, done) → 6 agents and prompts → 4 graph (Phase 4) → 14 UI (Phase 5) → 10 feedback and RLHF → 11 evaluation (Phase 6) → packaging (Phase 7). Tests are written with each phase.
+**Code generation order:** 0 smoke test (done) → 3 schemas, 15 config, 13 logging (Phase 1, done) → 16 data generator and reference files (Phase 2, done) → 9 safety → 7 tools, mocks and the MCP server (7.5) → 8 retrieval → 5 services (Phase 3, done) → 6 agents and prompts → 4 graph (Phase 4, done) → 14 UI (Phase 5) → 10 feedback and RLHF → 11 evaluation (Phase 6) → packaging (Phase 7). Tests are written with each phase.

@@ -24,7 +24,7 @@ from typing import Any, Callable, Literal, Optional
 from pydantic import BaseModel, Field, create_model
 
 from src import config
-from src.errors import RecoverableError, ToolAccessDenied
+from src.errors import InvalidToolArguments, RecoverableError, ToolAccessDenied
 from src.logger_setup import log_error, log_interaction
 from src.mcp_server.server import MCP_EXPOSED_TOOLS
 from src.schemas.analysis import RetrievedDocument
@@ -260,7 +260,7 @@ class ToolRegistry:
             raise
         except (TypeError, ValueError, KeyError) as exc:
             error = f"{type(exc).__name__}: {exc}"
-            raise RecoverableError(f"{name} called with invalid arguments: {type(exc).__name__}") from exc
+            raise InvalidToolArguments(f"{name} called with invalid arguments: {type(exc).__name__}") from exc
         finally:
             fields = {"tool": name, "caller": caller, "transport": transport,
                       "latency_ms": round((time.perf_counter() - started) * 1000),
@@ -270,18 +270,45 @@ class ToolRegistry:
             else:
                 log_interaction("tool_call", component=caller, **fields)
 
-    def call_for_llm(self, name: str, args: dict[str, Any], caller: str, ctx: ToolContext) -> tuple[str, list[str]]:
-        """For an LLM tool call: the result as JSON text, or an error message the model can read.
-        Returns (content, guardrail flags)."""
+    def call_for_llm(self, name: str, args: dict[str, Any], caller: str, ctx: ToolContext
+                     ) -> tuple[str, list[str], Any]:
+        """For an LLM tool call: (content for the model, guardrail flags, typed result or None).
+        The content is compact JSON (notable items without their full records), or an error
+        message the model can read when the tool is not allowed."""
+        try:
+            spec = self.get(name, caller, ctx)
+        except ToolAccessDenied as exc:
+            return f"Error: tool {name!r} is not available to you ({exc.reason}).", ["tool_access_blocked"], None
+        problem = self._check_llm_args(spec, args)
+        if problem:
+            return f"Error: invalid arguments for {name}: {problem}. Correct them and try again.", [], None
         try:
             result = self.call(name, args, caller, ctx)
-        except ToolAccessDenied as exc:
-            return f"Error: tool {name!r} is not available to you ({exc.reason}).", ["tool_access_blocked"]
-        if isinstance(result, list):
-            payload: Any = [r.model_dump(mode="json") if isinstance(r, BaseModel) else r for r in result]
-        else:
-            payload = result.model_dump(mode="json") if isinstance(result, BaseModel) else result
-        return json.dumps(payload, ensure_ascii=False), []
+        except InvalidToolArguments as exc:
+            return f"Error: {exc}. Correct the arguments and try again.", [], None
+        return compact_json(result), [], result
+
+    @staticmethod
+    def _check_llm_args(spec: ToolSpec, args: dict[str, Any]) -> Optional[str]:
+        """A model's arguments are checked before the call, so a mistake goes back to the model
+        instead of failing the node (data failures still fail it, FR-36)."""
+        from pydantic import ValidationError
+
+        from src.tools.implementations.get_service_dependencies import load_dependency_map
+
+        clean = {k: v for k, v in args.items() if k not in CONTEXT_KEYS}
+        if spec.binding is not None:
+            try:
+                spec.binding.model_validate(clean)
+            except ValidationError as exc:
+                return "; ".join(f"{'.'.join(str(p) for p in e['loc'])}: {e['msg']}" for e in exc.errors()[:3])
+        services = clean.get("service")
+        names = [services] if isinstance(services, str) else list(services or [])
+        unknown = [s for s in names if s not in load_dependency_map()]
+        if unknown:
+            return f"unknown service {', '.join(unknown)}; use canonical names such as payments-service"
+        return None
+
 
     def as_langchain_tools(self, agent: str) -> list:
         """Tool schemas for `bind_tools`. Executing them directly is not allowed: the agent loop
@@ -295,6 +322,23 @@ class ToolRegistry:
                                              args_schema=spec.binding)
                 for spec in self.specs.values()
                 if spec.kind == "read" and agent in spec.allowed_callers and spec.binding is not None]
+
+
+def compact_json(result: Any) -> str:
+    """Tool result as JSON for a prompt: full records are left out (the summaries carry the facts)."""
+    def one(item: Any) -> Any:
+        if isinstance(item, ToolSummary):
+            data = item.model_dump(mode="json", exclude={"notable": {"__all__": {"record"}}})
+            analysis = data.get("complaint_analysis")
+            if analysis:
+                for cluster in analysis["clusters"]:
+                    cluster["complaint_ids"] = cluster["complaint_ids"][:3]
+                analysis["clusters"] = analysis["clusters"][:8]
+            return {k: v for k, v in data.items() if v not in (None, [], {}) or k == "notable"}
+        return item.model_dump(mode="json") if isinstance(item, BaseModel) else item
+
+    payload = [one(r) for r in result] if isinstance(result, list) else one(result)
+    return json.dumps(payload, ensure_ascii=False)
 
 
 _registry: Optional[ToolRegistry] = None

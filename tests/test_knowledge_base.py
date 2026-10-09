@@ -95,7 +95,7 @@ def test_documents_cite_only_existing_documents():
     doc_ids = {front_matter(p)["doc_id"] for p in documents()}
     for path in documents():
         if path.suffix == ".md":
-            cited = set(re.findall(r"\b(?:RB-[A-Z]{3}-\d{3}|PM-\d{4}-\d{3}|REG-\d{3}|SVC-\d{3})\b",
+            cited = set(re.findall(r"\b(?:RB-[A-Z]{2,4}-\d{3}|PM-\d{4}-\d{3}|REG-\d{3}|SVC-\d{3})\b",
                                    path.read_text(encoding="utf-8")))
             assert cited <= doc_ids, (path.name, cited - doc_ids)
 

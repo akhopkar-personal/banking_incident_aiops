@@ -88,7 +88,10 @@ def upsert_ticket(state: dict[str, Any], node: str = "itsm_upsert") -> dict[str,
 def _page(state: dict[str, Any], node: str, summary: str, *, fast_path: bool) -> dict[str, Any]:
     incident = state["incident"]
     dispatch: DispatchRecord = state.get("dispatch") or DispatchRecord()
-    if dispatch.paged:  # attach to the page already sent, never page twice (FR-51)
+    view = store.current(incident.incident_id)
+    # Paged before, in this run or an earlier one (a deduplicated repeat): attach to that page,
+    # never page twice (FR-38, FR-51). This also keeps FR-69's one page per 15 minutes.
+    if dispatch.paged or (view is not None and view.paged_at):
         if _evaluation(state):
             return _suppressed(state, "page_update", {"team": ESCALATION_TEAM, "summary": summary}, node)
         line = get_registry().call("page_oncall", {"incident_id": incident.incident_id, "team": ESCALATION_TEAM,
@@ -97,14 +100,9 @@ def _page(state: dict[str, Any], node: str, summary: str, *, fast_path: bool) ->
                      {"mode": "update", "outbox_id": line["outbox_id"]})
         log_interaction("dispatch_page", component=node, mode="update", outbox_id=line["outbox_id"],
                         incident_id=incident.incident_id, run_id=incident.run_id)
-        return {}
+        return {} if dispatch.paged else {"dispatch": DispatchRecord(paged=True)}
     if _evaluation(state):
         return _suppressed(state, "page", {"team": ESCALATION_TEAM, "summary": summary, "fast_path": fast_path}, node)
-    limit = config.get_settings().page_rate_limit_min
-    if store.recently_paged(incident.incident_id, limit):  # FR-69
-        log_interaction("dispatch_suppressed", component=node, action="page", reason="rate_limit",
-                        window_min=limit, incident_id=incident.incident_id, run_id=incident.run_id)
-        return {"dispatch": DispatchRecord(paged=True, suppressed=True)}
     line = get_registry().call("page_oncall", {"incident_id": incident.incident_id, "team": ESCALATION_TEAM,
                                                "summary": summary, "mode": "new"}, node, tool_context(state))
     page_time = datetime.fromisoformat(line["at"])

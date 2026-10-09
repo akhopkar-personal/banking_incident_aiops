@@ -34,7 +34,7 @@ def validate_schema(model: type[M], data: Any) -> tuple[Optional[M], list[str]]:
 
 # --------------------------------------------------------------- grounding
 
-_DOC_ID = re.compile(r"\b(RB-[A-Z]{3}-\d{3}|PM-\d{4}-\d{3}|REG-\d{3}|SVC-\d{3}|VR-INC-\d{8}-\d{3})\b")
+_DOC_ID = re.compile(r"\b(RB-[A-Z]{2,4}-\d{3}|PM-\d{4}-\d{3}|REG-\d{3}|SVC-\d{3}|VR-INC-\d{8}-\d{3})\b")
 
 
 def cited_doc_id(citation: str) -> Optional[str]:

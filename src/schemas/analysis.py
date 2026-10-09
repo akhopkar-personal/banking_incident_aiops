@@ -12,7 +12,7 @@ from typing import Literal, Optional
 
 from pydantic import Field, model_validator
 
-from .common import AnomalyId, Confidence, EvidenceId, Schema, UtcDatetime
+from .common import AnomalyId, Confidence, EvidenceId, LenientStrList, Schema, UtcDatetime
 from .enums import (
     ChangeType,
     IssueClass,
@@ -33,7 +33,7 @@ class TriageResult(Schema):
     proposed_severity: SeverityLevel
     affected_services: list[AffectedService]
     confidence: Confidence
-    evidence_ids: list[EvidenceId]
+    evidence_ids: LenientStrList  # filtered to known evidence IDs by the agent
     rationale: str
 
 
@@ -74,7 +74,7 @@ class Hypothesis(Schema):
     root_cause: str
     confidence: Confidence
     supporting_evidence: list[EvidenceId]
-    contradicting_or_missing_evidence: list[str]
+    contradicting_or_missing_evidence: LenientStrList
 
 
 class RcaResult(Schema):
@@ -148,5 +148,5 @@ class RecommendationResult(Schema):
     summary_fields: SummaryFields
     regulatory_notes: str
     insufficient_evidence_reason: str
-    cited_doc_ids: list[str]
-    cited_evidence_ids: list[EvidenceId]
+    cited_doc_ids: LenientStrList
+    cited_evidence_ids: LenientStrList  # grounding keeps only known evidence IDs

@@ -14,6 +14,11 @@ class RecoverableError(Exception):
         self.error_type = error_type
 
 
+class InvalidToolArguments(RecoverableError):
+    """A tool was called with arguments it cannot use. For an LLM tool call this goes back to
+    the model as an error message instead of failing the node."""
+
+
 class ToolAccessDenied(Exception):
     """A caller asked for a tool the access policy does not allow (Req. FR-66)."""
 

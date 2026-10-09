@@ -2,7 +2,7 @@
 
 AI capstone project: a multi-agent system that investigates banking incidents across telemetry, the EventHub (Kafka) platform and customer complaints, and returns an evidence-backed recommendation for human review.
 
-**Status:** Phases 0 to 3 are complete: environment and smoke test, schemas and logging, synthetic data and knowledge base, and the rules-only system (detection, dedup, severity rules, simulated paging and ticketing), read tools, MCP server, retrieval and safety guardrails. Next: Phase 4 (LLM agents and the LangGraph workflow).
+**Status:** Phases 0 to 4 are complete: environment and smoke test, schemas and logging, synthetic data and knowledge base, the rules-only system (detection, dedup, severity rules, simulated paging and ticketing), read tools, MCP server, retrieval, safety guardrails, and the four LLM agents in the LangGraph workflow. Next: Phase 5 (Streamlit UI).
 
 **Contents**
 
@@ -207,7 +207,9 @@ Run from the `banking_incident_aiops` folder with the environment active.
 |---|---|---|
 | Activate the environment | `.\.venv\Scripts\Activate.ps1` (or let VS Code do it) | `source scripts/setup_env.sh` |
 | Unit tests (no API calls) | `python -m pytest` | `python -m pytest` |
-| Tests that call the OpenAI API (a few embedding calls) | `python -m pytest -m llm` | `python -m pytest -m llm` |
+| Tests that call the OpenAI API (embeddings and one full SC-04 run, about $0.01) | `python -m pytest -m llm` | `python -m pytest -m llm` |
+| Full investigation with the LLM agents (about $0.004 and 45 s per run; writes to `data/outbox/`) | `python scriptsun_investigation.py SC-01` | `python scripts/run_investigation.py SC-01` |
+| Same, from free text | `python scriptsun_investigation.py SC-05 --text "Customers charged twice since 10:20 UTC"` | `python scripts/run_investigation.py SC-05 --text "Customers charged twice since 10:20 UTC"` |
 | Run a scenario without the LLM (writes to `data/outbox/`) | `python scripts\run_rules_only.py SC-01` | `python scripts/run_rules_only.py SC-01` |
 | Same, but dispatch nothing | `python scripts\run_rules_only.py SC-01 --evaluation` | `python scripts/run_rules_only.py SC-01 --evaluation` |
 | Rebuild the knowledge-base index | `python scripts\build_index.py` | `python scripts/build_index.py` |
@@ -240,8 +242,8 @@ Run from the `banking_incident_aiops` folder with the environment active.
 
 | Document | Path |
 |---|---|
-| Requirements specification | [docs/AI_Capstone_Project_Requirements_v0.13.md](docs/AI_Capstone_Project_Requirements_v0.13.md) |
-| Architecture specification | [docs/AI_Capstone_Project_Architecture_Specification_v1.7.md](docs/AI_Capstone_Project_Architecture_Specification_v1.7.md) |
+| Requirements specification | [docs/AI_Capstone_Project_Requirements_v0.14.md](docs/AI_Capstone_Project_Requirements_v0.14.md) |
+| Architecture specification | [docs/AI_Capstone_Project_Architecture_Specification_v1.8.md](docs/AI_Capstone_Project_Architecture_Specification_v1.8.md) |
 | Architecture diagrams (Mermaid sources and PNG exports) | [docs/diagrams/](docs/diagrams/) |
 | Synthetic scenarios and fixtures (one folder each, with `manifest.json`) | [data/telemetry/](data/telemetry/) |
 | Knowledge-base documents (drafts for SME review) | [knowledge/raw/](knowledge/raw/) |

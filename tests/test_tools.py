@@ -156,7 +156,7 @@ def test_agents_cannot_call_dispatch_tools(sandbox):
     for agent in AGENTS:
         with pytest.raises(ToolAccessDenied):
             registry.call("page_oncall", {"incident_id": "x", "team": "t", "summary": "s"}, agent, ctx)
-    content, flags = registry.call_for_llm("send_email", {"to": [], "subject": "", "body": ""}, "rca_agent", ctx)
+    content, flags, _ = registry.call_for_llm("send_email", {"to": [], "subject": "", "body": ""}, "rca_agent", ctx)
     assert content.startswith("Error:") and flags == ["tool_access_blocked"]
     errors = (sandbox.logs_dir / "error.log").read_text(encoding="utf-8")
     assert errors.count('"event": "tool_access_blocked"') == len(AGENTS) + 1
@@ -197,7 +197,7 @@ def test_registry_injects_context_and_default_window(sandbox):
     # A model-supplied scenario_id is ignored: the run context decides which data is read.
     result = registry.call("query_logs", {"scenario_id": "SC-02", "level": "ERROR"}, "rca_agent", ctx)
     assert result.aggregates.get("error_code.DB_TIMEOUT") == 600
-    content, flags = registry.call_for_llm("query_logs", {"service": ["payments-service"]}, "rca_agent", ctx)
+    content, flags, result = registry.call_for_llm("query_logs", {"service": ["payments-service"]}, "rca_agent", ctx)
     assert json.loads(content)["tool"] == "query_logs" and flags == []
     lines = (sandbox.logs_dir / "interactions.log").read_text(encoding="utf-8").splitlines()
     calls = [json.loads(line) for line in lines if '"tool_call"' in line]
