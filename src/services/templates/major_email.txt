@@ -1,0 +1,11 @@
+Subject: [SIMULATED] {level} incident {incident_id}: {service}
+[SIMULATED] This is a simulated incident notification from the EventHub AIOps prototype.
+
+Incident: {incident_id} ({level})
+Service: {service}
+
+What happened: {what_happened}
+Customer impact: {customer_impact}
+Current status: {current_status}
+Next update: {next_update}
+{extra_lines}

@@ -2,12 +2,28 @@
 
 | Item | Detail |
 |---|---|
-| **Document version** | v1.6 (draft) |
-| **Supersedes** | v1.5 |
-| **Derived from** | Project Requirements v0.12. "Req." references below point to that document |
+| **Document version** | v1.7 (draft) |
+| **Supersedes** | v1.6 |
+| **Derived from** | Project Requirements v0.13. "Req." references below point to that document |
 | **Purpose** | The contracts needed to generate code: target library versions, data schemas, module and function contracts, LangGraph wiring, algorithms, synthetic data targets, and test hooks. Each section names the source file it governs |
 | **Format** | Contracts are given as tables (fields, types, parameters, returns), not as code. Code is generated in a later step, after this document is reviewed |
-| **Status** | Draft for review. Library versions in Section 0 are installed and pass the smoke test on the development laptop and in Vocareum (Req. OI-3, OI-9 closed). Phase 1 (Sections 3, 13, 15) and Phase 2 (Section 16) are implemented. Open items in Section 21 |
+| **Status** | Draft for review. Library versions in Section 0 are installed and pass the smoke test on the development laptop and in Vocareum (Req. OI-3, OI-9 closed). Phase 1 (Sections 3, 13, 15), Phase 2 (Section 16) and Phase 3 (Sections 5, 7, 8, 9) are implemented. Open items in Section 21 |
+
+### Changes from v1.6
+
+Phase 3 (rules-only system, tools, MCP server, retrieval, safety). Each affected section has an "As built (v1.7)" note.
+
+| Area | Change | Reason |
+|---|---|---|
+| Schemas | `IncidentObject.withheld_sources`; `ToolSummary.source_unavailable` and `complaint_analysis`; new `DependencyInfo` (Sections 3.2, 3.5) | Missing-source golden variant; `query_complaints` and `get_service_dependencies` return types |
+| Services | Detector signals, z-score scope and gap merging; correlator series continuation, complaint attachment and root tie-break; rules evaluated per scope; gate and notification details; state store record format (Sections 5.1 to 5.6). New `rules_only_runner.py` runs the deterministic workflow without the graph | Behaviour needed to reach exactly one incident per scenario and the expected severities |
+| Tools | The registry defines the LLM-facing tool schemas itself, without the run context, and sends every call through MCP or in-process; `call_for_llm`; `change_correlation_agent` may use `get_service_dependencies` (Section 7.1) | The model must never choose which scenario, incident or run a tool reads |
+| MCP | One long-lived session in a background loop; tools return `{"result": ...}`; the server imports the retrieval stack at start-up; child process gets the path settings and the pseudonym key (Section 7.5) | Per-call sessions start a new process each time; identical results across transports (FR-73) |
+| Redaction | Consistent pseudonym tokens with a per-session key shared with the MCP server; flags only when text changes; capitalized-pair name heuristic only for complaint text (Section 9.2) | FR-73; avoid false positives on technical text |
+| Retrieval | At most 2 sections per document in a result list; `hash` embedding backend for tests and LLM-free development; index written with serialize/deserialize (Section 8) | Recall@5 with vague trigger text; offline tests; paths with spaces |
+| Data | SC-05 no longer has gateway latency spikes (Section 16.2); `baselines.json` v2 keyed by detector signal | Otherwise payment-network-gateway became SC-05's root service |
+| Logging | Events `knowledge_index_built`, `incident_created` (Section 13) | Re-index summary; incident creation |
+| Settings | `tool_transport`, `tool_call_timeout_s`, `mcp_startup_timeout_s`, `embedding_backend`, `embedding_batch_size`, `chunk_size`, `chunk_overlap`, and overridable store paths (Section 15.2) | Phase 3 |
 
 ### Changes from v1.5
 
@@ -259,6 +275,10 @@ Authoritative file list for code generation. It matches Req. Section 17; each pa
 | `src/ui/app.py`, `components.py`, `state.py`, `pages/*.py` | 14 |
 | `data/` files | 16 |
 | `data/generators/*.py`, `data/generators/pdf_sources/*.md` (**v1.6**) | 16.1 |
+| `src/errors.py` (**v1.7**): `RecoverableError`, `ToolAccessDenied`, `CostCapExceeded` | 4.4, 7.1 |
+| `src/safety/pii_names.py` (**v1.7**): synthetic name list shared by redaction and the generator | 9.2 |
+| `src/tools/implementations/_common.py`, `src/tools/dispatch_mocks/outbox.py`, `src/tools/mcp_bridge.py` (**v1.7**) | 7.2, 7.4, 7.5 |
+| `src/services/rules_only_runner.py`, `scripts/run_rules_only.py` (**v1.7**) | 5.7 |
 | `scripts/commit_state.sh`, `scripts/build_index.py`, `scripts/generate_data.py` | 12, 8, 16 |
 | `tests/` | 19 |
 
@@ -306,6 +326,7 @@ These schemas are the single source of truth for field names. Every model is a P
 | `window_start`, `window_end` | datetime (UTC) | `window_end > window_start`; default −60 / +15 min from `reference_time` |
 | `hints` | list of str | |
 | `timezone_assumed_utc` | bool | Default false |
+| `withheld_sources` (**v1.7**) | list of str | Evidence prefixes unavailable for this run (golden `missing_source` variant); empty in live runs. Tools return `source_unavailable`, and the detector and rules engine ignore those sources |
 
 ### 3.3 Anomaly event — `src/schemas/incident.py`
 
@@ -347,6 +368,8 @@ Every record has the common fields `timestamp`, `service`, `environment` (defaul
 | `ToolSummary` | `tool`, `service_scope` (list), `window_start`, `window_end`, `record_count`, `aggregates` (dict of name to number), `notable` (list of `EvidenceItem`, max 20), `truncated` (bool) |
 | `ComplaintCluster` | `cluster_id`, `topic`, `product`, `complaint_ids`, `first_seen`, `volume`, `sentiment_score` (−1..1) |
 | `ComplaintAnalysis` | `clusters`, `total_complaints_in_window`, `estimated_customer_impact` (text), `earliest_signal_time` (opt) |
+| `ToolSummary` additions (**v1.7**) | `source_unavailable` (bool, the source is withheld), `complaint_analysis` (opt, `query_complaints` only) |
+| `DependencyInfo` (**v1.7**) | `service`, `direction`, `owner_team`, `customer_facing`, `upstream`, `downstream` (both transitive), `blast_radius_customer_facing`. Returned by `get_service_dependencies` |
 
 ### 3.6 Triage and rules results — `src/schemas/analysis.py`
 
@@ -598,6 +621,8 @@ A per-run token and cost counter (from LLM response usage metadata, priced from 
 3. A bucket is anomalous if `z >= 3.0` (with standard deviation floored at 1% of the mean, to avoid division by near-zero), **or** a hard threshold from `data/baselines.json` is crossed (for example `tls_status` not `ok`, `state` `FAILED`, `broker_down` event).
 4. Consecutive anomalous buckets for the same series form one `AnomalyEvent` (start time, peak observed value).
 
+**As built (v1.7).** Series per `(service, signal)`: `api_error_rate`, `api_p95_ms` (max over endpoints), `db_connections_used_pct`, `db_cpu_pct`, `db_lock_wait_ms`, `db_slow_queries`, `kafka_under_replicated`, `consumer_lag`, `broker_down`, `duplicate_transactions` (a transaction ID produced again), `quorum_offline_partitions`, `quorum_unhealthy`, `tls_failures`, `network_latency_ms`, `network_packet_loss_pct`, `connect_failed_tasks`, `acl_denied`, `log_error_count`, and `complaints_30min:<product>` (rolling 30-minute count). Count signals are zero-filled across the telemetry span. Z-scores apply only to the gauge signals listed in `data/baselines.json` (`zscore_signals`) and only when the baseline varies; count signals use hard thresholds only, because a zero baseline makes any single event an outlier. Anomalous buckets of one series at most `merge_gap_minutes` (5) apart form one event. Evidence IDs: up to 5 records from the first and the peak bucket. A source that cannot be read (for example the failure fixture's logs) is skipped and logged, so detection and paging still work. `baselines.json` is v2: hard thresholds keyed by signal name, plus `log_error_count > 3`, `complaints_30min > 20` and `duplicate_transactions > 0`. Each scenario's first anomaly is at or after minute 20 and its onset is found (T-DETECT).
+
 ### 5.2 Alert Correlation and Dedup — `alert_correlator.py` (Req. FR-38)
 
 | Function | Parameters | Returns |
@@ -613,6 +638,8 @@ A per-run token and cost counter (from LLM response usage metadata, priced from 
 5. `upsert_incident` looks up the key in the Incident State Store. If found, it appends the events to the existing incident and logs `incident_deduplicated`; no new incident, ticket or page is created.
 
 Manual input (alert JSON or free text) runs the same detector on the requested window so that it gets the same key as a replay of the same incident.
+
+**As built (v1.7).** "Connected" means one service depends on the other, directly or transitively. An event whose series is already in a group stays in that group even after the 30-minute bucket, so a long-running anomaly does not open a second incident. When an event connects two groups they are merged. Complaint-volume events are attached afterwards to the group whose bucket they fall in (connected first, otherwise any), because complaints are filed against a product's service rather than the failing component. Root-service ties (same first minute) go to the candidate with more anomalous services downstream. `primary_group` picks the group with the most events for a replay. Results: one group per scenario and for the alert storm; roots `payments-service` (SC-01, SC-05), `kafka-platform` (SC-02), `core-banking-db` (SC-03), `payment-network-gateway` (SC-04). `upsert_incident` logs `incident_created` or `incident_deduplicated`.
 
 ### 5.3 Severity Rules Engine — `severity_rules.py` (Req. 10.6)
 
@@ -644,6 +671,8 @@ Manual input (alert JSON or free text) runs the same detector on the requested w
 
 Rule IDs, thresholds and file format are as in Req. Section 10.6. The rule file also carries `version`; changing it requires a `RulesChangeEntry` (Section 3.13).
 
+**As built (v1.7).** `SignalValue` holds a per-minute series per scope (service, route, consumer group or product). A pass-1 rule fires when one scope satisfies the condition for `sustained_minutes` consecutive minutes, so a value jumping between services does not count as sustained. `latency_ratio_services_over_3x` and `single_service_degraded` are computed per minute from 5-minute sustained runs; the baseline p95 is the mean of each service's first 20 minutes in the window. Pass 2 and the re-score evaluate the pass-1 rules again plus the pass-2 rules; `rules_fired` accumulates across passes. `apply_confirmed_inputs` marks RCA-confirmed values as sustained, and `would_raise` is the condition for the single re-score edge. The engine produces exactly the expected fired rules for every scenario, matching the independent oracle in `tests/data_helpers.py` (T-RULES).
+
 ### 5.4 Gates and dispatch decisions — `gates.py`
 
 | Function | Behavior |
@@ -654,6 +683,8 @@ Rule IDs, thresholds and file format are as in Req. Section 10.6. The rule file 
 | `page(state)` | Major. If already paged by the fast path, call `page_oncall` in update mode (attach recommendation) instead of paging again |
 | `assign(state)` | Low/Medium. Call `itsm_assign` to queue `production-support` with summary and recommended fix |
 | `rules_only(state)` | Compute `rules_pass1` if missing. Then upsert the ticket, and page (Major) or assign (Low/Medium), skipping anything already done |
+
+**As built (v1.7).** Each function takes the graph state and returns a partial update, as a node body does; dispatch goes through the registry under the node's name. `upsert_ticket(state)` (the `itsm_upsert` node) is added. A page when the incident was already paged in this run becomes a `mode: update` page; a new page within `page_rate_limit_min` of an earlier one for the same incident (another run) is suppressed and logged `dispatch_suppressed` (`reason: rate_limit`). In `evaluation` mode every dispatch is recorded in `dispatch.intended` with `suppressed: true` and logged with `reason: evaluation_mode`. State store records: `ticket_upserted`, `paged` (payload `mode`, `fast_path`, `outbox_id`), `assigned`. Escalation team `incident-escalation`; support queue `production-support`.
 
 ### 5.5 Notification Service — `notification_service.py` (Req. FR-52)
 
@@ -670,6 +701,8 @@ Rule IDs, thresholds and file format are as in Req. Section 10.6. The rule file 
 
 Templates live in `src/services/templates/` (`major_chat.txt`, `major_email.txt`, `low_medium_chat.txt`) with placeholders for the summary fields. Every message starts with "[SIMULATED]". A "Needs human RCA" line is added when flagged; "AI suggests higher severity" is added when that flag is set. Deduplication: one notification per `(incident_id, channel, audience, severity level)`. Storm suppression: if more than 3 incidents share a root service within 30 minutes, later Low/Medium notifications are suppressed and logged as `dispatch_suppressed` with `reason: storm`.
 
+**As built (v1.7).** `notify(incident_id, run_id, final_severity, summary_fields, needs_human_rca, service, run_mode)` returns the notifications sent and, in evaluation mode, the intended ones. Destinations: `#inc-<incident_id>`, `#team-<owner_team>` (from the dependency map), and an email to the `major` stakeholders of the service. Email recipients come from the synthetic directory and are kept as routing data; subject and body are redacted like all outbox text.
+
 ### 5.6 Incident State Store — `incident_state_store.py`
 
 | Function | Behavior |
@@ -680,6 +713,12 @@ Templates live in `src/services/templates/` (`major_chat.txt`, `major_email.txt`
 | `list_incidents(filters)` | For UI pages |
 
 The store also persists the final `InvestigationOutput` of each run under `data/incident_state/outputs/<run_id>.json`, so human steps can load it after the graph run ends.
+
+**As built (v1.7).** Record IDs `ISR-NNNNNN`; payloads are redacted except lookup keys (`idempotency_key`, `ticket_id`, `bucket_start`, `outbox_id`, `queue`, `mode`, `status`). `current()` returns an `IncidentView` (state, key, root service, run IDs, ticket, page times, queue, review status, resolution, verification, event list). `next_incident_id(date)` numbers incidents per reference date. Run IDs are `RUN-<epoch ms><2-digit counter>`. Writers in one process are serialized by a lock (Streamlit sessions are threads of one process).
+
+### 5.7 Rules-only runner — `rules_only_runner.py` (v1.7; Req. FR-43, FR-68)
+
+`run_rules_only(scenario_id, window, reference_time, run_mode, withheld_sources)` runs the deterministic workflow without the graph: detect → group → `upsert_incident` (a repeat stops here) → Incident Object (redacted input, injection scan) → signals and pass 1 → `fast_page` → `rules_only`. It logs `kill_switch_active` when `LLM_ENABLED` is false. Phase 4's graph calls the same functions node by node; until then this is the demonstrable LLM-free path (`python scripts/run_rules_only.py SC-01`).
 
 ---
 
@@ -779,6 +818,16 @@ The store also persists the final `InvestigationOutput` of each run under `data/
 | Calling MCP tools synchronously | The registry owns one background event loop (a daemon thread started on first use). A synchronous `call(name, args, caller)` submits `tool.ainvoke(args)` to that loop and waits with a timeout of `tool_call_timeout_s`; the agent's tool loop uses this, so graph nodes stay synchronous |
 | Logging | Every call logs `tool_call` with `tool`, `caller`, `transport` and `latency_ms` |
 
+**As built (v1.7).**
+
+| Element | As built |
+|---|---|
+| Tool schemas for the LLM | Defined once in the registry (a Pydantic model per tool) **without** the run context (`scenario_id`, `incident_id`, `run_id`, `withheld_sources`). `as_langchain_tools(agent)` returns these schemas for `bind_tools`, whichever transport is used; executing them directly is refused. Deviation from v1.4 ("returns the tools listed by the MCP server"): the model must never be able to choose which scenario or run a tool reads |
+| Execution | `call(name, args, caller, ctx)`: policy check, then the run context and the incident window (when the call gives none) are added, and the tool runs over MCP (exposed read tools, `TOOL_TRANSPORT=mcp`) or in-process (everything else). A context value supplied by the caller is ignored. Bad arguments raise `RecoverableError` |
+| LLM tool calls | `call_for_llm(name, args, caller, ctx)` returns the result as JSON text, or an error message for the model plus the guardrail flag `tool_access_blocked` |
+| Allowed callers | As Req. 10.5, plus `change_correlation_agent` → `get_service_dependencies` (needed for `on_dependency_path`). Workflow nodes (Section 4.2) may call every read tool except `lookup_stakeholders` (Notification Service only). Dispatch tools: `page_oncall` by `dispatch_fast_page`, `dispatch_page`, `rules_only_dispatch`; `itsm_upsert_incident` by `itsm_upsert`, `rules_only_dispatch`; `itsm_assign` by `dispatch_itsm_assign`, `rules_only_dispatch`; chat and email by `notify` |
+| Blocked call logging | `tool_access_blocked` in `error.log`; failed calls log `tool_call` in `error.log` with the error |
+
 ### 7.2 Common read-tool contract
 
 Every read tool takes `service` (str or list), `window_start`, `window_end`, tool-specific parameters, and the run context (`scenario_dir`, `incident_id`, `run_id`). It returns a `ToolSummary` (Section 3.5): aggregates plus at most 20 notable records as `EvidenceItem`s, never raw full files (Req. 13.2). Records are redacted before they are returned. Errors (missing file, malformed record, simulated timeout from a fixture) raise `RecoverableError`.
@@ -815,6 +864,8 @@ All mocks append one JSON line per call, with `outbox_id`, `incident_id`, `at`, 
 
 `reset_outbox()` (used by the Outbox page "reset demo" action) moves the outbox files to `data/outbox/archive/<timestamp>/`; it never deletes them.
 
+**As built (v1.7).** `outbox.py` writes every line after a PII re-check of its text fields; routing fields (ticket ID, idempotency key, chat destination, email recipients) are kept as they are. Writers are serialized by a process-wide lock rather than a file lock (Streamlit sessions are threads of one process). Ticket IDs are numbered by the number of tickets created so far.
+
 ---
 
 ### 7.5 MCP server — `src/mcp_server/server.py` (Req. FR-72, FR-73)
@@ -828,6 +879,16 @@ All mocks append one JSON line per call, with `outbox_id`, `incident_id`, `at`, 
 | Redaction | Results are redacted inside the tool implementations, before they leave the server |
 | Lifecycle | The registry starts the server on first MCP use and keeps it for the life of the process. Startup logs `mcp_server_started` with the tool count. If the server cannot start, the registry logs `mcp_server_error`, falls back to `inprocess` for the rest of the process, and adds the guardrail flag `mcp_fallback` to the runs that follow. Errors during a call raise `RecoverableError`, so the node wrapper's retries and `SYSTEM_ERROR` path apply (Section 4.4) |
 | Manual inspection | The same command can be opened in the MCP Inspector for the demo (Req. acceptance criterion 24) |
+
+**As built (v1.7).**
+
+| Element | As built |
+|---|---|
+| Client | `src/tools/mcp_bridge.py`. One background event loop holds one session (`MultiServerMCPClient.session("incident-tools")`) for the life of the process, opened and closed inside one task (the MCP client's scopes must exit in the task that entered them). The adapter's `get_tools()` is not used for calls, because it opens a new session, and so starts a new server process, per call. Calls use `session.call_tool` with `tool_call_timeout_s`; start-up uses `mcp_startup_timeout_s` (60 s) |
+| Child environment | The default MCP environment plus the store paths and embedding settings (`Settings.path_environment()`), `OPENAI_*` if set, and the session's pseudonym key, so both sides redact identically. The server reads the rest of `.env` itself |
+| Results | Every tool returns `{"result": ...}` (a model or a list of models as JSON); the registry validates it back into the same types. An error result becomes `RecoverableError` |
+| Start-up | The server imports the retrieval stack before serving, so FAISS loading counts against the start-up budget, not the first call. FastMCP log level WARNING (stderr). About 5 to 12 s on the development laptop |
+| Verified | The server lists exactly `MCP_EXPOSED_TOOLS`; every tool returns identical results over both transports; a dispatch tool name cannot be called; a failing start falls back to in-process with `mcp_server_error` (T-MCP) |
 
 ## 8. Retrieval and Knowledge Base — `src/tool_retrieval/`
 
@@ -847,6 +908,17 @@ Reused from v1.1 Section 7, with these changes.
 `scripts/build_index.py` builds the index from scratch.
 
 **Document metadata (v1.6).** Markdown documents start with a front matter block of `key: value` lines: the five keys above are required; `services`, `owner`, and for postmortems `incident_date` and `severity`, are informational. PDF documents carry the same keys in the PDF Info dictionary as `DocId`, `Title`, `DocType`, `LastVerified`, `CitationStatus` and `Author` (owner), which `pdfplumber`'s `pdf.metadata` returns. PDF headings are set in Helvetica-Bold, so the loader rebuilds Markdown headings from the character font names before chunking. The two PDFs (`PM-2025-019`, `REG-001`) are generated from Markdown sources in `data/generators/pdf_sources/` by `scripts/generate_data.py`; edit the source and regenerate, never the PDF.
+
+**As built (v1.7).**
+
+| Item | As built |
+|---|---|
+| Embeddings | Backend `openai` (`text-embedding-3-small` through `OPENAI_BASE_URL`), cached by content hash. Backend `hash` (`EMBEDDING_BACKEND=hash`): deterministic 512-dimension hashing embedding for tests and LLM-free development, poor retrieval quality. The index records its model; a mismatch with the configured embedder raises `RecoverableError` |
+| Index | `faiss_store` writes through `serialize_index`/`deserialize_index` (paths with spaces). Full corpus: 28 documents, 152 chunks; building it costs well under one cent and takes about 20 s |
+| Search | At most 2 sections per document in one result list (`MAX_SECTIONS_PER_DOC`), so one long document cannot fill the top 5 |
+| Re-index | `run_reindex` compares content hashes and rebuilds the whole index if anything was added, changed or removed (unchanged chunks come from the embedding cache); logs `knowledge_index_built` |
+| Verified resolutions | `index_verified` refuses an incident without a `confirmed` or `corrected` verification, writes `VR-<incident_id>.md` (redacted), appends its chunks and records `indexed` |
+| Retrieval check (T-RETRIEVAL, real embeddings) | Root-cause queries: expected runbook in the top 5 for all scenarios. Trigger text with `doc_types` runbook: expected runbook in the top 5 for all (first for 4 of 5). Trigger text unfiltered: an expected runbook or postmortem in the top 5 for all |
 
 **Corpus (v1.6):** 8 runbooks, 6 postmortems (PM-2025-031 is the distractor), 12 service documents (SVC-000 dependency map plus SVC-001 to SVC-011, one per service in `data/service_dependencies.json`; `call-centre` is a channel without telemetry and has no document of its own), 2 regulatory notes. All are drafts for SME review. `RB-GEN-002` has `last_verified` 2025-11-20, older than `STALE_DOC_DAYS`, so the stale-citation flag can be demonstrated.
 
@@ -868,6 +940,8 @@ Reused from v1.1 Section 7, with these changes.
 
 Names (from a synthetic name list plus capitalized-pair heuristic in complaint text), phone numbers, email addresses, account numbers (8 to 16 digits), card numbers (Luhn-valid 13 to 19 digits), national ID formats in the synthetic data, IP addresses, street addresses, Kafka principals (`User:<name>`), service-account names, secrets (`password=`, `api_key=`, bearer tokens, connection strings, PEM blocks). Each pattern has a unit test with positive and negative examples.
 
+**As built (v1.7).** Personal data becomes a token such as `ACCT_7F3A` or `PERSON_0676` (HMAC of the value with a per-session key). The key is created by the first process, passed to the MCP server through its environment (`AIOPS_PSEUDONYM_KEY`), and never written anywhere. Digits that are part of an identifier (transaction, incident and run IDs, versions, timestamps) are never matched. A flag is reported only when the text actually changed (a non-Luhn "card" is left alone). The capitalized-pair heuristic runs only in `redact_complaint`, because it would remove terms such as "Schema Registry" from technical text. Over all scenario telemetry except complaints, the only values changed are Kafka principals.
+
 ### 9.3 Action policy — `data/action_policy.json`
 
 | Field | Meaning |
@@ -880,6 +954,8 @@ Examples: `rollback_release` (medium), `restart_service` (low), `scale_out` (low
 
 `check(actions)`: removes denied types (flag `action_denied`); raises `risk_level` to the policy level if the LLM set it lower; moves a high-risk first step after the first non-high-risk step (flag `reordered`); drops actions with no runbook citation where one is required (flag `uncited_high_risk`).
 
+**As built (v1.7).** Also: unknown action types are removed (`unknown_action_type`); a medium-risk action that needs a runbook but has none is removed (`uncited_action_removed`); if only steps that may not come first remain, an `investigate_further` step is inserted before them (`inserted_by_policy`). Per-action `policy_flags`: `risk_raised`, `two_step_confirmation`, `reordered`. `policy-v1` adds `customer_communication`, `revert_config_change`, `failover_payment_route`, `reschedule_batch_job`, `pause_connector`, `kill_db_sessions` and `reverse_duplicate_debits` to the Section 9.3 examples. `guardrails.run_output_guardrails(state)` returns a `GuardrailResult` (recommendation, RCA, recommended actions, stakeholder summary, flags, insufficient-evidence flag, policy version) for the `output_guardrails` node.
+
 ### 9.4 Output checks
 
 | Check | Rule | On failure |
@@ -890,6 +966,8 @@ Examples: `rollback_release` (medium), `restart_service` (low), `scale_out` (low
 | Tone | Stakeholder summary has no person or team blamed, no impact number that is not in evidence, no words from the disallowed list | Replace the sentence with the template's neutral wording; flag `tone_adjusted` |
 | PII | Re-run redaction on all free text | Redact; flag `pii_redacted_output` |
 | Error message | `error_detail.message` contains no stack trace, exception class or unredacted text | Replace with the standard message for its `error_type` |
+
+**As built (v1.7).** Tone: a sentence that names a person or team as the subject of a failure verb, or uses a word from `DISALLOWED_WORDS`, becomes "The cause is being investigated and updates will follow."; a sentence with an impact number (percent, customers, accounts, complaints) not found in the evidence becomes "Customer impact is being assessed." `STANDARD_ERROR_MESSAGES` has one plain message per `ErrorType`.
 
 ---
 
@@ -1027,6 +1105,8 @@ As v1.1 Section 10.2, plus `attach_human_scores(trace_id, ratings, decision)`, `
 
 Event names are exactly those in Req. Section 16; a constant list in `logger_setup.py` rejects unknown event names, and a test checks that every name listed in Req. Section 16 is accepted. **v1.4 (as implemented):** run-scoped events (those tied to one investigation, such as `tool_call`, `node_completed`, the dispatch and gate events, and review decisions) must carry `incident_id` and `run_id`, from the call or from `log_context(...)`. `anomaly_detected` is not run-scoped, because detection runs before the incident ID exists. Fields are written as top-level JSON keys, so field names such as `message` or `name` do not clash with Python's log-record attributes.
 
+**v1.7:** two events added: `incident_created` (run-scoped; the correlator created an incident) and `knowledge_index_built` (`eval.log`; re-index summary).
+
 **LangFuse instrumentation:** one trace per run (`run_id` as session, `incident_id` as tag); one span per node (from the node wrapper); LLM generations through the LangChain callback handler, with `prompt_version_set` as metadata; scores as listed in Req. 12.4.
 
 ---
@@ -1088,6 +1168,10 @@ Role checks are advisory in the MVP (no auth), but every control records the sel
 | `tool_transport` | `mcp` | Section 7.1, 7.5; Req. FR-73 (**v1.4**) |
 | `tool_call_timeout_s` | 10 | Section 7.1; per tool call, either transport (**v1.4**) |
 | `data_dir`, `knowledge_dir`, `logs_dir` | `./data`, `./knowledge`, `./logs` | |
+| `mcp_startup_timeout_s` (**v1.7**) | 60 | Section 7.5 |
+| `embedding_backend` (**v1.7**) | `openai` (`hash` for tests and LLM-free development) | Section 8 |
+| `embedding_batch_size`, `chunk_size`, `chunk_overlap` (**v1.7**) | 64, 800, 100 | Section 8 |
+| `outbox_dir`, `incident_state_dir`, `faiss_index_dir`, `processed_dir`, `verified_resolutions_dir` (**v1.7**) | Empty: the defaults under `data_dir` and `knowledge_dir` | Writable stores; tests point them at a temporary directory while reading the committed reference data |
 
 `config.py` is the only module that reads environment variables. It also resolves `scenario_id` to `data/telemetry/<scenario_dir>/`.
 
@@ -1154,7 +1238,7 @@ EventHub files for scenarios that do not involve the platform contain healthy re
 | SC-02 | `kafka-broker-2` disk I/O error log at minute 27.5; rebalances every 3 minutes from minute 29 to 56; broker rejoins at minute 53; lag peaks at minute 55 and then falls; quorum `session_expirations` 1 while the broker is down; the red herring is a schema change record plus its Schema Registry warning |
 | SC-03 | **Causal change:** `DEP-0021` (minute −45) moved the EOD reconciliation batch from 22:00 to 18:00 UTC. Two batch jobs start at minute 28; `CONN_POOL_EXHAUSTED`, `DB_TIMEOUT` and `LOCK_WAIT_TIMEOUT` logs from minute 30; 30 login complaints (below `R-S2-CMP`) |
 | SC-04 | `CERT_EXPIRY_SOON` warnings at minutes 0 and 15, before the failure; `cert_expiry` on the card route equals the onset time; 40 card-payment complaints (below `R-S2-CMP`) |
-| SC-05 | Gateway latency spikes on 20% of minutes explain the retries; 30 of the 65 double-charge complaints carry the `transaction_id` of a duplicated payment, filed a few minutes after it |
+| SC-05 | The retries show in payments-service logs (`PAYMENT_RETRY`, `IDEMPOTENCY_KEY_MISSING`); the network stays healthy (**v1.7:** the v1.6 gateway latency spikes were removed, because they made payment-network-gateway the root service). 30 of the 65 double-charge complaints carry the `transaction_id` of a duplicated payment, filed a few minutes after it |
 
 ### 16.3 Fixtures
 
@@ -1350,6 +1434,19 @@ sequenceDiagram
 | T-KB (**v1.6**) | Every document listed in Req. 9.5 exists with complete front matter (PDF: Info dictionary); runbook sections numbered from 1; PDFs readable with bold headings; one deliberately stale document; every document ID cited by a document or a golden case exists (`tests/test_knowledge_base.py`) | 8 | 6 |
 | T-MCP (**v1.4**) | Server lists exactly `MCP_EXPOSED_TOOLS` and no dispatch tool; a dispatch tool name cannot be called over MCP; each read tool returns the same result over `mcp` and `inprocess`; server start failure falls back to `inprocess` with `mcp_server_error` logged | 7.1, 7.5 | 21, 24 |
 
+**v1.7: test files.** Phase 3 tests run without network access or API keys (hash embeddings, in-process tools unless the test is about MCP), writing only to a temporary directory (`sandbox` fixture in `tests/conftest.py`).
+
+| File | Tests |
+|---|---|
+| `tests/test_safety.py` | T-PII (patterns, pseudonyms, telemetry false positives), injection, T-POLICY, output checks, guardrails, adaptation scope |
+| `tests/test_tools.py` | T-TOOLS for every read tool, dispatch mocks, T-ACCESS, registry context injection |
+| `tests/test_mcp.py` | T-MCP (starts the real server) |
+| `tests/test_retrieval.py` | Loader, chunker, filters, staleness, re-index, T-VERIFY; `@pytest.mark.llm` T-RETRIEVAL with real embeddings |
+| `tests/test_services.py` | T-DETECT, grouping and dedup, T-RULES (matches the data oracle), gates, T-ROUTE (notifications), state store |
+| `tests/test_rules_only.py` | Rules-only runs of every scenario and fixture: T-FALLBACK (dispatch part), T-DEDUP, evaluation mode |
+
+Tests marked `llm` make API calls and are deselected by default (`pytest -m llm` runs them).
+
 ---
 
 ## 20. Traceability Matrix
@@ -1406,6 +1503,7 @@ sequenceDiagram
 | ALIGN-5 | `langchain` pin added back; function-calling structured output, output cap and custom DeepEval judge; `src/evaluation/judge.py`; new settings; smoke test results | **Done:** Req. v0.9 Sections 11, 11.1, 11.3, 13.6, 17, 18.2 and 19 |
 | ALIGN-6 | MCP server and transport switch; MCP pins; Phase 1 alignment (event names, scenario directories); OI-3 and OI-9 closed | **Done:** Req. v0.10 Sections 3, 4, 7.12, 10.5, 11, 11.1, 11.3, 14, 16, 17, 18, 19, 20, 21 |
 | ALIGN-7 (**v1.6**) | Phase 2 alignment: SC-03 causal change, service documentation count, golden variant definitions and new golden fields, generator files in the folder structure, rule IDs in the output example, SME validation of the drafts | **Done:** Req. v0.12 Sections 8.2, 9.4, 9.5, 12.1, 17, 18.2 |
+| ALIGN-8 (**v1.7**) | Phase 3 alignment: new log events, tool schemas without run context, `change_correlation_agent` access to `get_service_dependencies`, pseudonym key shared with the MCP server, new files in the folder structure | **Done:** Req. v0.13 Sections 10.5, 13.3, 16, 17 |
 | OI-24 (**v1.6**) | SME validation of the generated ground truth (`eval_rubric.json`, `manifest.json`) and of the 28 knowledge-base drafts | Changes to the ground truth are made in `data/generators/scenarios.py`, then `--write-golden`, before `feedback_loop.promote` adds the first case (promoted cases exist only in the golden files); changes to documents are made in `knowledge/raw/` (or the PDF sources) |
 
-**Code generation order:** 0 smoke test (done) → 3 schemas, 15 config, 13 logging (Phase 1, done) → 16 data generator and reference files (Phase 2, done) → 9 safety → 7 tools, mocks and the MCP server (7.5) → 8 retrieval → 5 services (Phase 3) → 6 agents and prompts → 4 graph (Phase 4) → 14 UI (Phase 5) → 10 feedback and RLHF → 11 evaluation (Phase 6) → packaging (Phase 7). Tests are written with each phase.
+**Code generation order:** 0 smoke test (done) → 3 schemas, 15 config, 13 logging (Phase 1, done) → 16 data generator and reference files (Phase 2, done) → 9 safety → 7 tools, mocks and the MCP server (7.5) → 8 retrieval → 5 services (Phase 3, done) → 6 agents and prompts → 4 graph (Phase 4) → 14 UI (Phase 5) → 10 feedback and RLHF → 11 evaluation (Phase 6) → packaging (Phase 7). Tests are written with each phase.

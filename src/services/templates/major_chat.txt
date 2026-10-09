@@ -1,0 +1,6 @@
+[SIMULATED] {level} incident {incident_id} ({service})
+What happened: {what_happened}
+Customer impact: {customer_impact}
+Status: {current_status}
+Next update: {next_update}
+{extra_lines}

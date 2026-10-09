@@ -37,6 +37,9 @@ class IncidentObject(Schema):
     window_end: UtcDatetime
     hints: list[str] = Field(default_factory=list)
     timezone_assumed_utc: bool = False
+    # Evidence prefixes (for example "DEP") unavailable for this run: the golden
+    # missing-source variant (Architecture Spec Section 16.4). Empty in live runs.
+    withheld_sources: list[str] = Field(default_factory=list)
 
     @model_validator(mode="after")
     def _window_order(self) -> "IncidentObject":

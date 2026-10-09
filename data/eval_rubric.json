@@ -571,8 +571,8 @@
       ],
       "must_cite_evidence_ids": [
         "DEP-0041",
-        "KFK-0169",
-        "LOG-0074"
+        "KFK-0167",
+        "LOG-0073"
       ],
       "expected_causal_change_id": "DEP-0041",
       "expected_dispatch": {
@@ -600,8 +600,8 @@
       ],
       "must_cite_evidence_ids": [
         "DEP-0041",
-        "KFK-0169",
-        "LOG-0074"
+        "KFK-0167",
+        "LOG-0073"
       ],
       "expected_causal_change_id": "DEP-0041",
       "expected_dispatch": {
@@ -629,8 +629,8 @@
       ],
       "must_cite_evidence_ids": [
         "DEP-0041",
-        "KFK-0169",
-        "LOG-0074"
+        "KFK-0167",
+        "LOG-0073"
       ],
       "expected_causal_change_id": "DEP-0041",
       "expected_dispatch": {
@@ -658,8 +658,8 @@
       ],
       "must_cite_evidence_ids": [
         "DEP-0041",
-        "KFK-0169",
-        "LOG-0074"
+        "KFK-0167",
+        "LOG-0073"
       ],
       "expected_causal_change_id": "DEP-0041",
       "expected_dispatch": {
@@ -687,7 +687,7 @@
       ],
       "must_cite_evidence_ids": [
         "DEP-0041",
-        "LOG-0074"
+        "LOG-0073"
       ],
       "expected_causal_change_id": "DEP-0041",
       "expected_dispatch": {

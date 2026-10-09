@@ -1,22 +1,30 @@
 {
-  "version": "baselines-v1",
-  "description": "Anomaly Detection Service settings (Architecture Spec Section 5.1). Statistical baselines are computed from the first minutes of telemetry in the window; the hard thresholds below flag a bucket regardless of its z-score.",
+  "version": "baselines-v2",
+  "description": "Anomaly Detection Service settings (Architecture Spec Section 5.1). Each detector signal is a per-minute series per service. The statistical baseline is the first `baseline_minutes` of telemetry inside the window; z-scores are used only for the gauge signals in `zscore_signals` and only when the baseline varies. Hard thresholds flag a minute regardless of its z-score.",
   "bucket_minutes": 1,
   "baseline_minutes": 20,
   "zscore_threshold": 3.0,
   "std_floor_pct_of_mean": 1.0,
+  "merge_gap_minutes": 5,
+  "zscore_signals": [
+    "api_error_rate", "api_p95_ms", "db_connections_used_pct", "db_cpu_pct", "db_lock_wait_ms",
+    "db_slow_queries", "consumer_lag", "network_latency_ms", "network_packet_loss_pct"
+  ],
   "hard_thresholds": {
-    "api_error_rate": {"source": "API", "field": "error_rate", "operator": ">", "value": 0.05},
-    "db_connections_used_pct": {"source": "DBM", "field": "active_connections/max_connections", "operator": ">", "value": 0.9},
-    "db_cpu_pct": {"source": "DBM", "field": "cpu_pct", "operator": ">", "value": 85},
-    "kafka_under_replicated": {"source": "KFK", "field": "under_replicated", "operator": ">", "value": 0},
-    "kafka_consumer_lag": {"source": "KFK", "field": "lag", "operator": ">", "value": 10000},
-    "kafka_broker_down": {"source": "KFK", "field": "event_type", "operator": "==", "value": "broker_down"},
-    "quorum_offline_partitions": {"source": "QRM", "field": "offline_partitions", "operator": ">", "value": 0},
-    "quorum_unhealthy": {"source": "QRM", "field": "quorum_healthy", "operator": "==", "value": false},
-    "tls_not_ok": {"source": "NET", "field": "tls_status", "operator": "!=", "value": "ok"},
-    "network_packet_loss_pct": {"source": "NET", "field": "packet_loss_pct", "operator": ">", "value": 2.0},
-    "connect_task_failed": {"source": "CON", "field": "state", "operator": "==", "value": "FAILED"},
-    "acl_denied": {"source": "ACL", "field": "result", "operator": "==", "value": "DENIED"}
+    "api_error_rate": {"source": "API", "operator": ">", "value": 0.05},
+    "db_connections_used_pct": {"source": "DBM", "operator": ">", "value": 0.9},
+    "db_cpu_pct": {"source": "DBM", "operator": ">", "value": 85},
+    "kafka_under_replicated": {"source": "KFK", "operator": ">", "value": 0},
+    "consumer_lag": {"source": "KFK", "operator": ">", "value": 10000},
+    "broker_down": {"source": "KFK", "operator": ">", "value": 0},
+    "duplicate_transactions": {"source": "KFK", "operator": ">", "value": 0},
+    "quorum_offline_partitions": {"source": "QRM", "operator": ">", "value": 0},
+    "quorum_unhealthy": {"source": "QRM", "operator": ">", "value": 0},
+    "tls_failures": {"source": "NET", "operator": ">", "value": 0},
+    "network_packet_loss_pct": {"source": "NET", "operator": ">", "value": 2.0},
+    "connect_failed_tasks": {"source": "CON", "operator": ">", "value": 0},
+    "acl_denied": {"source": "ACL", "operator": ">", "value": 0},
+    "log_error_count": {"source": "LOG", "operator": ">", "value": 3},
+    "complaints_30min": {"source": "CMP", "operator": ">", "value": 20}
   }
 }

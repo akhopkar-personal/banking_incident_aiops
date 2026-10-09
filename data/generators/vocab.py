@@ -127,10 +127,7 @@ COMPLAINT_TEXTS: dict[str, list[str]] = {
 }
 
 # Synthetic names for complaint text; redaction must remove them (Architecture Spec Section 9.2).
-SYNTHETIC_NAMES = [
-    "Priya Sharma", "John Carter", "Amara Okafor", "Wei Zhang", "Sofia Rossi", "Liam O'Connor",
-    "Fatou Diallo", "Arjun Mehta", "Elena Petrova", "Kenji Watanabe", "Maria Gonzalez", "Noah Williams",
-]
+from src.safety.pii_names import SYNTHETIC_NAMES  # noqa: E402,F401
 
 
 def synthetic_phone(rng) -> str:

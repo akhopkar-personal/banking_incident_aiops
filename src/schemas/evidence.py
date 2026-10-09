@@ -151,17 +151,6 @@ class EvidenceItem(Schema):
     record: dict[str, Any] = Field(default_factory=dict)
 
 
-class ToolSummary(Schema):
-    tool: str
-    service_scope: list[str] = Field(default_factory=list)
-    window_start: UtcDatetime
-    window_end: UtcDatetime
-    record_count: int = Field(ge=0)
-    aggregates: dict[str, float] = Field(default_factory=dict)
-    notable: list[EvidenceItem] = Field(default_factory=list, max_length=20)
-    truncated: bool = False
-
-
 class ComplaintCluster(Schema):
     cluster_id: str
     topic: str
@@ -177,3 +166,30 @@ class ComplaintAnalysis(Schema):
     total_complaints_in_window: int = Field(ge=0)
     estimated_customer_impact: str
     earliest_signal_time: Optional[UtcDatetime] = None
+
+
+class ToolSummary(Schema):
+    tool: str
+    service_scope: list[str] = Field(default_factory=list)
+    window_start: UtcDatetime
+    window_end: UtcDatetime
+    record_count: int = Field(ge=0)
+    aggregates: dict[str, float] = Field(default_factory=dict)
+    notable: list[EvidenceItem] = Field(default_factory=list, max_length=20)
+    truncated: bool = False
+    # Set when the source was withheld for this run (Architecture Spec Section 16.4).
+    source_unavailable: bool = False
+    # Only query_complaints fills this (Architecture Spec Section 7.3).
+    complaint_analysis: Optional[ComplaintAnalysis] = None
+
+
+class DependencyInfo(Schema):
+    """Result of get_service_dependencies: topology and blast radius (Req. Section 9.3)."""
+
+    service: str
+    direction: Literal["upstream", "downstream", "both"]
+    owner_team: str
+    customer_facing: bool
+    upstream: list[str] = Field(default_factory=list)  # services this one depends on, transitively
+    downstream: list[str] = Field(default_factory=list)  # services that depend on this one, transitively
+    blast_radius_customer_facing: list[str] = Field(default_factory=list)

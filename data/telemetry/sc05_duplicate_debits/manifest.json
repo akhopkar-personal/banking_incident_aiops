@@ -11,15 +11,15 @@
   "reference_time": "2026-04-09T10:50:00Z",
   "key_evidence": {
     "causal_change": "DEP-0041",
-    "first_duplicate_event": "KFK-0169",
-    "first_idempotency_log": "LOG-0074",
-    "linked_double_charge_complaint": "CMP-0007",
+    "first_duplicate_event": "KFK-0167",
+    "first_idempotency_log": "LOG-0073",
+    "linked_double_charge_complaint": "CMP-0008",
     "red_herring_change": "DEP-0043"
   },
   "must_cite_evidence_ids": [
     "DEP-0041",
-    "KFK-0169",
-    "LOG-0074"
+    "KFK-0167",
+    "LOG-0073"
   ],
   "causal_change_id": "DEP-0041",
   "red_herring_ids": [

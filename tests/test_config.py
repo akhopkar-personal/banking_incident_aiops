@@ -90,3 +90,19 @@ def test_secret_values(clean_env):
     clean_env.setenv("OPENAI_API_KEY", "voc-abcdefghijklmnop")
     clean_env.setenv("LANGFUSE_SECRET_KEY", "sk-lf-0000-1111")
     assert set(Settings(_env_file=None).secret_values()) == {"voc-abcdefghijklmnop", "sk-lf-0000-1111"}
+
+
+def test_phase3_settings_and_derived_paths(clean_env):
+    s = Settings(_env_file=None)
+    assert s.tool_transport == "mcp" and s.tool_call_timeout_s == 10 and s.embedding_backend == "openai"
+    assert s.outbox_dir == s.data_dir / "outbox" and s.incident_state_dir == s.data_dir / "incident_state"
+    assert s.faiss_index_dir == s.knowledge_dir / "faiss_index"
+    assert s.verified_resolutions_dir == s.knowledge_dir / "raw" / "postmortems" / "verified"
+    clean_env.setenv("TOOL_TRANSPORT", "inprocess")
+    clean_env.setenv("OUTBOX_DIR", "")
+    s = Settings(_env_file=None)
+    assert s.tool_transport == "inprocess" and s.outbox_dir == s.data_dir / "outbox"
+    env = s.path_environment()
+    assert env["OUTBOX_DIR"] == str(s.outbox_dir) and "OPENAI_API_KEY" not in env
+    with pytest.raises(ValidationError):
+        Settings(_env_file=None, tool_transport="http")

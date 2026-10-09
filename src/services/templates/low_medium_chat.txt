@@ -1,0 +1,4 @@
+[SIMULATED] {level} incident {incident_id} ({service}) assigned to production-support
+{what_happened}
+Status: {current_status}
+{extra_lines}

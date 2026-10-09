@@ -301,11 +301,8 @@ def build_sc05(b: ScenarioBuilder) -> None:
     add_change(b, 15, "DEP-0043", "net-banking", "release", "net-banking v8.1.0: accessibility fixes",
                version="v8.1.0", deployment_id="CR-25640", author="web-release-pipeline", tag="red_herring_change")
 
-    # Gateway timeouts on some minutes trigger the new retries.
-    for row in b.select("NET", "payment-network-gateway", 18, 90, route="card"):
-        if b.rng.random() < 0.2:
-            row["latency_ms"] = round(b.rng.uniform(1100, 1400), 1)
-
+    # The retries show only in payments-service logs: the network itself stays healthy, so the
+    # incident's root service is payments-service (Architecture Spec Section 5.2).
     add_logs(b, "payments-service", 18, 90, 3, "WARN",
              "Retrying payment submission to payment-network-gateway (attempt 2/3) after 1000 ms timeout",
              error_code="PAYMENT_RETRY", with_transaction=True)

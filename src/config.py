@@ -54,6 +54,18 @@ class Settings(BaseSettings):
     embedding_model: str = "text-embedding-3-small"
     llm_enabled: bool = True
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR"] = "INFO"
+    tool_transport: Literal["mcp", "inprocess"] = "mcp"
+
+    # --- Tools and retrieval (Sections 7, 8)
+    tool_call_timeout_s: float = Field(default=10, gt=0)
+    # The first MCP call starts the server process, which imports the tool code.
+    mcp_startup_timeout_s: float = Field(default=60, gt=0)
+    # "hash" is a deterministic offline embedding for tests and LLM-free development only;
+    # retrieval quality needs "openai".
+    embedding_backend: Literal["openai", "hash"] = "openai"
+    embedding_batch_size: int = Field(default=64, gt=0)
+    chunk_size: int = Field(default=800, gt=0)
+    chunk_overlap: int = Field(default=100, ge=0)
 
     # --- LLM call rules (Section 6.1)
     llm_temperature: float = Field(default=0.2, ge=0.0, le=2.0)
@@ -99,11 +111,22 @@ class Settings(BaseSettings):
     data_dir: Path = Path("data")
     knowledge_dir: Path = Path("knowledge")
     logs_dir: Path = Path("logs")
+    # Writable stores. Empty means the default under data_dir / knowledge_dir; tests point
+    # them at a temporary directory while still reading the committed reference data.
+    outbox_dir: Optional[Path] = None
+    incident_state_dir: Optional[Path] = None
+    faiss_index_dir: Optional[Path] = None
+    processed_dir: Optional[Path] = None
+    verified_resolutions_dir: Optional[Path] = None
 
-    @field_validator("data_dir", "knowledge_dir", "logs_dir")
+    @field_validator("data_dir", "knowledge_dir", "logs_dir", "outbox_dir", "incident_state_dir",
+                     "faiss_index_dir", "processed_dir", "verified_resolutions_dir", mode="before")
     @classmethod
-    def _resolve_against_repo(cls, value: Path) -> Path:
-        return value if value.is_absolute() else (REPO_ROOT / value).resolve()
+    def _resolve_against_repo(cls, value: object) -> Optional[Path]:
+        if value is None or (isinstance(value, str) and not value.strip()):
+            return None
+        path = Path(value)  # type: ignore[arg-type]
+        return path if path.is_absolute() else (REPO_ROOT / path).resolve()
 
     @field_validator("openai_base_url", "langfuse_host")
     @classmethod
@@ -119,6 +142,12 @@ class Settings(BaseSettings):
             raise ValueError(f"reward_weights must have exactly the keys {sorted(expected)}")
         if abs(sum(self.reward_weights.values()) - 1.0) > 1e-6:
             raise ValueError("reward_weights must sum to 1.0")
+        self.outbox_dir = self.outbox_dir or self.data_dir / "outbox"
+        self.incident_state_dir = self.incident_state_dir or self.data_dir / "incident_state"
+        self.faiss_index_dir = self.faiss_index_dir or self.knowledge_dir / "faiss_index"
+        self.processed_dir = self.processed_dir or self.knowledge_dir / "processed"
+        self.verified_resolutions_dir = (self.verified_resolutions_dir
+                                         or self.knowledge_dir / "raw" / "postmortems" / "verified")
         return self
 
     # --- helpers
@@ -142,6 +171,20 @@ class Settings(BaseSettings):
             return self.data_dir / "telemetry" / SCENARIO_DIRS[scenario_id]
         except KeyError:
             raise ValueError(f"unknown scenario_id {scenario_id!r}; known: {sorted(SCENARIO_DIRS)}") from None
+
+    def reference_file(self, name: str) -> Path:
+        """A reference data file under data_dir, such as 'severity_rules.yaml'."""
+        return self.data_dir / name
+
+    def path_environment(self) -> dict[str, str]:
+        """Settings a child process (the MCP server) needs to read and write the same places."""
+        names = ("data_dir", "knowledge_dir", "logs_dir", "outbox_dir", "incident_state_dir", "faiss_index_dir",
+                 "processed_dir", "verified_resolutions_dir")
+        env = {name.upper(): str(getattr(self, name)) for name in names}
+        env["EMBEDDING_BACKEND"] = self.embedding_backend
+        env["EMBEDDING_MODEL"] = self.embedding_model
+        env["LOG_LEVEL"] = self.log_level
+        return env
 
     def apply_to_environment(self) -> None:
         """Export settings that libraries read from the environment themselves.

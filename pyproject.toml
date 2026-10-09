@@ -3,7 +3,7 @@
 [tool.pytest.ini_options]
 pythonpath = ["."]
 testpaths = ["tests"]
-addopts = "-q"
+addopts = "-q -m 'not llm'"
 markers = [
     "llm: test calls the LLM API (costs money; run explicitly)",
 ]

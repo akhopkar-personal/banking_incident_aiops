@@ -2,7 +2,7 @@
 
 AI capstone project: a multi-agent system that investigates banking incidents across telemetry, the EventHub (Kafka) platform and customer complaints, and returns an evidence-backed recommendation for human review.
 
-**Status:** Phase 0 (environment, smoke test 11/11), Phase 1 (schemas, configuration, logging) and Phase 2 (synthetic data, reference files, knowledge-base drafts) are complete. Next: Phase 3 (rules-only system, tools and MCP server).
+**Status:** Phases 0 to 3 are complete: environment and smoke test, schemas and logging, synthetic data and knowledge base, and the rules-only system (detection, dedup, severity rules, simulated paging and ticketing), read tools, MCP server, retrieval and safety guardrails. Next: Phase 4 (LLM agents and the LangGraph workflow).
 
 **Contents**
 
@@ -104,6 +104,14 @@ python -m pytest                  # unit tests; no API calls
 
 Expected: `11 passed, 0 failed` from the smoke test, and all unit tests passing. The smoke test prints a LangFuse trace ID; you can find that trace in the LangFuse web UI.
 
+### 2.7 Build the knowledge-base index (once per machine)
+
+```powershell
+python scripts\build_index.py     # embeds 28 documents through the OpenAI gateway: about 20 s, well under $0.01
+```
+
+The index (`knowledge/faiss_index/`) is not in git, so every environment builds its own. Rebuild it after changing documents in `knowledge/raw/` (or run `python -m src.tool_retrieval.reindex_job`, which rebuilds only if something changed).
+
 ---
 
 ## 3. Setup in Vocareum (demo environment)
@@ -135,6 +143,7 @@ The first run creates `.venv`, installs the libraries (several minutes) and crea
 
 ```bash
 source scripts/setup_env.sh --smoke    # expected: 11 passed, 0 failed
+python scripts/build_index.py          # knowledge-base index, once per environment (about 20 s)
 ```
 
 ### 3.2 Every new session
@@ -197,7 +206,11 @@ Run from the `banking_incident_aiops` folder with the environment active.
 | Task | Windows (PowerShell) | Vocareum (bash) |
 |---|---|---|
 | Activate the environment | `.\.venv\Scripts\Activate.ps1` (or let VS Code do it) | `source scripts/setup_env.sh` |
-| Unit tests | `python -m pytest` | `python -m pytest` |
+| Unit tests (no API calls) | `python -m pytest` | `python -m pytest` |
+| Tests that call the OpenAI API (a few embedding calls) | `python -m pytest -m llm` | `python -m pytest -m llm` |
+| Run a scenario without the LLM (writes to `data/outbox/`) | `python scripts\run_rules_only.py SC-01` | `python scripts/run_rules_only.py SC-01` |
+| Same, but dispatch nothing | `python scripts\run_rules_only.py SC-01 --evaluation` | `python scripts/run_rules_only.py SC-01 --evaluation` |
+| Rebuild the knowledge-base index | `python scripts\build_index.py` | `python scripts/build_index.py` |
 | Smoke test | `python scripts\smoke_test.py` | `python scripts/smoke_test.py` |
 | Check the synthetic data is up to date | `python scripts\generate_data.py --check` | `python scripts/generate_data.py --check` |
 | Regenerate the synthetic data (after changing `data/generators/`) | `python scripts\generate_data.py` | `python scripts/generate_data.py` |
@@ -218,6 +231,8 @@ Run from the `banking_incident_aiops` folder with the environment active.
 | Vocareum: `python3 -m venv` fails mentioning `ensurepip` | The lab image lacks the venv module; ask the team lead for the workaround |
 | `git push` fails with "could not read Username" | Run the push from a terminal where you can complete the browser sign-in (an interactive VS Code terminal) |
 | A change to `deployment/requirements.txt` is not picked up in Vocareum | Run `source scripts/setup_env.sh`; it reinstalls when the file changes |
+| "no FAISS index ... run python scripts/build_index.py" | The knowledge-base index has not been built in this environment; run that command |
+| A run says "deduplicated" and pages nothing | That incident already exists (same scenario replayed). Expected behaviour; to start over, move `data/incident_state/` and `data/outbox/` aside |
 
 ---
 
@@ -225,8 +240,8 @@ Run from the `banking_incident_aiops` folder with the environment active.
 
 | Document | Path |
 |---|---|
-| Requirements specification | [docs/AI_Capstone_Project_Requirements_v0.12.md](docs/AI_Capstone_Project_Requirements_v0.12.md) |
-| Architecture specification | [docs/AI_Capstone_Project_Architecture_Specification_v1.6.md](docs/AI_Capstone_Project_Architecture_Specification_v1.6.md) |
+| Requirements specification | [docs/AI_Capstone_Project_Requirements_v0.13.md](docs/AI_Capstone_Project_Requirements_v0.13.md) |
+| Architecture specification | [docs/AI_Capstone_Project_Architecture_Specification_v1.7.md](docs/AI_Capstone_Project_Architecture_Specification_v1.7.md) |
 | Architecture diagrams (Mermaid sources and PNG exports) | [docs/diagrams/](docs/diagrams/) |
 | Synthetic scenarios and fixtures (one folder each, with `manifest.json`) | [data/telemetry/](data/telemetry/) |
 | Knowledge-base documents (drafts for SME review) | [knowledge/raw/](knowledge/raw/) |
