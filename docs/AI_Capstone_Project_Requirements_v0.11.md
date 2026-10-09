@@ -2,10 +2,10 @@
 
 | Item | Detail |
 |---|---|
-| **Document version** | v0.10 (draft) |
+| **Document version** | v0.11 (draft) |
 | **Status** | In review. Open items: post-evaluation target review (OI-8), adaptation pattern-detection threshold (OI-12), confidence-gate threshold (OI-16), severity rule thresholds (OI-17), reviewer agreement rule for preference labels (OI-18), DeepEval judge model (OI-22), MCP 2.x upgrade (OPS-3). See Section 18 |
-| **Supersedes** | v0.9 |
-| **Next artifact** | Architecture Specification v1.4 (aligned with this version). Next step: code generation Phase 2 (data) |
+| **Supersedes** | v0.10 |
+| **Next artifact** | Architecture Specification v1.5 (aligned with this version). Next step: code generation Phase 2 (data) |
 
 ### Version history
 
@@ -21,16 +21,19 @@
 | v0.8 | **Adopted the EventHub AIOps v2 architecture (Section 10, OI-19).** Four LLM agents (Triage, Root Cause Analysis, Change Correlation, Recommendation) replace the six v0.7 agents. Deterministic services now own detection, alert correlation and dedup, redaction, severity, paging and notification. Added a critical fast path that never waits on an LLM, an LLM-down fallback, a confidence gate, and a close-and-learn stage that indexes only human-verified resolutions. **Added the Human Feedback and RLHF loop** (Section 12.6, FR-57 to FR-64): structured ratings, pairwise preferences, a reward score per prompt version, preference-driven adaptation, and a DPO-format export. **Expanded safety guardrails** into a layered model (Section 14, FR-65 to FR-69). **Added a dedicated Streamlit UI section** (Section 15, FR-70). Paging, ticketing and notification are simulated through mock adapters (OI-20). Folder structure rebuilt on the Multi-Agent Blueprint layout (Section 17). Partly resolved OI-13. **Review updates:** Section 5 renamed to Project Team Roles and separated from the new user personas in Section 6.1, with a demo role mapping; Severity Rules Engine defined (Section 10.6); log evidence chain and evidence report for feedback and adaptation (Section 16.1, FR-71); Section 12.5 example corrected so it stays within adaptation scope. **Aligned with Architecture Spec v1.2 (ALIGN-1 to ALIGN-4):** prompt versions stored in `data/prompt_versions.json` (Sections 5, 10.3.2, 10.3.4, 13.6, 17); new data files, folders and `scripts/` added to Section 17; `live` and `evaluation` run modes (Sections 7.9, 8.1, 10.4); library versions updated to current releases, `langchain` meta-package removed (Sections 11, 11.1, 11.3, 18.2, 19). **Vocareum check (2026-10-06):** Python set to 3.10 to match Vocareum, with `numpy==2.2.6` and `pandas==2.3.3`; A-8 confirmed; OPS-1 added for Streamlit behind Vocareum's inbound proxy |
 | v0.9 | **Phase 0 smoke test results (2026-10-06), aligned with Architecture Spec v1.3 (ALIGN-5).** Pinned libraries installed on Python 3.10.11 and all 10 smoke test checks pass on the development laptop (Section 11.3). `langchain==1.4.3` pinned again, because LangFuse's LangChain integration needs it (Sections 11, 11.1). All structured LLM output uses function calling with an output cap, after strict schema mode produced runaway whitespace output (Section 13.6). DeepEval uses a custom judge, configurable through `JUDGE_MODEL` (Section 17, OI-22). The Vocareum OpenAI gateway works from outside Vocareum (OPS-2). Specification file names in `docs/` follow the versioned naming (Section 17, acceptance criterion 22) |
 | v0.10 | **Added MCP for tool access (OI-23, resolved).** The read-only tools are served by an MCP server (`incident-tools`, stdio transport), and the LLM agents reach them only through it; dispatch tools are never exposed over MCP (O-13, FR-72, FR-73, Sections 10.5, 11, 14, 17, 19, 20). `mcp==1.30.0` and `langchain-mcp-adapters==0.3.2` pinned; the smoke test gains an MCP check (11 of 11 pass). **Closed OI-3 and OI-9:** the pinned libraries install and pass the smoke test on the laptop (Python 3.10.11) and in Vocareum (Python 3.10.2). **Phase 1 alignment:** `node_completed`, `feedback_candidate_discarded` and two MCP server events added to Section 16; scenario directory names and fixture IDs fixed in Section 17 |
+| v0.11 | **Architecture diagrams v3:** the full and mini diagrams now show the `incident-tools` MCP server between the agents and their read-only tools, with dispatch tools as direct calls (Architecture diagrams table, Section 10.1). The v2 diagrams are removed (kept in git history), and the RLHF loop diagram is now exported as PNG. **Vocareum:** all 11 smoke test checks, including MCP, pass in Vocareum (Section 11.1) |
 
 ### Architecture diagrams
 
 | View | File | Source |
 |---|---|---|
-| Mini (stage overview) | `eventhub-aiops-architecture-mini-v2.png` | `eventhub-aiops-architecture-mini-v2.mmd` |
-| Full (all components) | `eventhub-aiops-architecture-full-v2.png` | `eventhub-aiops-architecture-full-v2.mmd` |
+| Mini (stage overview, v3: with MCP) | `eventhub-aiops-architecture-mini-v3.png` | `eventhub-aiops-architecture-mini-v3.mmd` |
+| Full (all components, v3: with MCP) | `eventhub-aiops-architecture-full-v3.png` | `eventhub-aiops-architecture-full-v3.mmd` |
 | RLHF loop (detail of stage 6) | `eventhub-aiops-rlhf-loop.png` | `eventhub-aiops-rlhf-loop.mmd` |
 
-![EventHub AIOps architecture, mini view](diagrams/eventhub-aiops-architecture-mini-v2.png)
+All files are in `docs/diagrams/`.
+
+![EventHub AIOps architecture, mini view](diagrams/eventhub-aiops-architecture-mini-v3.png)
 
 ---
 
@@ -633,7 +636,7 @@ The flow has five stages, matching the architecture diagrams.
 
 Full architecture view:
 
-![EventHub AIOps architecture, full view](diagrams/eventhub-aiops-architecture-full-v2.png)
+![EventHub AIOps architecture, full view](diagrams/eventhub-aiops-architecture-full-v3.png)
 
 ### 10.2 Components
 
@@ -885,7 +888,7 @@ pytest==9.1.1
 
 **v0.10:** `mcp==1.30.0` and `langchain-mcp-adapters==0.3.2` added. The adapter requires `mcp<2`, so MCP stays on 1.x although MCP 2.x exists (OPS-3). Adding them changed no other pin.
 
-**Verification status:** installed with `pip check` clean and the smoke test passing on the development laptop (Python 3.10.11, 2026-10-06; 11 of 11 checks with the MCP check, 2026-10-08) and in Vocareum (Python 3.10.2, 10 of 10 checks, 2026-10-07). OI-3 and OI-9 are closed. The MCP check runs in Vocareum with the next upload.
+**Verification status:** installed with `pip check` clean and the smoke test passing on the development laptop (Python 3.10.11, 2026-10-06; 11 of 11 checks with the MCP check, 2026-10-08) and in Vocareum (Python 3.10.2; 10 of 10 checks on 2026-10-07, then 11 of 11 with the MCP check after the v0.10 upload). OI-3 and OI-9 are closed.
 
 ### 11.2 DeepEval and LangFuse: confirmed roles and hosting
 

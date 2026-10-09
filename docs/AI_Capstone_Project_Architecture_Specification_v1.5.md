@@ -2,12 +2,19 @@
 
 | Item | Detail |
 |---|---|
-| **Document version** | v1.4 (draft) |
-| **Supersedes** | v1.3 |
-| **Derived from** | Project Requirements v0.10. "Req." references below point to that document |
+| **Document version** | v1.5 (draft) |
+| **Supersedes** | v1.4 |
+| **Derived from** | Project Requirements v0.11. "Req." references below point to that document |
 | **Purpose** | The contracts needed to generate code: target library versions, data schemas, module and function contracts, LangGraph wiring, algorithms, synthetic data targets, and test hooks. Each section names the source file it governs |
 | **Format** | Contracts are given as tables (fields, types, parameters, returns), not as code. Code is generated in a later step, after this document is reviewed |
 | **Status** | Draft for review. Library versions in Section 0 are installed and pass the smoke test on the development laptop and in Vocareum (Req. OI-3, OI-9 closed). Phase 1 (Sections 3, 13, 15) is implemented. Open items in Section 21 |
+
+### Changes from v1.4
+
+| Area | Change | Reason |
+|---|---|---|
+| Smoke test | Section 0.4 records that all 11 checks, including MCP, pass in Vocareum | Vocareum run after the v1.4 upload |
+| Diagrams | The full and mini architecture diagrams are now v3 and show the `incident-tools` MCP server (Req. v0.11, Architecture diagrams table) | Matches Section 7.5 |
 
 ### Changes from v1.3
 
@@ -145,7 +152,7 @@ These are the API surfaces code generation will target. All were confirmed by th
 | Streamlit, pandas, pdfplumber, JSON logger, YAML | Pass |
 | **v1.4:** MCP: stdio server started as a subprocess, tools listed through the LangChain adapter, one tool called with `ainvoke` and once from a synchronous caller through a background event loop, and the LLM choosing the MCP tool with `bind_tools` | Pass (laptop, 2026-10-08) |
 
-**Vocareum (2026-10-07):** the 10 checks above (before the MCP check was added) also pass in Vocareum on Python 3.10.2. The MCP check runs there with the next upload.
+**Vocareum:** the 10 checks above (before the MCP check was added) passed in Vocareum on Python 3.10.2 on 2026-10-07, and all 11 checks, including MCP, passed there after the v1.4 upload.
 
 **Findings that changed the design:**
 

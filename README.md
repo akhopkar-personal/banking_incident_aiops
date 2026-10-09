@@ -223,8 +223,8 @@ Run from the `banking_incident_aiops` folder with the environment active.
 
 | Document | Path |
 |---|---|
-| Requirements specification | [docs/AI_Capstone_Project_Requirements_v0.10.md](docs/AI_Capstone_Project_Requirements_v0.10.md) |
-| Architecture specification | [docs/AI_Capstone_Project_Architecture_Specification_v1.4.md](docs/AI_Capstone_Project_Architecture_Specification_v1.4.md) |
+| Requirements specification | [docs/AI_Capstone_Project_Requirements_v0.11.md](docs/AI_Capstone_Project_Requirements_v0.11.md) |
+| Architecture specification | [docs/AI_Capstone_Project_Architecture_Specification_v1.5.md](docs/AI_Capstone_Project_Architecture_Specification_v1.5.md) |
 | Architecture diagrams (Mermaid sources and PNG exports) | [docs/diagrams/](docs/diagrams/) |
 
 **Document versions:** the specifications in `docs/` are the working copies. A change that alters a document increments its version, and the file is renamed to match (for example `..._v0.9.md` becomes `..._v0.10.md`), with an entry in the document's version history. Earlier versions stay available in git history.
