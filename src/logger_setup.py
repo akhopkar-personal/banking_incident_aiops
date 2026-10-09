@@ -39,6 +39,8 @@ ALLOWED_EVENTS: frozenset[str] = frozenset({
     "node_completed", "feedback_candidate_discarded", "mcp_server_started", "mcp_server_error",
     # v0.13
     "knowledge_index_built", "incident_created",
+    # v0.15
+    "page_acknowledged", "gate_handoff_recorded",
 })
 
 # Events that belong to one investigation run: they must carry incident_id and run_id.
@@ -49,7 +51,7 @@ RUN_SCOPED_EVENTS: frozenset[str] = frozenset({
     "confidence_gate_flagged", "dispatch_page", "dispatch_itsm", "notification_sent",
     "dispatch_suppressed", "reclassified", "action_policy_flag", "tool_access_blocked",
     "kill_switch_active", "resolution_recorded", "root_cause_verified", "resolution_indexed",
-    "rating_recorded", "incident_created",
+    "rating_recorded", "incident_created", "page_acknowledged", "gate_handoff_recorded",
 })
 
 # Fields taken from the logging context when the call does not supply them.

@@ -2,7 +2,7 @@
 
 AI capstone project: a multi-agent system that investigates banking incidents across telemetry, the EventHub (Kafka) platform and customer complaints, and returns an evidence-backed recommendation for human review.
 
-**Status:** Phases 0 to 4 are complete: environment and smoke test, schemas and logging, synthetic data and knowledge base, the rules-only system (detection, dedup, severity rules, simulated paging and ticketing), read tools, MCP server, retrieval, safety guardrails, and the four LLM agents in the LangGraph workflow. Next: Phase 5 (Streamlit UI).
+**Status:** Phases 0 to 5 are complete: environment and smoke test, schemas and logging, synthetic data and knowledge base, the rules-only system (detection, dedup, severity rules, simulated paging and ticketing), read tools, MCP server, retrieval, safety guardrails, the four LLM agents in the LangGraph workflow, and the Streamlit UI (Investigate, Incident, Outbox, Resolve and Verify) with review, re-classification, resolution and verification. Next: Phase 6 (learning loop: Review Queue, pairwise RLHF, evaluation, adaptation).
 
 **Contents**
 
@@ -208,8 +208,9 @@ Run from the `banking_incident_aiops` folder with the environment active.
 | Activate the environment | `.\.venv\Scripts\Activate.ps1` (or let VS Code do it) | `source scripts/setup_env.sh` |
 | Unit tests (no API calls) | `python -m pytest` | `python -m pytest` |
 | Tests that call the OpenAI API (embeddings and one full SC-04 run, about $0.01) | `python -m pytest -m llm` | `python -m pytest -m llm` |
-| Full investigation with the LLM agents (about $0.004 and 45 s per run; writes to `data/outbox/`) | `python scriptsun_investigation.py SC-01` | `python scripts/run_investigation.py SC-01` |
-| Same, from free text | `python scriptsun_investigation.py SC-05 --text "Customers charged twice since 10:20 UTC"` | `python scripts/run_investigation.py SC-05 --text "Customers charged twice since 10:20 UTC"` |
+| Full investigation with the LLM agents (about $0.004 and 45 s per run; writes to `data/outbox/`) | `python scripts\run_investigation.py SC-01` | `python scripts/run_investigation.py SC-01` |
+| Same, from free text | `python scripts\run_investigation.py SC-05 --text "Customers charged twice since 10:20 UTC"` | `python scripts/run_investigation.py SC-05 --text "Customers charged twice since 10:20 UTC"` |
+| Start the UI (open http://localhost:8501) | `streamlit run src/ui/app.py` (environment active), or without activating: `.\.venv\Scripts\python -m streamlit run src/ui/app.py` | `streamlit run src/ui/app.py` (reaching it through Vocareum's proxy is settled in Phase 7) |
 | Run a scenario without the LLM (writes to `data/outbox/`) | `python scripts\run_rules_only.py SC-01` | `python scripts/run_rules_only.py SC-01` |
 | Same, but dispatch nothing | `python scripts\run_rules_only.py SC-01 --evaluation` | `python scripts/run_rules_only.py SC-01 --evaluation` |
 | Rebuild the knowledge-base index | `python scripts\build_index.py` | `python scripts/build_index.py` |
@@ -227,6 +228,7 @@ Run from the `banking_incident_aiops` folder with the environment active.
 | `python` opens the Microsoft Store, or "Python was not found" | Windows' Store shortcut. Use `py -3.10`, or activate `.venv` first |
 | `git` or `py` "is not recognized" right after installing | Terminals opened before the install don't see it. Close and reopen VS Code (all windows) |
 | "running scripts is disabled" when activating | `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned`, once |
+| `streamlit` (or `pytest`) "is not recognized as the name of a cmdlet" | The environment is not active in this terminal. Run `.\.venv\Scripts\Activate.ps1` first, or call `.\.venv\Scripts\python -m streamlit run src/ui/app.py` |
 | `ModuleNotFoundError` (for example `langgraph`) | The environment isn't active, or the wrong interpreter is selected. Activate `.venv` / select it in VS Code |
 | Smoke test: OpenAI `401 invalid_api_key` with a `voc-` key | `OPENAI_BASE_URL` is missing or wrong; set it to `https://openai.vocareum.com/v1` |
 | Smoke test: LangFuse check fails with 401 | Wrong keys, or the keys belong to the other region; check `LANGFUSE_HOST` |
@@ -234,7 +236,8 @@ Run from the `banking_incident_aiops` folder with the environment active.
 | `git push` fails with "could not read Username" | Run the push from a terminal where you can complete the browser sign-in (an interactive VS Code terminal) |
 | A change to `deployment/requirements.txt` is not picked up in Vocareum | Run `source scripts/setup_env.sh`; it reinstalls when the file changes |
 | "no FAISS index ... run python scripts/build_index.py" | The knowledge-base index has not been built in this environment; run that command |
-| A run says "deduplicated" and pages nothing | That incident already exists (same scenario replayed). Expected behaviour; to start over, move `data/incident_state/` and `data/outbox/` aside |
+| A run says "deduplicated" and pages nothing | That incident already exists (same scenario replayed). Expected behaviour; to start over, use **Reset demo** on the Outbox page with "Also archive the incident records" ticked (nothing is deleted) |
+| The UI shows a warning that `OPENAI_API_KEY` is not set | The agents cannot run, so every investigation falls back to rules-only dispatch and ends as `SYSTEM_ERROR`. Add the key to `.env` and restart Streamlit |
 
 ---
 
@@ -242,8 +245,8 @@ Run from the `banking_incident_aiops` folder with the environment active.
 
 | Document | Path |
 |---|---|
-| Requirements specification | [docs/AI_Capstone_Project_Requirements_v0.14.md](docs/AI_Capstone_Project_Requirements_v0.14.md) |
-| Architecture specification | [docs/AI_Capstone_Project_Architecture_Specification_v1.8.md](docs/AI_Capstone_Project_Architecture_Specification_v1.8.md) |
+| Requirements specification | [docs/AI_Capstone_Project_Requirements_v0.15.md](docs/AI_Capstone_Project_Requirements_v0.15.md) |
+| Architecture specification | [docs/AI_Capstone_Project_Architecture_Specification_v1.9.md](docs/AI_Capstone_Project_Architecture_Specification_v1.9.md) |
 | Architecture diagrams (Mermaid sources and PNG exports) | [docs/diagrams/](docs/diagrams/) |
 | Synthetic scenarios and fixtures (one folder each, with `manifest.json`) | [data/telemetry/](data/telemetry/) |
 | Knowledge-base documents (drafts for SME review) | [knowledge/raw/](knowledge/raw/) |

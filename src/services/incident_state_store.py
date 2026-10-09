@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import itertools
 import json
+import shutil
 import threading
 import time
 from dataclasses import dataclass, field
@@ -25,7 +26,8 @@ from src.schemas.output import InvestigationOutput
 _lock = threading.RLock()
 _run_counter = itertools.count(1)
 # Identifiers used for lookups are not personal data and must not be pseudonymized.
-_PLAIN_KEYS = ("idempotency_key", "ticket_id", "bucket_start", "outbox_id", "queue", "mode", "status")
+_PLAIN_KEYS = ("idempotency_key", "ticket_id", "bucket_start", "outbox_id", "queue", "mode", "status",
+               "content_hash", "doc_id", "feedback_id", "candidate_id")
 
 
 def _dir() -> Path:
@@ -89,6 +91,12 @@ class IncidentView:
     resolution: Optional[dict[str, Any]] = None
     verification: Optional[dict[str, Any]] = None
     events: list[str] = field(default_factory=list)
+    # v1.9: human steps (Req. 13.5)
+    acknowledged_at: Optional[datetime] = None
+    reviews: dict[str, dict[str, Any]] = field(default_factory=dict)  # run_id -> reviewed payload
+    reclassifications: list[dict[str, Any]] = field(default_factory=list)
+    gate_handoffs: dict[str, dict[str, Any]] = field(default_factory=dict)  # run_id -> payload
+    indexed_doc_id: Optional[str] = None
 
 
 def _fold(items: list[IncidentStateRecord]) -> Optional[IncidentView]:
@@ -114,6 +122,15 @@ def _fold(items: list[IncidentStateRecord]) -> Optional[IncidentView]:
             view.assigned_queue = p.get("queue")
         elif r.event == "reviewed":
             view.review_status = p.get("status")
+            view.reviews[r.run_id] = {**p, "at": r.at.isoformat(), "actor": r.actor}
+        elif r.event == "acknowledged":
+            view.acknowledged_at = view.acknowledged_at or r.at
+        elif r.event == "reclassified":
+            view.reclassifications.append({**p, "at": r.at.isoformat(), "actor": r.actor})
+        elif r.event == "gate_handoff":
+            view.gate_handoffs[r.run_id] = p
+        elif r.event == "indexed":
+            view.indexed_doc_id = p.get("doc_id")
         elif r.event == "resolved":
             view.resolution = p
         elif r.event == "verified":
@@ -167,3 +184,24 @@ def save_output(output: InvestigationOutput) -> Path:
 def load_output(run_id: str) -> Optional[dict[str, Any]]:
     path = _dir() / "outputs" / f"{run_id}.json"
     return json.loads(path.read_text(encoding="utf-8")) if path.exists() else None
+
+
+def load_incident(run_id: str) -> Optional[dict[str, Any]]:
+    """The run's Incident Object, saved next to its output by the graph's finalize step."""
+    path = _dir() / "outputs" / f"{run_id}.incident.json"
+    return json.loads(path.read_text(encoding="utf-8")) if path.exists() else None
+
+
+def archive_state() -> Optional[Path]:
+    """Move incidents.jsonl and outputs/ to archive/<timestamp>/ (the UI's "reset demo"). Never deletes.
+    Incident numbering restarts; feedback records keep their unique run IDs."""
+    directory = _dir()
+    with _lock:
+        present = [p for p in (_file(), directory / "outputs") if p.exists()]
+        if not present:
+            return None
+        target = directory / "archive" / now().strftime("%Y%m%dT%H%M%S%fZ")
+        target.mkdir(parents=True, exist_ok=True)
+        for path in present:
+            shutil.move(str(path), str(target / path.name))
+        return target

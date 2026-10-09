@@ -1,0 +1,8 @@
+# Streamlit settings for `streamlit run src/ui/app.py`, read from the repository root
+# (Req. Section 15). Server options for Vocareum's /proxy/8501/ are settled in Phase 7 (OPS-1).
+[server]
+port = 8501
+headless = true
+
+[browser]
+gatherUsageStats = false

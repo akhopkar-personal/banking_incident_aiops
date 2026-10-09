@@ -2,12 +2,26 @@
 
 | Item | Detail |
 |---|---|
-| **Document version** | v1.8 (draft) |
-| **Supersedes** | v1.7 |
-| **Derived from** | Project Requirements v0.14. "Req." references below point to that document |
+| **Document version** | v1.9 (draft) |
+| **Supersedes** | v1.8 |
+| **Derived from** | Project Requirements v0.15. "Req." references below point to that document |
 | **Purpose** | The contracts needed to generate code: target library versions, data schemas, module and function contracts, LangGraph wiring, algorithms, synthetic data targets, and test hooks. Each section names the source file it governs |
 | **Format** | Contracts are given as tables (fields, types, parameters, returns), not as code. Code is generated in a later step, after this document is reviewed |
-| **Status** | Draft for review. Library versions in Section 0 are installed and pass the smoke test on the development laptop and in Vocareum (Req. OI-3, OI-9 closed). Phase 1 (Sections 3, 13, 15), Phase 2 (Section 16), Phase 3 (Sections 5, 7, 8, 9) and Phase 4 (Sections 4, 6) are implemented. Open items in Section 21 |
+| **Status** | Draft for review. Library versions in Section 0 are installed and pass the smoke test on the development laptop and in Vocareum (Req. OI-3, OI-9 closed). Phase 1 (Sections 3, 13, 15), Phase 2 (Section 16), Phase 3 (Sections 5, 7, 8, 9), Phase 4 (Sections 4, 6) and Phase 5 (Sections 10.1, 10.2, 14) are implemented. Open items in Section 21 |
+
+### Changes from v1.8
+
+Phase 5 (Streamlit UI and the human steps it records). Each affected section has an "As built (v1.9)" note.
+
+| Area | Change | Reason |
+|---|---|---|
+| UI | Investigate, Incident, Outbox and Resolve and Verify pages; `components.py`, `state.py` and a new `runner.py` (Section 14). Pages 4 to 7 move to Phase 6 with their back ends | The learning-loop pages need Phase 6's stores |
+| Background runs | `runner.py` runs each investigation in a thread; the page polls it (Section 14) | Streamlit stops the page script on any click, which would abandon a half-dispatched run |
+| Human steps | `review_store.py`, `resolution.py`, `preference_store.append/query`, `feedback_loop.capture_candidate/review_queue` built now; `record_acknowledgement` added (Sections 10.1 to 10.4) | The Incident and Resolve pages record H-1 to H-7 |
+| State store | Events `acknowledged` and `gate_handoff`; `IncidentView` gains acknowledgement, per-run reviews, re-classifications, hand-offs and the indexed document; `load_incident`, `archive_state` (Sections 3.10, 5.6) | Pages read human steps back from the store |
+| Re-classification | Production Support can also raise S2 to S1 (Section 10.1) | No scenario ends at S3 or S4, so the control was otherwise never reachable in the demo |
+| Settings | `feedback_dir`, `ui_session_timeout_min` (Section 15.2) | Tests point feedback stores at a temporary directory; the 30-minute UI timeout |
+| Logging | `page_acknowledged`, `gate_handoff_recorded` (Section 13) | H-1 and H-2 evidence |
 
 ### Changes from v1.7
 
@@ -289,6 +303,7 @@ Authoritative file list for code generation. It matches Req. Section 17; each pa
 | `src/feedback/*.py` | 10 |
 | `src/evaluation/*.py` (including `judge.py`) | 11 |
 | `src/ui/app.py`, `components.py`, `state.py`, `pages/*.py` | 14 |
+| `src/ui/runner.py` (**v1.9**): background investigation runs; `.streamlit/config.toml` | 14 |
 | `data/` files | 16 |
 | `data/generators/*.py`, `data/generators/pdf_sources/*.md` (**v1.6**) | 16.1 |
 | `src/errors.py` (**v1.7**): `RecoverableError`, `ToolAccessDenied`, `CostCapExceeded` | 4.4, 7.1 |
@@ -297,6 +312,7 @@ Authoritative file list for code generation. It matches Req. Section 17; each pa
 | `src/services/rules_only_runner.py`, `scripts/run_rules_only.py` (**v1.7**) | 5.7 |
 | `src/agent/llm.py`, `src/agent/agent_support.py`, `scripts/run_investigation.py` (**v1.8**) | 4.4, 6 |
 | `tests/fake_llm.py` (**v1.8**): scripted model for offline graph tests | 19 |
+| `tests/test_feedback.py`, `tests/test_ui.py` (**v1.9**) | 19 |
 | `scripts/commit_state.sh`, `scripts/build_index.py`, `scripts/generate_data.py` | 12, 8, 16 |
 | `tests/` | 19 |
 
@@ -454,7 +470,7 @@ Every record has the common fields `timestamp`, `service`, `environment` (defaul
 |---|---|---|
 | `record_id` | str | |
 | `incident_id`, `run_id` | str | |
-| `event` | str | `created`, `ticket_upserted`, `paged`, `assigned`, `reviewed`, `reclassified`, `resolved`, `verified`, `indexed` |
+| `event` | str | `created`, `ticket_upserted`, `paged`, `assigned`, `reviewed`, `reclassified`, `resolved`, `verified`, `indexed`; **v1.9:** `acknowledged` (H-1), `gate_handoff` (H-2) |
 | `incident_state` | `IncidentState` | State after the event |
 | `actor` | str | Node name or `ReviewerRole` |
 | `payload` | dict | Event details (redacted) |
@@ -739,6 +755,8 @@ Templates live in `src/services/templates/` (`major_chat.txt`, `major_email.txt`
 The store also persists the final `InvestigationOutput` of each run under `data/incident_state/outputs/<run_id>.json`, so human steps can load it after the graph run ends.
 
 **As built (v1.7).** Record IDs `ISR-NNNNNN`; payloads are redacted except lookup keys (`idempotency_key`, `ticket_id`, `bucket_start`, `outbox_id`, `queue`, `mode`, `status`). `current()` returns an `IncidentView` (state, key, root service, run IDs, ticket, page times, queue, review status, resolution, verification, event list). `next_incident_id(date)` numbers incidents per reference date. Run IDs are `RUN-<epoch ms><2-digit counter>`. Writers in one process are serialized by a lock (Streamlit sessions are threads of one process).
+
+**As built (v1.9).** `IncidentView` adds `acknowledged_at`, `reviews` (run ID to the `reviewed` payload), `reclassifications`, `gate_handoffs` and `indexed_doc_id`. `load_incident(run_id)` reads the Incident Object saved next to the run's output. `archive_state()` moves `incidents.jsonl` and `outputs/` to `archive/<timestamp>/` for the UI's reset. Payload keys `content_hash`, `doc_id`, `feedback_id` and `candidate_id` are kept unredacted, like the other lookup keys.
 
 ### 5.7 Rules-only runner — `rules_only_runner.py` (v1.7; Req. FR-43, FR-68)
 
@@ -1025,9 +1043,13 @@ Examples: `rollback_release` (medium), `restart_service` (low), `scale_out` (low
 | `record_resolution(ResolutionRecord)` | State `RESOLVED`; `PreferenceRecord` (`fix_outcome`); log `resolution_recorded` |
 | `record_verification(VerificationRecord)` | `confirmed` or `corrected`: state `CLOSED_VERIFIED`, call `resolution_indexer.index_verified`, log `root_cause_verified`, `resolution_indexed`. `rejected`: state `CLOSED_UNVERIFIED`, no indexing. Always a `PreferenceRecord` (`verification`) |
 
+**As built (v1.9), Sections 10.1 and 10.2.** Every function takes the decision and a `reviewer_id` and reads the run's saved output and Incident Object (`run_context`). `record_review`: refuses a `SYSTEM_ERROR` run and a second review of the same run; Edit may change only `root_cause`, `severity` (lower only; raising is re-classification), `recommended_actions` and `stakeholder_summary`; Approve and Edit need every high-risk step in `high_risk_confirmations` (H-5). The saved output is not modified: the `reviewed` record carries the status, ratings, edits, the output's SHA-256 `content_hash`, the `feedback_id` and any `candidate_id`, and `review_status(incident_id, run_id)` returns the review status or else the output's own. `record_reclassification`: Production Support only, must raise severity (S2 to S1 is allowed as well as Low/Medium to Major). New `record_acknowledgement(incident_id, role, reviewer_id)` (H-1): escalation, on-call or incident commander; once; records `seconds_to_acknowledge` from the first page. `record_gate_handoff(incident_id, run_id, found, rank, role, reviewer_id, note)` (H-2): only for a run with `needs_human_rca`; once per run; also a `gate_handoff` state-store record. `record_resolution`: once per incident. `record_verification`: needs a resolution; if indexing fails the verification stands, the error is logged and `retry_indexing(incident_id)` indexes later.
+
 ### 10.3 `feedback_loop.py` (Req. FR-27 to FR-29)
 
 Unchanged from v1.1 Section 9.2 (`capture_candidate`, `review_queue`, `promote`, `discard`), with `feedback_id` and `prompt_version_set` added, and `promote` also writing the expected issue class and causal change ID to the golden case.
+
+**As built (v1.9).** `capture_candidate(decision, feedback_id, original_incident, original_output, langfuse_trace_id)` and `review_queue()` are built; candidates (`FC-NNNN`) are kept as a JSON list in `data/feedback/candidates.json`, with every text field PII-checked. `promote` and `discard` are built in Phase 6.
 
 ### 10.4 `preference_store.py` (Req. FR-60, FR-64)
 
@@ -1037,6 +1059,8 @@ Unchanged from v1.1 Section 9.2 (`capture_candidate`, `review_queue`, `promote`,
 | `query(filters)` | By signal type, prompt version set, scenario, date |
 | `agreement(pair_id)` | Returns `agreed`, `disputed` or `single` from the labels for one pair |
 | `reviewer_share(feedback_ids)` | Share per reviewer, for the 30% cap |
+
+**As built (v1.9).** `append`, `query` (signal type, incident, run, scenario, prompt version set, date; duplicates excluded unless asked) and `make` (a record from a run context) are built; `feedback_id` is `FB-` plus 10 hex characters. `agreement` and `reviewer_share` are built with pairwise sessions in Phase 6.
 
 ### 10.5 `pairwise_session.py` (Req. FR-59)
 
@@ -1167,6 +1191,8 @@ Event names are exactly those in Req. Section 16; a constant list in `logger_set
 
 Role checks are advisory in the MVP (no auth), but every control records the selected role, and the controls listed above are only shown to the matching role.
 
+**As built (v1.9).** Built: `app.py` and pages 1 to 3; pages 4 to 7 are built in Phase 6. Each page starts with `components.setup_page`, which sets the page config, exports settings, configures logging once per logs directory, applies the session timeout and draws the sidebar (role selector, reviewer ID, kill-switch warning, "simulated" note). `runner.start(**run_investigation kwargs)` runs the graph in a daemon thread and collects one event per finished node (label, detail, seconds) and the early result; the page polls every 0.25 s and, when the run ends, stores the outcome once and reruns so the form is enabled again. A node's progress detail is chosen by node name (`describe_update`). The Incident page has tabs Summary, Hypotheses and evidence, Changes, Actions, Timeline, Dispatch, Review; evidence IDs open in a popover with the source record; a `SYSTEM_ERROR` run has a separate layout without tabs. Outbox: three tables and "Reset demo" (two-step), which can also call `incident_state_store.archive_state()`. Resolve and Verify: resolution form, verification form and indexing status with a retry button. `.streamlit/config.toml` sets port 8501 and headless mode; Vocareum proxy options stay with OPS-1. Tested headless with Streamlit's `AppTest` (pages are opened from `app.py` so page links resolve).
+
 ---
 
 ## 15. Configuration — `src/config.py`
@@ -1211,6 +1237,8 @@ Role checks are advisory in the MVP (no auth), but every control records the sel
 | `mcp_startup_timeout_s` (**v1.7**) | 60 | Section 7.5 |
 | `embedding_backend` (**v1.7**) | `openai` (`hash` for tests and LLM-free development) | Section 8 |
 | `embedding_batch_size`, `chunk_size`, `chunk_overlap` (**v1.7**) | 64, 800, 100 | Section 8 |
+| `feedback_dir` (**v1.9**) | Empty: `data_dir/feedback` | Preference store and feedback candidates |
+| `ui_session_timeout_min` (**v1.9**) | 30 | Req. 15: UI page selections are cleared after this idle time |
 | `outbox_dir`, `incident_state_dir`, `faiss_index_dir`, `processed_dir`, `verified_resolutions_dir` (**v1.7**) | Empty: the defaults under `data_dir` and `knowledge_dir` | Writable stores; tests point them at a temporary directory while reading the committed reference data |
 
 `config.py` is the only module that reads environment variables. It also resolves `scenario_id` to `data/telemetry/<scenario_dir>/`.
@@ -1487,6 +1515,8 @@ sequenceDiagram
 
 Tests marked `llm` make API calls and are deselected by default (`pytest -m llm` runs them).
 
+**v1.9:** `tests/test_feedback.py` covers Sections 10.1, 10.2 and 10.4 against scripted runs (review, edit and reject rules, candidates, high-risk confirmation, re-classification, acknowledgement, hand-off, resolution, verification with indexing, failed indexing and retry, duplicate preferences, state archive). `tests/test_ui.py` drives every Phase 5 page headless with `AppTest` (node progress and early result, intake rejection, evaluation mode, review, edit, `SYSTEM_ERROR` layout, acknowledgement, re-classification, role-gated controls, hand-off, outbox reset, resolve and verify, session timeout). The `fake` fixture moved to `tests/conftest.py`. 406 offline tests.
+
 **v1.8:** `tests/test_graph.py` runs the whole graph with the scripted model in `tests/fake_llm.py` (every scenario, fast-path timing, LLM-down, kill switch, failure fixture, schema-invalid, cost cap, confidence gate, insufficient evidence, missing source, disagreement, re-score, evaluation mode, dedup, injection, alert and free-text input, intake rejections, re-classification, MCP transport) plus one `llm` test through the real model. `tests/test_llm_layer.py` covers the LLM layer and prompts.
 
 ---
@@ -1547,7 +1577,8 @@ Tests marked `llm` make API calls and are deselected by default (`pytest -m llm`
 | ALIGN-7 (**v1.6**) | Phase 2 alignment: SC-03 causal change, service documentation count, golden variant definitions and new golden fields, generator files in the folder structure, rule IDs in the output example, SME validation of the drafts | **Done:** Req. v0.12 Sections 8.2, 9.4, 9.5, 12.1, 17, 18.2 |
 | ALIGN-8 (**v1.7**) | Phase 3 alignment: new log events, tool schemas without run context, `change_correlation_agent` access to `get_service_dependencies`, pseudonym key shared with the MCP server, new files in the folder structure | **Done:** Req. v0.13 Sections 10.5, 13.3, 16, 17 |
 | ALIGN-9 (**v1.8**) | Phase 4 alignment: intake rules, rejection reasons, dedup behaviour in the graph, measured latency and cost, OI-25 | **Done:** Req. v0.14 Sections 6.2, 6.3, 12.2, 18.2 |
+| ALIGN-10 (**v1.9**) | Phase 5 alignment: pages built in Phase 5 and Phase 6, review rules, S2 to S1 re-classification, H-1 and H-2 records and log events, `runner.py` in the folder structure | **Done:** Req. v0.15 Sections 4.1 (FR-53), 13.5, 15, 16, 17 |
 | OI-25 (**v1.8**) | Change correlation still accepts some red herrings with gpt-4o-mini (SC-02, SC-04) | Baseline for the adaptation loop (Phase 6); revisit the prompt only through approved adaptations |
 | OI-24 (**v1.6**) | SME validation of the generated ground truth (`eval_rubric.json`, `manifest.json`) and of the 28 knowledge-base drafts | Changes to the ground truth are made in `data/generators/scenarios.py`, then `--write-golden`, before `feedback_loop.promote` adds the first case (promoted cases exist only in the golden files); changes to documents are made in `knowledge/raw/` (or the PDF sources) |
 
-**Code generation order:** 0 smoke test (done) → 3 schemas, 15 config, 13 logging (Phase 1, done) → 16 data generator and reference files (Phase 2, done) → 9 safety → 7 tools, mocks and the MCP server (7.5) → 8 retrieval → 5 services (Phase 3, done) → 6 agents and prompts → 4 graph (Phase 4, done) → 14 UI (Phase 5) → 10 feedback and RLHF → 11 evaluation (Phase 6) → packaging (Phase 7). Tests are written with each phase.
+**Code generation order:** 0 smoke test (done) → 3 schemas, 15 config, 13 logging (Phase 1, done) → 16 data generator and reference files (Phase 2, done) → 9 safety → 7 tools, mocks and the MCP server (7.5) → 8 retrieval → 5 services (Phase 3, done) → 6 agents and prompts → 4 graph (Phase 4, done) → 14 UI (Phase 5, done) → 10 feedback and RLHF → 11 evaluation (Phase 6) → packaging (Phase 7). Tests are written with each phase.

@@ -15,24 +15,7 @@ from src.schemas.enums import ErrorType, IncidentState, InvestigationStatus, Rev
 from src.schemas.feedback import Reclassification
 from src.services import incident_state_store as store
 from src.tools.dispatch_mocks import outbox
-from tests.fake_llm import FakeChatModel, ScenarioOracle
 from tests.data_helpers import manifest
-
-
-@pytest.fixture
-def fake(sandbox):
-    """Install a scripted model for a scenario: fake(scenario_id, **oracle_options)."""
-    models = []
-
-    def install(scenario_id: str, **options) -> FakeChatModel:
-        model_options = {k: options.pop(k) for k in ("fail_with", "delay_s", "finish_reason") if k in options}
-        model = FakeChatModel(ScenarioOracle(scenario_id, **options), **model_options)
-        llm.set_chat_model_factory(lambda: model)
-        models.append(model)
-        return model
-
-    yield install
-    llm.set_chat_model_factory(None)
 
 
 def pages():

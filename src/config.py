@@ -120,9 +120,13 @@ class Settings(BaseSettings):
     faiss_index_dir: Optional[Path] = None
     processed_dir: Optional[Path] = None
     verified_resolutions_dir: Optional[Path] = None
+    feedback_dir: Optional[Path] = None  # v1.9: preferences, feedback candidates
+
+    # --- UI (Req. Section 15)
+    ui_session_timeout_min: int = Field(default=30, gt=0)
 
     @field_validator("data_dir", "knowledge_dir", "logs_dir", "outbox_dir", "incident_state_dir",
-                     "faiss_index_dir", "processed_dir", "verified_resolutions_dir", mode="before")
+                     "faiss_index_dir", "processed_dir", "verified_resolutions_dir", "feedback_dir", mode="before")
     @classmethod
     def _resolve_against_repo(cls, value: object) -> Optional[Path]:
         if value is None or (isinstance(value, str) and not value.strip()):
@@ -146,6 +150,7 @@ class Settings(BaseSettings):
             raise ValueError("reward_weights must sum to 1.0")
         self.outbox_dir = self.outbox_dir or self.data_dir / "outbox"
         self.incident_state_dir = self.incident_state_dir or self.data_dir / "incident_state"
+        self.feedback_dir = self.feedback_dir or self.data_dir / "feedback"
         self.faiss_index_dir = self.faiss_index_dir or self.knowledge_dir / "faiss_index"
         self.processed_dir = self.processed_dir or self.knowledge_dir / "processed"
         self.verified_resolutions_dir = (self.verified_resolutions_dir
@@ -181,7 +186,7 @@ class Settings(BaseSettings):
     def path_environment(self) -> dict[str, str]:
         """Settings a child process (the MCP server) needs to read and write the same places."""
         names = ("data_dir", "knowledge_dir", "logs_dir", "outbox_dir", "incident_state_dir", "faiss_index_dir",
-                 "processed_dir", "verified_resolutions_dir")
+                 "processed_dir", "verified_resolutions_dir", "feedback_dir")
         env = {name.upper(): str(getattr(self, name)) for name in names}
         env["EMBEDDING_BACKEND"] = self.embedding_backend
         env["EMBEDDING_MODEL"] = self.embedding_model

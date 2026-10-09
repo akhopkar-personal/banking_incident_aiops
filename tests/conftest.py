@@ -17,7 +17,7 @@ def t0() -> datetime:
 _ENV_NAMES = ("OPENAI_API_KEY", "OPENAI_BASE_URL", "LANGFUSE_PUBLIC_KEY", "LANGFUSE_SECRET_KEY", "LANGFUSE_HOST",
               "LLM_MODEL", "JUDGE_MODEL", "LLM_ENABLED", "LOG_LEVEL", "TOOL_TRANSPORT", "EMBEDDING_BACKEND",
               "OUTBOX_DIR", "INCIDENT_STATE_DIR", "LOGS_DIR", "FAISS_INDEX_DIR", "PROCESSED_DIR",
-              "VERIFIED_RESOLUTIONS_DIR", "DATA_DIR", "KNOWLEDGE_DIR")
+              "VERIFIED_RESOLUTIONS_DIR", "DATA_DIR", "KNOWLEDGE_DIR", "FEEDBACK_DIR")
 
 
 def sandbox_settings(root, **overrides) -> Settings:
@@ -25,7 +25,8 @@ def sandbox_settings(root, **overrides) -> Settings:
     hash embeddings and in-process tools unless overridden."""
     values = dict(logs_dir=root / "logs", outbox_dir=root / "outbox", incident_state_dir=root / "state",
                   faiss_index_dir=root / "index", processed_dir=root / "processed",
-                  verified_resolutions_dir=root / "verified", embedding_backend="hash", tool_transport="inprocess",
+                  verified_resolutions_dir=root / "verified", feedback_dir=root / "feedback",
+                  embedding_backend="hash", tool_transport="inprocess",
                   retry_backoff_s=0)
     values.update(overrides)
     return Settings(_env_file=None, **values)
@@ -80,3 +81,19 @@ def isolated_settings(monkeypatch, tmp_path):
     monkeypatch.setattr("src.config.get_settings", lambda: settings)
     yield settings
     get_settings.cache_clear()
+
+
+@pytest.fixture
+def fake(sandbox):
+    """Install a scripted model for a scenario: fake(scenario_id, **oracle_options)."""
+    from src.agent import llm
+    from tests.fake_llm import FakeChatModel, ScenarioOracle
+
+    def install(scenario_id: str, **options) -> FakeChatModel:
+        model_options = {k: options.pop(k) for k in ("fail_with", "delay_s", "finish_reason") if k in options}
+        model = FakeChatModel(ScenarioOracle(scenario_id, **options), **model_options)
+        llm.set_chat_model_factory(lambda: model)
+        return model
+
+    yield install
+    llm.set_chat_model_factory(None)

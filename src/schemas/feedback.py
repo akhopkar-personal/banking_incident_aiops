@@ -22,6 +22,7 @@ from .enums import (
 StateEvent = Literal[
     "created", "ticket_upserted", "paged", "assigned", "reviewed",
     "reclassified", "resolved", "verified", "indexed",
+    "acknowledged", "gate_handoff",  # v1.9: H-1, H-2
 ]
 
 
