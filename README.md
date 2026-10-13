@@ -211,6 +211,7 @@ Run from the `banking_incident_aiops` folder with the environment active.
 | Full investigation with the LLM agents (about $0.004 and 45 s per run; writes to `data/outbox/`) | `python scripts\run_investigation.py SC-01` | `python scripts/run_investigation.py SC-01` |
 | Same, from free text | `python scripts\run_investigation.py SC-05 --text "Customers charged twice since 10:20 UTC"` | `python scripts/run_investigation.py SC-05 --text "Customers charged twice since 10:20 UTC"` |
 | Start the UI (open http://localhost:8501) | `streamlit run src/ui/app.py` (environment active), or without activating: `.\.venv\Scripts\python -m streamlit run src/ui/app.py` | `streamlit run src/ui/app.py` (reaching it through Vocareum's proxy is settled in Phase 7) |
+| Flow log of a run: every log line from detection to review, by stage (also the Flow log tab on the Incident page) | `python scripts\show_flow_log.py --latest` or `python scripts\show_flow_log.py RUN-...` | `python scripts/show_flow_log.py --latest` |
 | Golden-set evaluation with the DeepEval judge (about 12 minutes and $0.15 to $0.25; nothing is dispatched) | `python scripts\run_eval.py` | `python scripts/run_eval.py` |
 | Same, cheaper: one scenario, programmatic metrics only | `python scripts\run_eval.py --scenario SC-03 --no-judge` | `python scripts/run_eval.py --scenario SC-03 --no-judge` |
 | Fixture checks (failure, LLM down, alert storm, injection, S1 page latency; about $0.02) | `python scripts\run_eval.py --fixtures` | `python scripts/run_eval.py --fixtures` |
@@ -251,8 +252,8 @@ Run from the `banking_incident_aiops` folder with the environment active.
 
 | Document | Path |
 |---|---|
-| Requirements specification | [docs/AI_Capstone_Project_Requirements_v0.16.md](docs/AI_Capstone_Project_Requirements_v0.16.md) |
-| Architecture specification | [docs/AI_Capstone_Project_Architecture_Specification_v1.10.md](docs/AI_Capstone_Project_Architecture_Specification_v1.10.md) |
+| Requirements specification | [docs/AI_Capstone_Project_Requirements_v0.17.md](docs/AI_Capstone_Project_Requirements_v0.17.md) |
+| Architecture specification | [docs/AI_Capstone_Project_Architecture_Specification_v1.11.md](docs/AI_Capstone_Project_Architecture_Specification_v1.11.md) |
 | Architecture diagrams (Mermaid sources and PNG exports) | [docs/diagrams/](docs/diagrams/) |
 | Synthetic scenarios and fixtures (one folder each, with `manifest.json`) | [data/telemetry/](data/telemetry/) |
 | Knowledge-base documents (drafts for SME review) | [knowledge/raw/](knowledge/raw/) |

@@ -2,10 +2,10 @@
 
 | Item | Detail |
 |---|---|
-| **Document version** | v0.16 (draft) |
+| **Document version** | v0.17 (draft) |
 | **Status** | In review. Open items: post-evaluation target review (OI-8), adaptation pattern-detection threshold (OI-12), confidence-gate threshold (OI-16), severity rule thresholds (OI-17), reviewer agreement rule for preference labels (OI-18), DeepEval judge model (OI-22), SME validation of the generated data and documents (OI-24), MCP 2.x upgrade (OPS-3). See Section 18 |
-| **Supersedes** | v0.15 |
-| **Next artifact** | Architecture Specification v1.10 (aligned with this version). Next step: code generation Phase 7 (packaging) |
+| **Supersedes** | v0.16 |
+| **Next artifact** | Architecture Specification v1.11 (aligned with this version). Next step: code generation Phase 7 (packaging) |
 
 ### Version history
 
@@ -26,6 +26,7 @@
 | v0.13 | **Phase 3 (rules-only system, tools, MCP server, retrieval, safety) delivered, aligned with Architecture Spec v1.7 (ALIGN-8).** Every scenario can be run without an LLM (`scripts/run_rules_only.py`): detection, one incident per scenario, rules severity, fast-path page, ticket, and page or assignment, with replays deduplicated. The 13 read tools return identical results over MCP and in-process. Tool schemas given to the agents leave out the run context, so a model cannot choose which data a tool reads; the Change Correlation Agent may also use `get_service_dependencies` (Section 10.5). Pseudonym tokens use a per-session key shared with the MCP server process (Section 13.3). New log events `incident_created` and `knowledge_index_built` (Section 16). New files added to Section 17. Vocareum results of the smoke test (11/11, Phase 0) and of the Phase 2 tests (192 passing, identical generated data on Linux) recorded in Section 11.1 |
 | v0.14 | **Phase 4 (LLM agents and the LangGraph workflow) delivered, aligned with Architecture Spec v1.8 (ALIGN-9).** The four agents and the full graph run end to end through gpt-4o-mini: every scenario produces a grounded recommendation with the expected severity, and failures follow the SYSTEM_ERROR and rules-only paths. Intake rules made concrete for the prototype: every run reads one scenario's telemetry, free-text clock times are read on that scenario's date (Sections 6.2, 6.3). Measured cost and latency recorded against the targets (Section 12.2). New open item OI-25: remaining red-herring errors in change correlation (Section 18.2) |
 | v0.15 | **Phase 5 (Streamlit UI) delivered, aligned with Architecture Spec v1.9 (ALIGN-10).** The Investigate, Incident, Outbox and Resolve and Verify pages are built, with the human steps H-1 to H-7 recorded in the Incident State Store, the preference store and the logs; the Review Queue, Feedback and RLHF, Adaptation History and Evaluation pages follow in Phase 6 (Section 15). Re-classification can also raise an S2 incident to S1 (FR-53). Page acknowledgement and the gate hand-off get their own state-store records and log events (Sections 13.5, 16). Phase 4 passed in Vocareum |
+| v0.17 | **Flow log, aligned with Architecture Spec v1.11 (ALIGN-12).** New FR-74: the flow log of a run, assembled from the three log files by `run_id` and grouped into the five stages, shown on the Investigate and Incident pages (Section 15) and printed by `scripts/show_flow_log.py`. No new log events (Section 16) |
 | v0.16 | **Phase 6 (learning loop) delivered, aligned with Architecture Spec v1.10 (ALIGN-11).** SME promotion into the golden dataset, pairwise sessions with blind labelling and SME tie-break, reward scores, DPO export, the evaluation harness with DeepEval metrics, fixture checks, the adaptation engine and the evidence report, with the Review Queue, Feedback and RLHF, Adaptation History and Evaluation pages. Evaluation runs use their own incident store, so they never touch live incidents (Section 10.4). The reviewer cap is made concrete for small patterns (Section 12.6). First measurements recorded (Section 12.2). Phase 5 passed in Vocareum, and the UI opened through Vocareum's proxy (OPS-1) |
 
 ### Architecture diagrams
@@ -357,6 +358,12 @@ Full design in Section 14.
 |---|---|---|
 | FR-72 | **NEW.** An MCP server named `incident-tools` (`src/mcp_server/server.py`, stdio transport) exposes exactly the read-only tools in Section 10.5 (telemetry, EventHub platform, complaints, dependencies, knowledge-base search), backed by the same implementations as the in-process registry. It never exposes a dispatch tool (page, ITSM, chat, email) or `lookup_stakeholders`. The LLM agents obtain their tools from this server through the MCP client | Must |
 | FR-73 | **NEW.** A configuration switch `TOOL_TRANSPORT` selects `mcp` (default) or `inprocess`. Both return identical results for the same call. If the MCP server cannot start, the run uses the in-process path, logs `mcp_server_error`, and flags the run; a tool call that fails over MCP mid-run follows the normal retry and `SYSTEM_ERROR` handling (Section 13.6) | Must |
+
+### 7.13 Flow log (NEW v0.17)
+
+| ID | Requirement | Priority |
+|---|---|---|
+| FR-74 | **NEW.** The flow log of one run lists, in time order, every log line that carries its `run_id` in `interactions.log`, `error.log` and `eval.log` (rotated files included): anomalies, rules passes, tool and LLM calls with tokens and latency, gates, guardrails, dispatch and notifications, errors and retries, and the human steps recorded later (review, ratings, resolution, verification, indexing). Each line is placed in one of the five stages (Detect, Triage, Analyse, Respond, Close and learn) and described in one sentence. The UI shows it with totals (run time, LLM calls, tokens, tool calls, errors), stage and event filters, stack traces of failures, and downloads as text and as the raw JSON lines. It adds no logging of its own, so it holds only what was already redacted when written | Should |
 
 The registry's own access policy (FR-66) remains in force for both transports, so a dispatch tool is blocked twice: it is absent from the MCP server, and the registry refuses it to agents.
 
@@ -1247,7 +1254,7 @@ The UI is a Streamlit multipage app started with `streamlit run src/ui/app.py`. 
 | Page | File | Purpose | Main users |
 |---|---|---|---|
 | **Investigate** | `src/ui/app.py` | Choose detection replay (scenario picker) or paste alert JSON / free text; set time window; watch progress per graph node; see the early result (rules severity, issue class, fast-path page) | On-call engineer |
-| **Incident** | `src/ui/pages/1_Incident.py` | Timeline, hypotheses, evidence drill-down (one click from any claim), change findings, recommended actions with risk and policy flags, stakeholder summary, dispatch record, review controls with ratings, re-classify button, high-risk two-step confirmation | Escalation team, Production Support, incident commander |
+| **Incident** | `src/ui/pages/1_Incident.py` | Timeline, hypotheses, evidence drill-down (one click from any claim), change findings, recommended actions with risk and policy flags, stakeholder summary, dispatch record, review controls with ratings, re-classify button, high-risk two-step confirmation, **flow log of the run (v0.17, FR-74)** | Escalation team, Production Support, incident commander |
 | **Outbox** | `src/ui/pages/2_Outbox.py` | Simulated pages, ITSM tickets and notifications, with timestamps and audience; "reset demo" action | All |
 | **Resolve and Verify** | `src/ui/pages/3_Resolve_and_Verify.py` | Resolution notes, fix outcome, root-cause verification; shows whether the incident was indexed | Resolver, SME |
 | **Review Queue** | `src/ui/pages/4_Review_Queue.py` | SME promotes or discards feedback candidates | SME |
@@ -1269,6 +1276,8 @@ The UI is a Streamlit multipage app started with `streamlit run src/ui/app.py`. 
 - Review: one review per run; the saved output is never changed, and the review is stored with the output's content hash. Edit can change the root cause, severity (lower only), actions and stakeholder summary. Approve and Edit need every high-risk action confirmed in two steps (H-5). Review controls are shown to the Incident Escalation Team, Production Support and the incident commander; re-classification to Production Support; verification to the SME and the escalation lead.
 - "Reset demo" archives the outbox and, if ticked, the incident records (incident numbering then restarts). Feedback is never archived.
 - The reviewer picks a role and types a short reviewer ID (not a name) in the sidebar; both are recorded with every decision.
+
+**v0.17 (FR-74).** The Investigate page shows the flow log of the finished run in an expander under the result; the Incident page has a Flow log tab (and an expander in the `SYSTEM_ERROR` layout, to show what ran before the failure).
 
 ## 16. Logging Configuration
 
@@ -1293,6 +1302,8 @@ Three log files, as in the blueprint:
 | `event` | Event type. Carried from v0.7: `tool_call`, `llm_call`, `guardrail_block`, `review_decision`, `eval_result`, `feedback_candidate_created`, `feedback_candidate_promoted`, `adaptation_proposed`, `adaptation_applied`, `adaptation_reverted`, `episodic_memory_written`, `episodic_memory_promoted`, `node_retry`, `system_error`. **v0.8:** `adaptation_approved`, `adaptation_rejected`, `rules_change`, `evidence_report_generated`, `anomaly_detected`, `incident_deduplicated`, `severity_rules_evaluated`, `severity_disagreement`, `fast_path_page`, `confidence_gate_flagged`, `dispatch_page`, `dispatch_itsm`, `notification_sent`, `dispatch_suppressed`, `reclassified`, `action_policy_flag`, `tool_access_blocked`, `kill_switch_active`, `resolution_recorded`, `root_cause_verified`, `resolution_indexed`, `rating_recorded`, `pairwise_label_recorded`, `reward_computed`, `dpo_exported`. **v0.10:** `node_completed` (a graph node finished; Architecture Spec 4.4), `feedback_candidate_discarded` (FR-28), `mcp_server_started`, `mcp_server_error` (FR-73). **v0.13:** `incident_created` (the correlation service created an incident), `knowledge_index_built` (re-index summary, FR-56). **v0.15:** `page_acknowledged` (H-1), `gate_handoff_recorded` (H-2) |
 
 **v0.10:** tool calls log the `tool_call` event with a `transport` field, set to `mcp` or `inprocess` (FR-73).
+
+**v0.17:** the flow log of a run (FR-74) is read from these files by `run_id`; it needs no new events or fields.
 
 **Content per file**
 

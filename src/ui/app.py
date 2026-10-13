@@ -106,7 +106,7 @@ def show_progress(job: runner.Job) -> None:
             shown += 1
         with early.container():
             for name in ("Incident", "Rules severity", "Issue class", "Fast-path page"):
-                st.markdown(f"{name}: **{job.early.get(name, '…')}**")
+                st.markdown(f"{name}: **{job.early.get(name, 'not reached' if finished else '…')}**")
         if finished:
             break
         last = job.events[-1]["label"] if job.events else "Starting"
@@ -163,6 +163,8 @@ def show_result(run_id: str) -> None:
     st.caption(f"Run {run_id} · {sum((meta.get('token_counts') or {}).values())} tokens · "
                f"${meta.get('cost_estimate_usd') or 0:.4f}"
                + (f" · LangFuse trace {meta['langfuse_trace_id']}" if meta.get("langfuse_trace_id") else ""))
+    with st.expander("Flow log of this run"):
+        components.flow_log_view(run_id, key=f"flow_{run_id}")
     if st.button("Open the incident", type="primary", key="open_incident"):
         st.switch_page("pages/1_Incident.py")
 

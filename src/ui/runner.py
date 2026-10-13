@@ -52,6 +52,11 @@ def _record(job: Job, node: str, update: dict[str, Any]) -> None:
         job.early["Incident"] = detail
     elif node == "severity_rules_pass1" and detail:
         job.early["Rules severity"] = detail
+        rules = update.get("rules_pass1")
+        if rules is not None and rules.level.value != "S1":
+            # The fast path is only for S1 (FR-42); a Major incident is paged at the final severity gate.
+            job.early["Fast-path page"] = (f"not needed: {rules.level.value} is not S1, so paging is decided at "
+                                           "the final severity gate")
     elif node == "triage_agent" and update.get("triage") is not None:
         job.early["Issue class"] = update["triage"].issue_class.value
     elif node == "dispatch_fast_page":
@@ -61,6 +66,8 @@ def _record(job: Job, node: str, update: dict[str, Any]) -> None:
                                           f"({job.events[-1]['elapsed_s']} s after submit)"
         elif dispatch is not None and dispatch.suppressed:
             job.early["Fast-path page"] = "decided, but suppressed (evaluation mode)"
+        else:  # a repeat of an existing incident: the earlier page is updated, never sent twice (FR-38)
+            job.early["Fast-path page"] = "already paged for this incident earlier; that page was updated"
 
 
 def start(**kwargs: Any) -> Job:

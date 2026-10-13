@@ -239,6 +239,44 @@ def json_block(data: Any) -> None:
     st.code(json.dumps(data, indent=1, ensure_ascii=False), language="json")
 
 
+def flow_log_view(run_id: str, key: str) -> None:
+    """The flow log of one run: every log line with its run_id, by stage, with downloads."""
+    from src.services import flow_log
+
+    entries = flow_log.load(run_id)
+    if not entries:
+        st.caption(f"No log lines for {run_id} in {config.get_settings().logs_dir}. The flow log is read from the "
+                   "log files of the machine that ran the investigation.")
+        return
+    totals = flow_log.summary(entries)
+    cols = st.columns(5)
+    cols[0].metric("Run time", f"{totals['run_s']:.1f} s" if totals["run_s"] is not None else "n/a")
+    cols[1].metric("LLM calls", totals["llm_calls"])
+    cols[2].metric("Tokens", f"{totals['tokens']:,}")
+    cols[3].metric("Tool calls", totals["tool_calls"])
+    cols[4].metric("Errors and retries", totals["errors"])
+    present = [s for s in (*flow_log.STAGES, flow_log.OTHER) if any(e["flow_stage"] == s for e in entries)]
+    c1, c2 = st.columns(2)
+    stages = c1.multiselect("Stages", present, default=present, key=f"{key}_stages")
+    events = sorted({e["event"] for e in entries})
+    chosen = c2.multiselect("Events (all when empty)", events, key=f"{key}_events")
+    shown = [e for e in entries if e["flow_stage"] in stages and (not chosen or e["event"] in chosen)]
+    st.dataframe([{"Time (UTC)": e.get("timestamp", "")[11:23], "+s": e.get("flow_elapsed_s"),
+                   "Stage": e["flow_stage"], "Step": NODE_LABELS.get(e.get("component", ""), e.get("component")), "Event": e["event"],
+                   "Details": flow_log.describe(e), "Level": e.get("level")} for e in shown],
+                 hide_index=True, width="stretch", height=min(38 + 35 * len(shown), 460))
+    st.caption(f"{len(shown)} of {totals['lines']} lines from interactions.log, error.log and eval.log. Times are "
+               "seconds after the run's first line; lines after the run are the human steps (review, resolution).")
+    for e in (x for x in shown if x.get("stack_trace")):
+        with st.expander(f"Stack trace: {e.get('component')} at {e.get('timestamp', '')[11:19]}"):
+            st.code(e["stack_trace"], language="text")
+    d1, d2 = st.columns(2)
+    d1.download_button("Download the flow log (.log)", flow_log.to_text(entries), file_name=f"{run_id}_flow.log",
+                       mime="text/plain", key=f"{key}_txt")
+    d2.download_button("Download the raw lines (.jsonl)", flow_log.to_jsonl(entries),
+                       file_name=f"{run_id}_flow.jsonl", mime="application/json", key=f"{key}_jsonl")
+
+
 def _dispatch_text(dispatch: Any) -> str:
     parts = []
     if dispatch.paged:

@@ -16,6 +16,7 @@ from pathlib import Path
 from typing import Any, Callable, Optional
 
 from src import config
+from src import logger_setup
 from src.logger_setup import log_eval
 
 STEPS = [
@@ -37,17 +38,7 @@ KEY_FIELDS = ("incident_id", "run_id", "feedback_id", "decision", "issue_type", 
 
 def read_log(name: str) -> list[dict[str, Any]]:
     """Every JSON line of a log, oldest rotated file first."""
-    folder = config.get_settings().logs_dir
-    files = sorted(folder.glob(f"{name}.log.*"), key=lambda p: -int(p.suffix[1:]) if p.suffix[1:].isdigit() else 0)
-    lines: list[dict[str, Any]] = []
-    for path in [*files, folder / f"{name}.log"]:
-        if path.exists():
-            for line in path.read_text(encoding="utf-8").splitlines():
-                try:
-                    lines.append(json.loads(line))
-                except ValueError:
-                    continue
-    return lines
+    return logger_setup.read_log(name)
 
 
 def _first(lines: list[dict[str, Any]], match: Callable[[dict[str, Any]], bool]) -> Optional[dict[str, Any]]:

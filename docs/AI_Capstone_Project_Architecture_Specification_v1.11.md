@@ -2,12 +2,22 @@
 
 | Item | Detail |
 |---|---|
-| **Document version** | v1.10 (draft) |
-| **Supersedes** | v1.9 |
-| **Derived from** | Project Requirements v0.16. "Req." references below point to that document |
+| **Document version** | v1.11 (draft) |
+| **Supersedes** | v1.10 |
+| **Derived from** | Project Requirements v0.17. "Req." references below point to that document |
 | **Purpose** | The contracts needed to generate code: target library versions, data schemas, module and function contracts, LangGraph wiring, algorithms, synthetic data targets, and test hooks. Each section names the source file it governs |
 | **Format** | Contracts are given as tables (fields, types, parameters, returns), not as code. Code is generated in a later step, after this document is reviewed |
 | **Status** | Draft for review. Library versions in Section 0 are installed and pass the smoke test on the development laptop and in Vocareum (Req. OI-3, OI-9 closed). Phase 1 (Sections 3, 13, 15), Phase 2 (Section 16), Phase 3 (Sections 5, 7, 8, 9), Phase 4 (Sections 4, 6), Phase 5 (Sections 10.1, 10.2, 14) and Phase 6 (Sections 10, 11, 14) are implemented. Open items in Section 21 |
+
+### Changes from v1.10
+
+The flow log of a run (Req. FR-74). Sections 13 and 14 have an "As built (v1.11)" note.
+
+| Area | Change | Reason |
+|---|---|---|
+| Flow log | `src/services/flow_log.py` collects the lines of one run from the three logs, places each in a stage and describes it; `logger_setup.read_log` reads a log with its rotated files (Section 13) | Show the whole flow of a run in one place |
+| UI | Flow log tab on the Incident page, expander on the Investigate page and in the `SYSTEM_ERROR` layout (Section 14) | Req. FR-74 |
+| Script | `scripts/show_flow_log.py` (a run ID or `--latest`; `--jsonl`, `--out FILE`) | The same log in a terminal, for example in Vocareum |
 
 ### Changes from v1.9
 
@@ -331,6 +341,7 @@ Authoritative file list for code generation. It matches Req. Section 17; each pa
 | `tests/fake_llm.py` (**v1.8**): scripted model for offline graph tests | 19 |
 | `tests/test_feedback.py`, `tests/test_ui.py` (**v1.9**) | 19 |
 | `src/evaluation/golden_dataset.py`, `scripts/run_eval.py`, `tests/test_learning_loop.py` (**v1.10**) | 11.1, 19 |
+| `src/services/flow_log.py`, `scripts/show_flow_log.py`, `tests/test_flow_log.py` (**v1.11**) | 13, 14, 19 |
 | `scripts/commit_state.sh`, `scripts/build_index.py`, `scripts/generate_data.py` | 12, 8, 16 |
 | `tests/` | 19 |
 
@@ -1208,6 +1219,8 @@ Event names are exactly those in Req. Section 16; a constant list in `logger_set
 
 **v1.7:** two events added: `incident_created` (run-scoped; the correlator created an incident) and `knowledge_index_built` (`eval.log`; re-index summary).
 
+**As built (v1.11): flow log (Req. FR-74).** `logger_setup.read_log(name, logs_dir=None)` returns every JSON line of one log, oldest rotated file first, skipping lines that are not JSON (the evidence report uses it too). `flow_log.load(run_id, logs_dir=None)` keeps the lines of the three logs whose `run_id` matches, sorts them by timestamp and adds `log_file`, `flow_stage` (from the component: Detect, Triage, Analyse, Respond, Close and learn, or Other) and `flow_elapsed_s` (seconds after the run's first line); the added names cannot clash with logged fields such as `stage`. `describe(line)` gives one sentence per event (unknown events list their own fields), `summary(lines)` the totals (run time up to the last in-run line, LLM calls, tokens, tool calls, ERROR lines), `to_text` a plain-text log and `to_jsonl` the original lines. Nothing new is logged.
+
 **LangFuse instrumentation:** one trace per run (`run_id` as session, `incident_id` as tag); one span per node (from the node wrapper); LLM generations through the LangChain callback handler, with `prompt_version_set` as metadata; scores as listed in Req. 12.4.
 
 ---
@@ -1232,6 +1245,8 @@ Role checks are advisory in the MVP (no auth), but every control records the sel
 **As built (v1.9).** Built: `app.py` and pages 1 to 3; pages 4 to 7 are built in Phase 6. Each page starts with `components.setup_page`, which sets the page config, exports settings, configures logging once per logs directory, applies the session timeout and draws the sidebar (role selector, reviewer ID, kill-switch warning, "simulated" note). `runner.start(**run_investigation kwargs)` runs the graph in a daemon thread and collects one event per finished node (label, detail, seconds) and the early result; the page polls every 0.25 s and, when the run ends, stores the outcome once and reruns so the form is enabled again. A node's progress detail is chosen by node name (`describe_update`). The Incident page has tabs Summary, Hypotheses and evidence, Changes, Actions, Timeline, Dispatch, Review; evidence IDs open in a popover with the source record; a `SYSTEM_ERROR` run has a separate layout without tabs. Outbox: three tables and "Reset demo" (two-step), which can also call `incident_state_store.archive_state()`. Resolve and Verify: resolution form, verification form and indexing status with a retry button. `.streamlit/config.toml` sets port 8501 and headless mode; Vocareum proxy options stay with OPS-1. Tested headless with Streamlit's `AppTest` (pages are opened from `app.py` so page links resolve).
 
 **As built (v1.10), pages 4 to 7.** Review Queue: pending candidates with the original output and the reviewer's correction, a promote form pre-filled with the ground truth (SME), discard with a reason, decided candidates. Feedback and RLHF: blind labelling of the next pair for the reviewer ID (disputed pairs for the SME), sessions (create, results, log result), reward scores with sample size, DPO export. Adaptation History: scan, approve (with the editable guideline) or reject, apply (judge on or off, all cases or the pattern's scenario), finish the preference check, metrics before and after, explanation, evidence report, rules review summary and rules change log. Evaluation: run the golden set (judge on or off, all cases or one scenario) and the fixture checks, metrics against targets with the previous run, per-case results, latency per stage, trace links. Long jobs are `runner.Task`s of one kind, so only one runs at a time, whichever page started it; `components.task_panel` shows its progress in a fragment refreshed every 2 s and reruns the page when it ends.
+
+**As built (v1.11), flow log.** `components.flow_log_view(run_id, key)` shows the totals as metrics, stage and event filters, a table (time, seconds after start, stage, step label, event, details, level), the stack traces of failed lines, and download buttons for the `.log` text and the `.jsonl` lines. It is the eighth tab of the Incident page, an expander in the `SYSTEM_ERROR` layout, and an expander under the result on the Investigate page.
 
 ---
 
@@ -1626,6 +1641,7 @@ Tests marked `llm` make API calls and are deselected by default (`pytest -m llm`
 | ALIGN-9 (**v1.8**) | Phase 4 alignment: intake rules, rejection reasons, dedup behaviour in the graph, measured latency and cost, OI-25 | **Done:** Req. v0.14 Sections 6.2, 6.3, 12.2, 18.2 |
 | ALIGN-10 (**v1.9**) | Phase 5 alignment: pages built in Phase 5 and Phase 6, review rules, S2 to S1 re-classification, H-1 and H-2 records and log events, `runner.py` in the folder structure | **Done:** Req. v0.15 Sections 4.1 (FR-53), 13.5, 15, 16, 17 |
 | ALIGN-11 (**v1.10**) | Phase 6 alignment: first measurements, reviewer cap for small patterns, new files and folders, OPS-1 status | **Done:** Req. v0.16 Sections 12.2, 12.6, 17, 18.2 |
+| ALIGN-12 (**v1.11**) | Flow log of a run | **Done:** Req. v0.17 FR-74, Sections 15, 16 |
 | OI-25 (**v1.8**) | Change correlation still accepts some red herrings with gpt-4o-mini (SC-02, SC-04) | Baseline for the adaptation loop (Phase 6); revisit the prompt only through approved adaptations. **v1.10:** measured by `red_herring_rejected` per golden case |
 | OI-24 (**v1.6**) | SME validation of the generated ground truth (`eval_rubric.json`, `manifest.json`) and of the 28 knowledge-base drafts | Changes to the ground truth are made in `data/generators/scenarios.py`, then `--write-golden`, before `feedback_loop.promote` adds the first case (promoted cases exist only in the golden files); changes to documents are made in `knowledge/raw/` (or the PDF sources) |
 

@@ -83,6 +83,17 @@ def test_investigate_replay_shows_node_progress_and_the_result(ui, fake):
     assert not at.button(key="run").disabled
 
 
+def test_early_result_explains_why_an_s2_has_no_fast_path_page(ui, fake):
+    fake("SC-02")
+    at = ui()
+    at.selectbox(key="scenario_id").set_value("SC-02")
+    at.button(key="run").click().run()
+    page = texts(at)
+    assert "Rules severity: **S2" in page
+    assert "Fast-path page: **not needed: S2 is not S1, so paging is decided at the final severity gate**" in page
+    assert "**…**" not in page
+
+
 def test_investigate_rejects_text_that_is_not_an_incident(ui, fake):
     fake("SC-02")
     at = ui()
@@ -115,7 +126,7 @@ def test_incident_page_shows_the_analysis_and_records_an_approval(ui, investigat
     out = investigated("SC-02")
     at = ui(INCIDENT, role="escalation")
     assert [t.label for t in at.tabs] == ["Summary", "Hypotheses and evidence", "Changes", "Actions", "Timeline",
-                                         "Dispatch", "Review"]
+                                         "Dispatch", "Review", "Flow log"]
     page = texts(at)
     assert "Pending review (PENDING_REVIEW)" in page
     assert any(out.hypotheses[0].root_cause in e.label for e in at.expander)
@@ -126,6 +137,20 @@ def test_incident_page_shows_the_analysis_and_records_an_approval(ui, investigat
     assert "Review recorded: APPROVED." in texts(at)
     assert store.current(out.incident_id).reviews[out.run_id]["status"] == "APPROVED"
     assert "Approved (APPROVED)" in texts(at)
+
+
+def test_flow_log_tab_shows_the_run_by_stage(ui, investigated):
+    investigated("SC-02")
+    at = ui(INCIDENT, role="escalation")
+    assert {"Run time", "LLM calls", "Tokens", "Tool calls", "Errors and retries"} <= {m.label for m in at.metric}
+    table = at.dataframe[-1].value
+    assert set(table["Stage"]) >= {"Detect", "Triage", "Analyse", "Respond"}
+    assert "Severity rules, pass 1" in set(table["Step"]) and "llm_call" in set(table["Event"])
+    assert "of {0} lines".format(len(table)) in texts(at)
+    widget(at, "multiselect", "Stages").set_value(["Triage"]).run()
+    assert set(at.dataframe[-1].value["Stage"]) == {"Triage"}
+    widget(at, "multiselect", "Events (all when empty)").set_value(["llm_call"]).run()
+    assert list(at.dataframe[-1].value["Step"]) == ["Triage Agent"]
 
 
 def test_incident_edit_needs_a_change_and_a_reason(ui, investigated):
@@ -151,6 +176,9 @@ def test_system_error_has_its_own_layout(ui, investigated):
     assert "System error: no recommendation (SYSTEM_ERROR)" in page
     assert "The on-call team was paged based on monitoring rules." in page
     assert not at.tabs and "Submit review" not in [b.label for b in at.button]
+    assert any(e.label == "Flow log: what ran before the failure" for e in at.expander)
+    assert "Errors and retries" in [m.label for m in at.metric]
+    assert next(m for m in at.metric if m.label == "Errors and retries").value != "0"
 
 
 def test_acknowledge_and_reclassify_from_the_incident_page(ui, investigated):

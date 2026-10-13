@@ -9,6 +9,7 @@ and every string is redacted.
 from __future__ import annotations
 
 import contextvars
+import json
 import logging
 import traceback
 from contextlib import contextmanager
@@ -177,3 +178,21 @@ def log_error(event: str, *, component: str, exc: Optional[BaseException] = None
         )
     payload = _build(event, component, "ERROR", fields)
     _emit("error", logging.ERROR, payload)
+
+
+def read_log(name: str, logs_dir: Optional[Path] = None) -> list[dict[str, Any]]:
+    """Every JSON line of one log ("interactions", "error" or "eval"), oldest rotated file first.
+    Lines that are not JSON are skipped."""
+    from src.config import get_settings
+
+    folder = Path(logs_dir) if logs_dir is not None else get_settings().logs_dir
+    files = sorted(folder.glob(f"{name}.log.*"), key=lambda p: -int(p.suffix[1:]) if p.suffix[1:].isdigit() else 0)
+    lines: list[dict[str, Any]] = []
+    for path in [*files, folder / f"{name}.log"]:
+        if path.exists():
+            for line in path.read_text(encoding="utf-8").splitlines():
+                try:
+                    lines.append(json.loads(line))
+                except ValueError:
+                    continue
+    return lines

@@ -2,7 +2,7 @@
 
 Status band, severity with the rules that fired, hypotheses with one-click
 evidence, change findings, recommended actions with risk and policy flags,
-timeline, stakeholder summary and the dispatch record. Human steps on this
+timeline, stakeholder summary, the dispatch record and the flow log of the run. Human steps on this
 page: acknowledge the page (H-1), the "Needs human RCA" hand-off (H-2), review
 with ratings (H-3), re-classify as Major (H-4) and the two-step confirmation of
 high-risk actions (H-5). A SYSTEM_ERROR run has its own layout and is never
@@ -382,6 +382,8 @@ def system_error_layout(view: Any, output: dict[str, Any], role: ReviewerRole) -
                     f"({rules.get('pass_name')}, rules `{rules.get('rules_version')}`)", unsafe_allow_html=True)
         rules_table(rules.get("rules_fired") or [])
     dispatch_section(view, output, role)
+    with st.expander("Flow log: what ran before the failure"):
+        components.flow_log_view(output["run_id"], key=f"flow_{output['run_id']}")
 
 
 role = components.setup_page("Incident", "🧭")
@@ -407,7 +409,7 @@ if picked is not None:
         system_error_layout(view, output, role)
     else:
         tabs = st.tabs(["Summary", "Hypotheses and evidence", "Changes", "Actions", "Timeline", "Dispatch",
-                        "Review"])
+                        "Review", "Flow log"])
         with tabs[0]:
             summary_tab(output)
         with tabs[1]:
@@ -422,4 +424,6 @@ if picked is not None:
             dispatch_section(view, output, role)
         with tabs[6]:
             review_section(view, run_id, output, role)
+        with tabs[7]:
+            components.flow_log_view(run_id, key=f"flow_{run_id}")
     st.page_link("pages/3_Resolve_and_Verify.py", label="Resolve and verify this incident", icon="✅")
