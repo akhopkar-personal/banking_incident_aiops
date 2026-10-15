@@ -16,6 +16,13 @@ from typing import Any, Optional
 from src import config
 
 RUBRIC, INPUTS = "eval_rubric.json", "test_inputs.json"
+# Named, fixed subsets, so a comparison always runs on the same test set (FR-78, FR-79).
+# prompt-comparison: SC-02 and SC-04, where the baseline prompt accepts red herrings, plus SC-01 as the
+# control a worse prompt could break; a replay and a free-text input of each.
+CASE_SETS: dict[str, list[str]] = {
+    "prompt-comparison": ["GC-SC02-REPLAY", "GC-SC02-FREETEXT", "GC-SC04-REPLAY", "GC-SC04-FREETEXT",
+                          "GC-SC01-REPLAY", "GC-SC01-FREETEXT"],
+}
 _lock = threading.RLock()
 
 

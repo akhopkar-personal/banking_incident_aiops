@@ -2,10 +2,10 @@
 
 | Item | Detail |
 |---|---|
-| **Document version** | v0.17 (draft) |
+| **Document version** | v0.18 (draft) |
 | **Status** | In review. Open items: post-evaluation target review (OI-8), adaptation pattern-detection threshold (OI-12), confidence-gate threshold (OI-16), severity rule thresholds (OI-17), reviewer agreement rule for preference labels (OI-18), DeepEval judge model (OI-22), SME validation of the generated data and documents (OI-24), MCP 2.x upgrade (OPS-3). See Section 18 |
-| **Supersedes** | v0.16 |
-| **Next artifact** | Architecture Specification v1.11 (aligned with this version). Next step: code generation Phase 7 (packaging) |
+| **Supersedes** | v0.17 |
+| **Next artifact** | Architecture Specification v1.12 (aligned with this version). Next step: code generation Phase 7 (packaging) |
 
 ### Version history
 
@@ -26,6 +26,7 @@
 | v0.13 | **Phase 3 (rules-only system, tools, MCP server, retrieval, safety) delivered, aligned with Architecture Spec v1.7 (ALIGN-8).** Every scenario can be run without an LLM (`scripts/run_rules_only.py`): detection, one incident per scenario, rules severity, fast-path page, ticket, and page or assignment, with replays deduplicated. The 13 read tools return identical results over MCP and in-process. Tool schemas given to the agents leave out the run context, so a model cannot choose which data a tool reads; the Change Correlation Agent may also use `get_service_dependencies` (Section 10.5). Pseudonym tokens use a per-session key shared with the MCP server process (Section 13.3). New log events `incident_created` and `knowledge_index_built` (Section 16). New files added to Section 17. Vocareum results of the smoke test (11/11, Phase 0) and of the Phase 2 tests (192 passing, identical generated data on Linux) recorded in Section 11.1 |
 | v0.14 | **Phase 4 (LLM agents and the LangGraph workflow) delivered, aligned with Architecture Spec v1.8 (ALIGN-9).** The four agents and the full graph run end to end through gpt-4o-mini: every scenario produces a grounded recommendation with the expected severity, and failures follow the SYSTEM_ERROR and rules-only paths. Intake rules made concrete for the prototype: every run reads one scenario's telemetry, free-text clock times are read on that scenario's date (Sections 6.2, 6.3). Measured cost and latency recorded against the targets (Section 12.2). New open item OI-25: remaining red-herring errors in change correlation (Section 18.2) |
 | v0.15 | **Phase 5 (Streamlit UI) delivered, aligned with Architecture Spec v1.9 (ALIGN-10).** The Investigate, Incident, Outbox and Resolve and Verify pages are built, with the human steps H-1 to H-7 recorded in the Incident State Store, the preference store and the logs; the Review Queue, Feedback and RLHF, Adaptation History and Evaluation pages follow in Phase 6 (Section 15). Re-classification can also raise an S2 incident to S1 (FR-53). Page acknowledgement and the gate hand-off get their own state-store records and log events (Sections 13.5, 16). Phase 4 passed in Vocareum |
+| v0.18 | **Capstone evidence features, aligned with Architecture Spec v1.12 (ALIGN-13).** FR-75 retrieval switch for evaluation runs; FR-76 logged tool-call safeguards (invalid arguments, blocked tools, duplicate calls, tool budget) with a forced demo; FR-77 refusal of money movement, approvals, legal advice and data changes or actions at intake (event `request_refused`); FR-78 prompt-strategy variants compared on a fixed test set with a comparison report; FR-79 consistency of repeated runs |
 | v0.17 | **Flow log, aligned with Architecture Spec v1.11 (ALIGN-12).** New FR-74: the flow log of a run, assembled from the three log files by `run_id` and grouped into the five stages, shown on the Investigate and Incident pages (Section 15) and printed by `scripts/show_flow_log.py`. No new log events (Section 16) |
 | v0.16 | **Phase 6 (learning loop) delivered, aligned with Architecture Spec v1.10 (ALIGN-11).** SME promotion into the golden dataset, pairwise sessions with blind labelling and SME tie-break, reward scores, DPO export, the evaluation harness with DeepEval metrics, fixture checks, the adaptation engine and the evidence report, with the Review Queue, Feedback and RLHF, Adaptation History and Evaluation pages. Evaluation runs use their own incident store, so they never touch live incidents (Section 10.4). The reviewer cap is made concrete for small patterns (Section 12.6). First measurements recorded (Section 12.2). Phase 5 passed in Vocareum, and the UI opened through Vocareum's proxy (OPS-1) |
 
@@ -364,6 +365,16 @@ Full design in Section 14.
 | ID | Requirement | Priority |
 |---|---|---|
 | FR-74 | **NEW.** The flow log of one run lists, in time order, every log line that carries its `run_id` in `interactions.log`, `error.log` and `eval.log` (rotated files included): anomalies, rules passes, tool and LLM calls with tokens and latency, gates, guardrails, dispatch and notifications, errors and retries, and the human steps recorded later (review, ratings, resolution, verification, indexing). Each line is placed in one of the five stages (Detect, Triage, Analyse, Respond, Close and learn) and described in one sentence. The UI shows it with totals (run time, LLM calls, tokens, tool calls, errors), stage and event filters, stack traces of failures, and downloads as text and as the raw JSON lines. It adds no logging of its own, so it holds only what was already redacted when written | Should |
+
+### 7.14 Capstone evidence features (NEW v0.18)
+
+| ID | Requirement | Priority |
+|---|---|---|
+| FR-75 | **NEW.** Retrieval can be switched off for an evaluation run (never a live one): `search_knowledge_base` then returns no documents and logs `tool_call` with status `retrieval_disabled`, and the output records `metadata.retrieval_enabled`. Used to compare answers with and without retrieval on the same test set (`run_eval.py --no-retrieval`, `compare_evals.py`) | Must |
+| FR-76 | **NEW.** Every rejected or skipped tool call is logged as `tool_call` with a `status`: `invalid_arguments` (the error goes back to the model, WARNING), `duplicate_call` and `budget_exhausted` (RCA loop prevention, WARNING), `failed` (ERROR), or `ok`; blocked tools keep `tool_access_blocked`. The RCA Agent skips a call identical to an earlier one. `scripts/demo_tool_safeguards.py` forces each case without an LLM | Must |
+| FR-77 | **NEW.** A request outside the agent's remit is refused at intake, before an incident exists or an LLM sees it: money movement (transfers, reversals, refunds, credits), approvals, legal advice, and data changes or operational actions. The refusal names who can help (payments operations, the accountable approver, legal or compliance, the engineer after review), uses the reason `refused_<category>`, and is logged as `request_refused` with the category only, never the text. The check is deterministic; descriptions of an incident ("transfers are failing") are not refused | Must |
+| FR-78 | **NEW.** Prompt strategies are compared on the same fixed test set (`CASE_SETS["prompt-comparison"]`: the replay and free-text cases of SC-02, SC-04 and SC-01). Variants live in `data/prompt_versions.json` as inactive versions: v1 (baseline: role, task, rules, zero-shot), `p2-checklist` (adds a step-by-step reasoning checklist to the RCA and Change Correlation Agents) and `p3-examples` (adds a worked few-shot example). `compare_evals.py` writes the table Prompt → Output → What improved or worsened, per case and per metric. Choosing a new default stays a human decision | Must |
+| FR-79 | **NEW.** Consistency: `run_eval.py --repeat N` runs each case N times with the same configuration and reports, per field (status, severity, issue class, top-1 root cause correct, red herring rejected, top change), the share of cases whose runs all agree | Should |
 
 The registry's own access policy (FR-66) remains in force for both transports, so a dispatch tool is blocked twice: it is absent from the MCP server, and the registry refuses it to agents.
 
@@ -1304,6 +1315,8 @@ Three log files, as in the blueprint:
 **v0.10:** tool calls log the `tool_call` event with a `transport` field, set to `mcp` or `inprocess` (FR-73).
 
 **v0.17:** the flow log of a run (FR-74) is read from these files by `run_id`; it needs no new events or fields.
+
+**v0.18:** new event `request_refused` (FR-77; not run-scoped, carries `run_id` and `category`). `tool_call` lines carry `status` (FR-76); rejected and skipped calls are WARNING lines in `interactions.log`.
 
 **Content per file**
 

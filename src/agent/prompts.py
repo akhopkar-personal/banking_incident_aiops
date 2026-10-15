@@ -134,6 +134,21 @@ def resolve_version(agent: str, override: Optional[dict[str, str]] = None) -> st
     return version
 
 
+def variant_override(variant: str) -> dict[str, str]:
+    """FR-78: the override that runs prompt variant `variant` for every agent that has it; the other
+    agents keep their active version. Raises ValueError if no agent has it."""
+    found = {agent: variant for agent, entry in load_versions().items() if variant in entry["versions"]}
+    if not found:
+        raise ValueError(f"no agent has a prompt version {variant!r}")
+    return found
+
+
+def describe_version(agent: str, version: str) -> str:
+    """The version's one-line strategy description, if it has one."""
+    data = load_versions()[agent]["versions"].get(version) or {}
+    return data.get("strategy") or ""
+
+
 def render(agent: str, version: Optional[str] = None) -> str:
     """System prompt: base template, common rules, then the version's guidelines and few-shot examples."""
     if agent not in BASE_TEMPLATES:

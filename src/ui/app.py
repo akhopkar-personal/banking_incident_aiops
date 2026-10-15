@@ -124,7 +124,11 @@ def show_progress(job: runner.Job) -> None:
             state.put(state.LAST_RUN_ID, job.result.run_id)
             state.select_incident(job.result.incident_id, job.result.run_id)
         else:
-            state.put(state.LAST_REJECTION, job.result.message if kind == "rejection" else job.error)
+            if kind == "rejection":
+                refused = job.result.reason.startswith("refused_")  # FR-77: out-of-scope request
+                state.put(state.LAST_REJECTION, ("Refused. " if refused else "") + job.result.message)
+            else:
+                state.put(state.LAST_REJECTION, job.error)
         st.rerun()
 
 

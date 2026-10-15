@@ -17,6 +17,7 @@ from pydantic import BaseModel, Field
 
 from src import config as app_config
 from src.agent.agent_support import AgentRun, fmt_anomalies, fmt_evidence, fmt_incident
+from src.logger_setup import log_interaction
 from src.schemas.analysis import Hypothesis, RcaResult, TimelineEvent
 from src.schemas.common import EVIDENCE_ID_PATTERN, Confidence, LenientStrList
 from src.schemas.evidence import EvidenceItem, ToolSummary
@@ -67,6 +68,36 @@ class RcaDraft(BaseModel):
     severity_inputs_found: dict[str, float]
 
 
+def plan_calls(calls: list[dict[str, Any]], used: int, budget: int, seen: set[str]
+               ) -> tuple[list[dict[str, Any]], list[tuple[dict[str, Any], str]]]:
+    """Loop safeguards (FR-76): which of the model's tool calls run. A call identical to an earlier one
+    (same tool, same arguments) is skipped as a duplicate, and calls beyond the budget are skipped.
+    Returns (calls to run, [(skipped call, status)]); `seen` is updated with the calls that run."""
+    allowed: list[dict[str, Any]] = []
+    skipped: list[tuple[dict[str, Any], str]] = []
+    for call in calls:
+        key = f"{call['name']}:{sorted((call.get('args') or {}).items(), key=lambda kv: kv[0])!r}"
+        if key in seen:
+            skipped.append((call, "duplicate_call"))
+        elif used + len(allowed) >= budget:
+            skipped.append((call, "budget_exhausted"))
+        else:
+            seen.add(key)
+            allowed.append(call)
+    return allowed, skipped
+
+
+SKIP_MESSAGES = {"duplicate_call": "Not run: the same call was already made; use its result above.",
+                 "budget_exhausted": "Not run: the tool-call budget is used up."}
+
+
+def log_skipped(skipped: list[tuple[dict[str, Any], str]], incident_id: str, run_id: str) -> None:
+    """One WARNING `tool_call` line per skipped call, with its status (FR-76)."""
+    for call, status in skipped:
+        log_interaction("tool_call", component=AGENT, level="WARNING", tool=call["name"], caller=AGENT,
+                        transport="none", latency_ms=0, status=status, incident_id=incident_id, run_id=run_id)
+
+
 def _collect(result: Any, evidence: dict[str, EvidenceItem]) -> None:
     if isinstance(result, ToolSummary):
         for item in result.notable:
@@ -94,7 +125,7 @@ def run(state: dict[str, Any], config: Optional[dict[str, Any]] = None) -> dict[
     ])
     messages: list[Any] = [SystemMessage(a.system_prompt()), HumanMessage(context)]
 
-    used, followup = 0, False
+    used, followup, seen = 0, False, set()
     for round_number in (1, 2):
         reply = a.with_tools(tools, messages)
         messages.append(reply)
@@ -102,7 +133,7 @@ def run(state: dict[str, Any], config: Optional[dict[str, Any]] = None) -> dict[
         if not calls:
             break
         followup = followup or round_number == 2
-        allowed, skipped = calls[: max(0, budget - used)], calls[max(0, budget - used):]
+        allowed, skipped = plan_calls(calls, used, budget, seen)
 
         def execute(call: dict[str, Any]):
             return a.retry(lambda: registry.call_for_llm(call["name"], call.get("args") or {}, AGENT, a.ctx),
@@ -114,8 +145,9 @@ def run(state: dict[str, Any], config: Optional[dict[str, Any]] = None) -> dict[
             a.flags.extend(f for f in flags if f not in a.flags)
             _collect(result, evidence)
             messages.append(ToolMessage(content=a.untrusted(content, call["name"]), tool_call_id=call["id"]))
-        for call in skipped:
-            messages.append(ToolMessage(content="Not run: the tool-call budget is used up.", tool_call_id=call["id"]))
+        log_skipped(skipped, incident.incident_id, incident.run_id)
+        for call, status in skipped:
+            messages.append(ToolMessage(content=SKIP_MESSAGES[status], tool_call_id=call["id"]))
         used += len(allowed)
         if used >= budget:
             break

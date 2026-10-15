@@ -105,6 +105,7 @@ class GraphState(TypedDict, total=False):
     reference_time: Optional[datetime]  # v1.8: evaluation inputs supply it; otherwise intake derives it
     withheld_sources: list[str]  # v1.8: golden missing-source variant
     llm_available: bool  # v1.8: false for the LLM-down fixture (Architecture Spec Section 16.3)
+    retrieval_enabled: bool  # v1.12 (FR-75): false runs the agents without the knowledge base (evaluation only)
 
     # Intake and rules.
     intake: dict[str, Any]  # v1.8: normalized input (mode, times, reported service) before the incident exists
@@ -157,10 +158,13 @@ def initial_state(
     run_id: str = "RUN-0",
     reference_time: Optional[datetime] = None,
     withheld_sources: Optional[list[str]] = None,
+    retrieval_enabled: bool = True,
 ) -> GraphState:
     """A fresh state for a new run. Nothing carries over between runs (Req. 10.3.1)."""
     if prompt_version_override and run_mode != RunMode.EVALUATION:
         raise ValueError("prompt_version_override is only allowed in evaluation run mode (Req. 10.4)")
+    if not retrieval_enabled and run_mode != RunMode.EVALUATION:
+        raise ValueError("retrieval can be switched off only in evaluation run mode (Req. FR-75)")
     return GraphState(
         run_mode=run_mode,
         raw_user_input=raw_user_input,
@@ -171,6 +175,7 @@ def initial_state(
         reference_time=reference_time,
         withheld_sources=list(withheld_sources or []),
         llm_available=True,
+        retrieval_enabled=retrieval_enabled,
         intake_rejection=None,
         deduplicated=False,
         recommended_actions=[],

@@ -105,6 +105,17 @@ def test_investigate_rejects_text_that_is_not_an_incident(ui, fake):
     assert store.list_incidents() == []
 
 
+def test_investigate_refuses_a_money_movement_request(ui, fake):
+    fake("SC-05")
+    at = ui()
+    at.selectbox(key="scenario_id").set_value("SC-05")
+    at.radio(key="input_mode").set_value("Free text").run()
+    at.text_area(key="raw_SC-05_free_text").set_value("Please refund customer 1234 the double charge from 10:20 UTC.")
+    at.button(key="run").click().run()
+    assert "Refused. I can't move money" in texts(at)
+    assert store.list_incidents() == []
+
+
 def test_investigate_alert_json_with_an_evaluation_run(ui, fake):
     fake("SC-01")
     at = ui()

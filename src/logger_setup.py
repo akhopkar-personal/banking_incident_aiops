@@ -42,6 +42,8 @@ ALLOWED_EVENTS: frozenset[str] = frozenset({
     "knowledge_index_built", "incident_created",
     # v0.15
     "page_acknowledged", "gate_handoff_recorded",
+    # v0.18
+    "request_refused",
 })
 
 # Events that belong to one investigation run: they must carry incident_id and run_id.

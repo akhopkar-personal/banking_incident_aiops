@@ -1,29 +1,134 @@
 {
   "schema_version": 1,
-  "description": "Procedural memory (Req. Section 10.3.2; Architecture Spec Section 6.1). Versioned additions to each agent's base prompt in src/agent/prompts.py. Only an approved adaptation adds a version or changes `active`.",
+  "description": "Procedural memory (Req. Section 10.3.2; Architecture Spec Section 6.1). Versioned additions to each agent's base prompt in src/agent/prompts.py. Only an approved adaptation changes `active` or adds a numbered version (v2, v3, ...); the prompt-strategy variants p2-checklist and p3-examples (FR-78) are inactive and used only in evaluation runs.",
   "agents": {
     "triage_agent": {
       "active": "v1",
       "versions": {
-        "v1": {"guidelines": [], "few_shot": [], "created_by_adaptation": null, "created_at": "2026-10-09T00:00:00Z"}
+        "v1": {
+          "guidelines": [],
+          "few_shot": [],
+          "created_by_adaptation": null,
+          "created_at": "2026-10-09T00:00:00Z",
+          "strategy": "Prompt strategy 1 (baseline): role, task and output rules, zero-shot."
+        }
       }
     },
     "rca_agent": {
       "active": "v1",
       "versions": {
-        "v1": {"guidelines": [], "few_shot": [], "created_by_adaptation": null, "created_at": "2026-10-09T00:00:00Z"}
+        "v1": {
+          "guidelines": [],
+          "few_shot": [],
+          "created_by_adaptation": null,
+          "created_at": "2026-10-09T00:00:00Z",
+          "strategy": "Prompt strategy 1 (baseline): role, task and output rules, zero-shot."
+        },
+        "p2-checklist": {
+          "guidelines": [
+            "Before you answer, work through this checklist in order. (1) Find the first anomalous signal and the service that shows it first. (2) Using the dependency map, separate the origin service from services that only show symptoms. (3) For each candidate cause, look for evidence that contradicts it, and drop it if the contradiction is strong. (4) Check every recent change or warning against the symptoms: if it is on another service or path, or its content does not explain the error signature, record it as a red herring in contradicting_or_missing_evidence, never as a hypothesis. (5) Set confidence below 0.5 when a key data source is missing or the evidence conflicts."
+          ],
+          "few_shot": [],
+          "created_by_adaptation": null,
+          "created_by": "prompt_experiment",
+          "strategy": "Prompt strategy 2: the base prompt plus an explicit step-by-step reasoning checklist (origin vs symptoms, contradicting evidence, three tests per change).",
+          "created_at": "2026-10-14T00:00:00Z"
+        },
+        "p3-examples": {
+          "guidelines": [
+            "Before you answer, work through this checklist in order. (1) Find the first anomalous signal and the service that shows it first. (2) Using the dependency map, separate the origin service from services that only show symptoms. (3) For each candidate cause, look for evidence that contradicts it, and drop it if the contradiction is strong. (4) Check every recent change or warning against the symptoms: if it is on another service or path, or its content does not explain the error signature, record it as a red herring in contradicting_or_missing_evidence, never as a hypothesis. (5) Set confidence below 0.5 when a key data source is missing or the evidence conflicts."
+          ],
+          "few_shot": [
+            {
+              "input": "Anomalies: consumer lag on kafka-platform from 13:01, balance updates late on accounts-service. Evidence: <KFK-id-1> broker 2 down at 13:00 with disk I/O errors; <KFK-id-2> under-replicated partitions from 13:00; <DEP-id-1> mobile-app release at 12:52 (login screen text). Changes on kafka-platform: none.",
+              "output": {
+                "hypotheses": [
+                  {
+                    "root_cause": "Broker 2 failed with disk I/O errors; its partitions became under-replicated and consumers lagged, delaying balance updates.",
+                    "confidence": 0.8,
+                    "supporting_evidence": [
+                      "<KFK-id-1>",
+                      "<KFK-id-2>"
+                    ],
+                    "contradicting_or_missing_evidence": [
+                      "<DEP-id-1> (mobile-app release) is a red herring: a customer channel change that cannot cause broker failures; only its timing fits."
+                    ]
+                  }
+                ]
+              }
+            }
+          ],
+          "created_by_adaptation": null,
+          "created_by": "prompt_experiment",
+          "strategy": "Prompt strategy 3: strategy 2 plus one worked example (few-shot) of rejecting a red herring.",
+          "created_at": "2026-10-14T00:00:00Z"
+        }
       }
     },
     "change_correlation_agent": {
       "active": "v1",
       "versions": {
-        "v1": {"guidelines": [], "few_shot": [], "created_by_adaptation": null, "created_at": "2026-10-09T00:00:00Z"}
+        "v1": {
+          "guidelines": [],
+          "few_shot": [],
+          "created_by_adaptation": null,
+          "created_at": "2026-10-09T00:00:00Z",
+          "strategy": "Prompt strategy 1 (baseline): role, task and output rules, zero-shot."
+        },
+        "p2-checklist": {
+          "guidelines": [
+            "Decide each change with three tests, in this order, and name the test that failed in the rationale: (A) path: it touches the failing origin service or something that service depends on; (B) mechanism: its content explains the specific symptoms (error codes, the failing resource); (C) timing: it took effect before the first symptom. contributes is true only when all three pass.",
+            "A change that passes only the timing test is a red herring: say so in the rationale.",
+            "When the evidence points to a hardware or capacity fault and no change explains it, mark every change contributes: false."
+          ],
+          "few_shot": [],
+          "created_by_adaptation": null,
+          "created_by": "prompt_experiment",
+          "strategy": "Prompt strategy 2: the base prompt plus an explicit step-by-step reasoning checklist (origin vs symptoms, contradicting evidence, three tests per change).",
+          "created_at": "2026-10-14T00:00:00Z"
+        },
+        "p3-examples": {
+          "guidelines": [
+            "Decide each change with three tests, in this order, and name the test that failed in the rationale: (A) path: it touches the failing origin service or something that service depends on; (B) mechanism: its content explains the specific symptoms (error codes, the failing resource); (C) timing: it took effect before the first symptom. contributes is true only when all three pass.",
+            "A change that passes only the timing test is a red herring: say so in the rationale.",
+            "When the evidence points to a hardware or capacity fault and no change explains it, mark every change contributes: false."
+          ],
+          "few_shot": [
+            {
+              "input": "Symptoms: broker errors and consumer lag on kafka-platform; balance updates late. Changes: CHANGE-A mobile-app release 12 minutes before onset, not on the dependency path, 'new login screen text'; CHANGE-B kafka-platform configuration 40 minutes before onset, on the dependency path, 'lowered the replica fetch timeout'.",
+              "output": {
+                "findings": [
+                  {
+                    "change_id": "CHANGE-B",
+                    "contributes": true,
+                    "rationale": "Passes path (kafka-platform is the origin), mechanism (a shorter replica fetch timeout drops replicas out of sync and causes lag) and timing."
+                  },
+                  {
+                    "change_id": "CHANGE-A",
+                    "contributes": false,
+                    "rationale": "Red herring: fails path and mechanism (a customer channel text change); only the timing fits."
+                  }
+                ]
+              }
+            }
+          ],
+          "created_by_adaptation": null,
+          "created_by": "prompt_experiment",
+          "strategy": "Prompt strategy 3: strategy 2 plus one worked example (few-shot) of rejecting a red herring.",
+          "created_at": "2026-10-14T00:00:00Z"
+        }
       }
     },
     "recommendation_agent": {
       "active": "v1",
       "versions": {
-        "v1": {"guidelines": [], "few_shot": [], "created_by_adaptation": null, "created_at": "2026-10-09T00:00:00Z"}
+        "v1": {
+          "guidelines": [],
+          "few_shot": [],
+          "created_by_adaptation": null,
+          "created_at": "2026-10-09T00:00:00Z",
+          "strategy": "Prompt strategy 1 (baseline): role, task and output rules, zero-shot."
+        }
       }
     }
   }

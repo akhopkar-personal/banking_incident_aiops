@@ -53,7 +53,7 @@ def load(run_id: str, logs_dir: Optional[Path] = None) -> list[dict[str, Any]]:
 
 
 def stage_of(entry: dict[str, Any]) -> str:
-    return STAGE_OF.get(entry.get("component", ""), OTHER)
+    return STAGE_OF.get(entry.get("component", ""), STAGE_OF.get(entry.get("caller", ""), OTHER))
 
 
 def describe(entry: dict[str, Any]) -> str:
@@ -70,8 +70,13 @@ def describe(entry: dict[str, Any]) -> str:
         fired = ", ".join(e.get("rules_fired") or []) or "none"
         return f"{e.get('pass_name')}: {e.get('severity')} ({e.get('group')}); rules fired: {fired}"
     if event == "tool_call":
-        status = f", {e['status']}" if e.get("status") else ""
-        return f"tool {e.get('tool')} over {e.get('transport')}, {e.get('latency_ms')} ms{status}"
+        if e.get("status") not in (None, "ok"):  # FR-76: a rejected or failed call
+            return f"tool {e.get('tool')} {e['status'].replace('_', ' ')}" + (f": {e['error']}" if e.get("error") else "")
+        return f"tool {e.get('tool')} over {e.get('transport')}, {e.get('latency_ms')} ms"
+    if event == "tool_access_blocked":
+        return f"tool {e.get('tool')} blocked for {e.get('caller')}: {e.get('reason')}"
+    if event == "request_refused":
+        return f"request refused ({str(e.get('category', '')).replace('_', ' ')}); nothing was investigated"
     if event == "llm_call":
         return (f"{e.get('model')} ({e.get('kind')}): {e.get('input_tokens')} tokens in, {e.get('output_tokens')} "
                 f"out, {e.get('latency_ms')} ms, finish {e.get('finish_reason')}")
@@ -117,6 +122,8 @@ def summary(entries: list[dict[str, Any]]) -> dict[str, Any]:
         "llm_calls": len(llm),
         "tokens": sum((e.get("input_tokens") or 0) + (e.get("output_tokens") or 0) for e in llm),
         "tool_calls": sum(e.get("event") == "tool_call" for e in entries),
+        "rejected_tool_calls": sum((e.get("event") == "tool_call" and e.get("status") not in (None, "ok"))
+                                   or e.get("event") == "tool_access_blocked" for e in entries),
         "errors": sum(e.get("level") == "ERROR" for e in entries),
     }
 
@@ -129,7 +136,7 @@ def to_text(entries: list[dict[str, Any]]) -> str:
     lines = [f"Flow log of {first.get('run_id')}, incident {_incident(entries)}", ""]
     for e in entries:
         elapsed = f"+{e['flow_elapsed_s']:.2f}s" if e.get("flow_elapsed_s") is not None else ""
-        lines.append(f"{e.get('timestamp', '')[11:23]} {elapsed:>10} {e.get('level', ''):5} "
+        lines.append(f"{e.get('timestamp', '')[11:23]} {elapsed:>10} {e.get('level', ''):7} "
                      f"[{e['flow_stage']}] {e.get('component')} | {e.get('event')}: {describe(e)}")
     return "\n".join(lines) + "\n"
 

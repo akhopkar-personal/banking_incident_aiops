@@ -55,6 +55,7 @@ class ToolContext:
     # The incident window: used when a tool call does not give its own.
     window_start: Optional[datetime] = None
     window_end: Optional[datetime] = None
+    retrieval_enabled: bool = True  # v1.12 (FR-75): false makes search_knowledge_base return nothing
 
     @property
     def scenario_dir(self) -> Path:

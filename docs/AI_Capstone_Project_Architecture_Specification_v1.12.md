@@ -2,12 +2,24 @@
 
 | Item | Detail |
 |---|---|
-| **Document version** | v1.11 (draft) |
-| **Supersedes** | v1.10 |
-| **Derived from** | Project Requirements v0.17. "Req." references below point to that document |
+| **Document version** | v1.12 (draft) |
+| **Supersedes** | v1.11 |
+| **Derived from** | Project Requirements v0.18. "Req." references below point to that document |
 | **Purpose** | The contracts needed to generate code: target library versions, data schemas, module and function contracts, LangGraph wiring, algorithms, synthetic data targets, and test hooks. Each section names the source file it governs |
 | **Format** | Contracts are given as tables (fields, types, parameters, returns), not as code. Code is generated in a later step, after this document is reviewed |
 | **Status** | Draft for review. Library versions in Section 0 are installed and pass the smoke test on the development laptop and in Vocareum (Req. OI-3, OI-9 closed). Phase 1 (Sections 3, 13, 15), Phase 2 (Section 16), Phase 3 (Sections 5, 7, 8, 9), Phase 4 (Sections 4, 6), Phase 5 (Sections 10.1, 10.2, 14) and Phase 6 (Sections 10, 11, 14) are implemented. Open items in Section 21 |
+
+### Changes from v1.11
+
+Features for the capstone evidence (Req. FR-75 to FR-79). Sections 6.1, 7.1, 9.1, 11.1 and 13 have an "As built (v1.12)" note.
+
+| Area | Change | Reason |
+|---|---|---|
+| Safety | `src/safety/scope_guard.py`: `check_request(text) -> Refusal | None`, called first in intake (Section 9.1) | Scenario 2: refuse money movement, approvals, legal advice |
+| Retrieval switch | `retrieval_enabled` in the graph state, `ToolContext` and output metadata; evaluation only (Section 7.1) | Compare with and without retrieval |
+| Tool safeguards | `tool_call.status`; `rca_agent.plan_calls` skips duplicates and calls over the budget (Section 7.1) | Show incorrect tool calls and loop prevention |
+| Prompt variants | `p2-checklist`, `p3-examples` in `prompt_versions.json`; `prompts.variant_override`; `comparison.py` and `scripts/compare_evals.py` (Sections 6.1, 11.1) | Prompt comparison rule |
+| Consistency | `deepeval_harness.run_consistency`, `run_eval.py --repeat N` (Section 11.1) | Consistency metric |
 
 ### Changes from v1.10
 
@@ -342,6 +354,7 @@ Authoritative file list for code generation. It matches Req. Section 17; each pa
 | `tests/test_feedback.py`, `tests/test_ui.py` (**v1.9**) | 19 |
 | `src/evaluation/golden_dataset.py`, `scripts/run_eval.py`, `tests/test_learning_loop.py` (**v1.10**) | 11.1, 19 |
 | `src/services/flow_log.py`, `scripts/show_flow_log.py`, `tests/test_flow_log.py` (**v1.11**) | 13, 14, 19 |
+| `src/safety/scope_guard.py`, `src/evaluation/comparison.py`, `scripts/compare_evals.py`, `scripts/demo_tool_safeguards.py`, `tests/test_evidence_features.py` (**v1.12**) | 7.1, 9.1, 11.1, 19 |
 | `scripts/commit_state.sh`, `scripts/build_index.py`, `scripts/generate_data.py` | 12, 8, 16 |
 | `tests/` | 19 |
 
@@ -886,6 +899,8 @@ The store also persists the final `InvestigationOutput` of each run under `data/
 
 **Baseline quality (v1.8, gpt-4o-mini, one live run per scenario).** All five end `PENDING_REVIEW` with the expected severity and issue class and grounded actions (SC-01 rollback, SC-03 reschedule batch, SC-04 renew certificate, SC-05 revert config with regulatory notes). The causal change is found in SC-01, SC-03 and SC-05. Red herrings are still accepted in SC-02 (schema change) and SC-04 (gateway release): this is the baseline the adaptation loop (Section 11.3) is meant to improve, and is recorded as OI-25.
 
+**As built (v1.12): prompt strategies (Req. FR-78).** Besides v1, the RCA and Change Correlation Agents have two inactive variants with a `strategy` description: `p2-checklist` (guidelines: a reasoning checklist; for change correlation, three tests per change, path, mechanism and timing, with the failed test named) and `p3-examples` (the same guidelines plus one few-shot example of rejecting a red herring, with placeholder IDs such as `CHANGE-A` and `<KFK-id-1>`, never real-looking ones). `prompts.variant_override(name)` gives the override for every agent that has the variant; the adaptation engine numbers its own versions (`v2`, `v3`, ...) and ignores these names.
+
 ---
 
 ## 7. Tools — `src/tools/`
@@ -913,6 +928,8 @@ The store also persists the final `InvestigationOutput` of each run under `data/
 | LLM tool calls | `call_for_llm(name, args, caller, ctx)` returns the result as JSON text, or an error message for the model plus the guardrail flag `tool_access_blocked` |
 | Allowed callers | As Req. 10.5, plus `change_correlation_agent` → `get_service_dependencies` (needed for `on_dependency_path`). Workflow nodes (Section 4.2) may call every read tool except `lookup_stakeholders` (Notification Service only). Dispatch tools: `page_oncall` by `dispatch_fast_page`, `dispatch_page`, `rules_only_dispatch`; `itsm_upsert_incident` by `itsm_upsert`, `rules_only_dispatch`; `itsm_assign` by `dispatch_itsm_assign`, `rules_only_dispatch`; chat and email by `notify` |
 | Blocked call logging | `tool_access_blocked` in `error.log`; failed calls log `tool_call` in `error.log` with the error |
+
+**As built (v1.12) (Req. FR-75, FR-76).** Every `tool_call` line has a `status`: `ok`, `failed` or `invalid_arguments` (ERROR, from `call`), `invalid_arguments` (WARNING, from the argument check in `call_for_llm`: the tool is not run and the model gets the error), `retrieval_disabled` (INFO), and, from the RCA Agent, `duplicate_call` and `budget_exhausted` (WARNING). `rca_agent.plan_calls(calls, used, budget, seen)` decides which calls of a round run: a call with the same tool and arguments as an earlier one is skipped, then calls beyond `rca_tool_budget`. `ToolContext.retrieval_enabled` (from the graph state, which allows false only in evaluation mode) makes `call` return no documents for `search_knowledge_base`. `scripts/demo_tool_safeguards.py` drives these paths without an LLM against SC-04.
 
 ### 7.2 Common read-tool contract
 
@@ -1021,6 +1038,9 @@ Reused from v1.1 Section 7, with these changes.
 | `action_policy.py` | `load_policy()`; `check(actions) -> (actions, flags)` | `output_guardrails` |
 | `output_checks.py` | `validate_schema`, `check_grounding`, `check_tone`, `recheck_pii`, `check_error_message` | `output_guardrails`, `finalize`, `system_error`, feedback writers |
 | `guardrails.py` | `run_output_guardrails(state)` runs the checks in order; `check_adaptation_scope(change)` | `output_guardrails`, `adaptation_engine.py` |
+| `scope_guard.py` (**v1.12**) | `check_request(text) -> Refusal | None` (`category`, `message`, `reason`) | `classify_request` (intake), first |
+
+**As built (v1.12): scope guard (Req. FR-77).** Fixed regular expressions find a request, meaning an imperative at the start of a sentence or after a direct ask ("please", "can you", "should we"), followed by a verb of one category: money movement (reverse, refund, credit, transfer and so on, with an object or amount), approval (approve, authorise, sign off), legal advice (any mention of legal advice, liability, lawsuits), and data change or action (delete, update the balance, restart, fail over and so on). Past-tense reports and incident descriptions do not match. Intake returns `refused_<category>` with a message naming who can help, and logs `request_refused` with the category and input mode only. No golden input is refused (test).
 
 ### 9.2 Redaction patterns
 
@@ -1147,6 +1167,8 @@ DeepEval metrics: `FaithfulnessMetric`, `HallucinationMetric`, `ContextualRecall
 **`judge.py`:** `FunctionCallingJudge`, a subclass of `deepeval.models.DeepEvalBaseLLM`. `load_model` returns the project's `ChatOpenAI` (same base URL, `judge_model`, temperature 0, `llm_max_output_tokens`). `generate(prompt, schema=None)` returns plain text without a schema, and otherwise `with_structured_output(schema, method="function_calling")`. `a_generate` runs `generate` in a worker thread. `get_model_name` returns `judge_model`. Metrics run with `async_mode=False`.
 
 **As built (v1.10).** The golden files are read and appended by `golden_dataset.py` (`cases`, `case`, `version`, `add_case`, `next_case_id`). `run_case` runs one case in `evaluation` mode and returns programmatic checks: `severity_match` (and `severity_within_1`), `triage_class_match`, `abstention_correct` (INSUFFICIENT_EVIDENCE or needs human RCA), `change_hit`, `red_herring_rejected` (no manifest red herring linked to a hypothesis; for OI-25), `citation_validity` (hypothesis evidence in the output's evidence, cited documents among the retrieved ones), `retrieval_recall_at_5` (expected runbook among the first five retrieved documents, saved per run as `<run_id>.retrieval.json`), `dispatch_routing_correct` (from `dispatch.intended`), and an evidence rubric for RCA used when the judge is off. With the judge: GEval on hypotheses 1 to 3 (`rca_top1`, `rca_top3`), Faithfulness and Contextual Recall against the output's evidence and the top five retrieved excerpts, and Hallucination against only the cited evidence and documents (DeepEval 4.x scores 1 for consistent; stored as `1 - score`, and a case counts as hallucinated below 0.5). Cases run `eval_concurrency` (2) at a time. Results are saved as `data/evaluation/EVAL-<time>.json` (aggregate and per case) and logged as `eval_result`; each case's scores go to its trace and the golden set is mirrored to the LangFuse dataset. `run_fixtures` runs the four fixtures and SC-01, SC-03, SC-04 live in a temporary sandbox and checks Req. 12.2 outcomes, including the page time against the first `llm_call` log line; results are saved as `FIXT-<time>.json`.
+
+**As built (v1.12) (Req. FR-75, FR-78, FR-79).** `run_golden_set` and `run_case` take `retrieval_enabled`; results also store `retrieval_enabled` and a `label` (the overridden versions, plus "no retrieval"). `golden_dataset.CASE_SETS` names fixed subsets; `prompt-comparison` is the SC-02, SC-04 and SC-01 replay and free-text cases. `comparison.compare(eval_ids, title)` checks that the runs used the same cases and writes Markdown: configurations (prompt versions with their strategy, retrieval, judge, cost), metrics with the change against the first run, then per case each run's output (status, severity, issue class, top cause, blamed changes with red herrings marked) and what improved or worsened against the first run; `scripts/compare_evals.py` saves it under `docs/evidence/`. `run_consistency(repeats, case_ids, ...)` runs every case `repeats` times without the judge and saves `CONS-<time>.json` with, per field in `CONSISTENCY_FIELDS`, the share of cases whose runs all agree, plus the share where every field agrees (top-cause wording is kept but not compared).
 
 ### 11.2 `langfuse_tracker.py`
 
@@ -1642,6 +1664,7 @@ Tests marked `llm` make API calls and are deselected by default (`pytest -m llm`
 | ALIGN-10 (**v1.9**) | Phase 5 alignment: pages built in Phase 5 and Phase 6, review rules, S2 to S1 re-classification, H-1 and H-2 records and log events, `runner.py` in the folder structure | **Done:** Req. v0.15 Sections 4.1 (FR-53), 13.5, 15, 16, 17 |
 | ALIGN-11 (**v1.10**) | Phase 6 alignment: first measurements, reviewer cap for small patterns, new files and folders, OPS-1 status | **Done:** Req. v0.16 Sections 12.2, 12.6, 17, 18.2 |
 | ALIGN-12 (**v1.11**) | Flow log of a run | **Done:** Req. v0.17 FR-74, Sections 15, 16 |
+| ALIGN-13 (**v1.12**) | Capstone evidence features | **Done:** Req. v0.18 FR-75 to FR-79, Section 16 |
 | OI-25 (**v1.8**) | Change correlation still accepts some red herrings with gpt-4o-mini (SC-02, SC-04) | Baseline for the adaptation loop (Phase 6); revisit the prompt only through approved adaptations. **v1.10:** measured by `red_herring_rejected` per golden case |
 | OI-24 (**v1.6**) | SME validation of the generated ground truth (`eval_rubric.json`, `manifest.json`) and of the 28 knowledge-base drafts | Changes to the ground truth are made in `data/generators/scenarios.py`, then `--write-golden`, before `feedback_loop.promote` adds the first case (promoted cases exist only in the golden files); changes to documents are made in `knowledge/raw/` (or the PDF sources) |
 

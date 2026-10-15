@@ -253,7 +253,8 @@ def flow_log_view(run_id: str, key: str) -> None:
     cols[0].metric("Run time", f"{totals['run_s']:.1f} s" if totals["run_s"] is not None else "n/a")
     cols[1].metric("LLM calls", totals["llm_calls"])
     cols[2].metric("Tokens", f"{totals['tokens']:,}")
-    cols[3].metric("Tool calls", totals["tool_calls"])
+    rejected = totals["rejected_tool_calls"]
+    cols[3].metric("Tool calls", f"{totals['tool_calls']}" + (f" ({rejected} rejected)" if rejected else ""))
     cols[4].metric("Errors and retries", totals["errors"])
     present = [s for s in (*flow_log.STAGES, flow_log.OTHER) if any(e["flow_stage"] == s for e in entries)]
     c1, c2 = st.columns(2)

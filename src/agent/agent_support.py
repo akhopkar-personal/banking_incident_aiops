@@ -31,7 +31,8 @@ class AgentRun:
         self.incident = incident
         self.ctx = ToolContext(scenario_id=incident.scenario_id, incident_id=incident.incident_id,
                                run_id=incident.run_id, withheld_sources=tuple(incident.withheld_sources),
-                               window_start=incident.window_start, window_end=incident.window_end)
+                               window_start=incident.window_start, window_end=incident.window_end,
+                               retrieval_enabled=self.state.get("retrieval_enabled", True))
         self.version = prompts.resolve_version(self.agent, self.state.get("prompt_version_override"))
         self.llm = llm.LlmCall(agent=self.agent, incident_id=incident.incident_id, run_id=incident.run_id,
                                llm_available=self.state.get("llm_available", True), parent_config=self.config)

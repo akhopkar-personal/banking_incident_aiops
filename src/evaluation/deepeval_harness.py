@@ -212,8 +212,8 @@ def deepeval_metrics(output: dict[str, Any], case: dict[str, Any], retrieval: li
 # --------------------------------------------------------------------- runs
 
 
-def run_case(case: dict[str, Any], version_override: Optional[dict[str, str]] = None, judge: Any = None
-             ) -> dict[str, Any]:
+def run_case(case: dict[str, Any], version_override: Optional[dict[str, str]] = None, judge: Any = None,
+             retrieval_enabled: bool = True) -> dict[str, Any]:
     """One golden case through the graph in evaluation mode, with its metrics."""
     from src.agent.core_agent import IntakeRejection, run_investigation
 
@@ -226,7 +226,7 @@ def run_case(case: dict[str, Any], version_override: Optional[dict[str, str]] = 
             test_input["raw_input"], scenario_id=case["scenario_id"], supplied_window=test_input.get("window"),
             run_mode=RunMode.EVALUATION, prompt_version_override=version_override or None,
             reference_time=parse_time(test_input["reference_time"]) if test_input.get("reference_time") else None,
-            withheld_sources=test_input.get("withheld_sources") or [])
+            withheld_sources=test_input.get("withheld_sources") or [], retrieval_enabled=retrieval_enabled)
     except Exception as exc:  # noqa: BLE001 - recorded as a failed case
         log_error("system_error", component="deepeval_harness", exc=exc, incident_id="unknown", run_id="unknown",
                   case_id=case["case_id"])
@@ -285,8 +285,10 @@ def new_eval_id(prefix: str = "EVAL") -> str:
 def run_golden_set(version_override: Optional[dict[str, str]] = None, *, phase: str = "baseline",
                    adaptation_id: Optional[str] = None, case_ids: Optional[list[str]] = None,
                    use_judge: bool = True, judge: Any = None, progress: Optional[Progress] = None,
-                   concurrency: Optional[int] = None) -> dict[str, Any]:
-    """Run the golden set (or `case_ids`) and return the saved result (Section 11.1)."""
+                   concurrency: Optional[int] = None, retrieval_enabled: bool = True,
+                   label: Optional[str] = None) -> dict[str, Any]:
+    """Run the golden set (or `case_ids`) and return the saved result (Section 11.1). `label` names the
+    configuration in comparisons (FR-78); `retrieval_enabled=False` runs without the knowledge base (FR-75)."""
     from src.agent import prompts
 
     cases = golden_dataset.cases(case_ids)
@@ -302,7 +304,8 @@ def run_golden_set(version_override: Optional[dict[str, str]] = None, *, phase: 
     results: list[dict[str, Any]] = []
     workers = concurrency or config.get_settings().eval_concurrency
     with ThreadPoolExecutor(max_workers=workers, thread_name_prefix="eval") as pool:
-        futures = {pool.submit(run_case, c, version_override, judge if use_judge else None): c for c in cases}
+        futures = {pool.submit(run_case, c, version_override, judge if use_judge else None, retrieval_enabled): c
+                   for c in cases}
         for future in as_completed(futures):
             results.append(future.result())
             if progress:
@@ -312,14 +315,100 @@ def run_golden_set(version_override: Optional[dict[str, str]] = None, *, phase: 
     result = {"eval_id": eval_id, "kind": "golden", "phase": phase, "adaptation_id": adaptation_id,
               "golden_dataset_version": golden_dataset.version(), "prompt_version_set": version_set,
               "version_override": version_override or {}, "use_judge": bool(use_judge),
+              "retrieval_enabled": bool(retrieval_enabled),
+              "label": label or _label(version_override, retrieval_enabled),
               "started_at": started.isoformat(), "finished_at": now().isoformat(),
               "aggregate": aggregate(results), "cases": results}
     _save(result)
     log_eval("eval_result", component="deepeval_harness", eval_id=eval_id, phase=phase, adaptation_id=adaptation_id,
              golden_dataset_version=result["golden_dataset_version"], prompt_version_set=version_set,
              metrics={k: v for k, v in result["aggregate"].items() if v is not None}, cases=len(results),
-             use_judge=bool(use_judge))
+             use_judge=bool(use_judge), retrieval_enabled=bool(retrieval_enabled), label=result["label"])
     langfuse_tracker.sync_golden_dataset(golden_dataset.cases(), result["golden_dataset_version"])
+    return result
+
+
+def _label(version_override: Optional[dict[str, str]], retrieval_enabled: bool) -> str:
+    """A short name for a configuration: the overridden prompt versions and the retrieval switch."""
+    parts = sorted(set((version_override or {}).values())) or ["active prompts"]
+    return ", ".join(parts) + ("" if retrieval_enabled else ", no retrieval")
+
+
+# -------------------------------------------------------------- consistency
+
+# Fields whose agreement across repeated runs of the same case is measured (FR-79).
+CONSISTENCY_FIELDS = ("status", "severity", "issue_class", "rca_top1_correct", "red_herring_rejected",
+                      "top_change")
+
+
+def _fingerprint(case_result: dict[str, Any]) -> dict[str, Any]:
+    """What a run decided, in the fields compared across repeats."""
+    output = (store.load_output(case_result["run_id"]) if case_result.get("run_id") else None) or {}
+    metrics = case_result.get("metrics") or {}
+    contributing = [f["change_id"] for f in output.get("change_findings") or [] if f.get("linked_hypothesis_rank")]
+    top = (output.get("hypotheses") or [{}])[0]
+    return {"status": case_result.get("status"), "severity": (output.get("severity") or {}).get("level"),
+            "issue_class": output.get("issue_class"),
+            "rca_top1_correct": metrics.get("rca_top1", metrics.get("rca_rubric_top1")),
+            "red_herring_rejected": metrics.get("red_herring_rejected"),
+            "top_change": contributing[0] if contributing else None,
+            "top_root_cause": top.get("root_cause")}
+
+
+def consistency(runs_by_case: dict[str, list[dict[str, Any]]]) -> dict[str, Any]:
+    """Per field, the share of cases whose repeated runs all agree; and the share where every field agrees."""
+    per_case = {case_id: {f: len({repr(p[f]) for p in prints}) == 1 for f in CONSISTENCY_FIELDS}
+                for case_id, prints in runs_by_case.items()}
+    cases = len(per_case) or 1
+    by_field = {f: round(sum(c[f] for c in per_case.values()) / cases, 4) for f in CONSISTENCY_FIELDS}
+    overall = round(sum(all(c.values()) for c in per_case.values()) / cases, 4)
+    return {"by_field": by_field, "all_fields": overall, "per_case": per_case}
+
+
+def run_consistency(repeats: int, case_ids: Optional[list[str]] = None,
+                    version_override: Optional[dict[str, str]] = None, retrieval_enabled: bool = True,
+                    progress: Optional[Progress] = None, concurrency: Optional[int] = None) -> dict[str, Any]:
+    """Run each case `repeats` times with the same configuration and measure how often the runs agree (FR-79).
+    Programmatic checks only: the judge is not needed to compare runs with each other."""
+    from src.agent import prompts
+
+    if repeats < 2:
+        raise ValueError("consistency needs at least 2 repeats")
+    cases = golden_dataset.cases(case_ids)
+    if not cases:
+        raise ValueError("no golden cases selected")
+    jobs = [(c, i) for c in cases for i in range(repeats)]
+    started = now()
+    done: list[tuple[dict[str, Any], dict[str, Any]]] = []
+    workers = concurrency or config.get_settings().eval_concurrency
+    with ThreadPoolExecutor(max_workers=workers, thread_name_prefix="consistency") as pool:
+        futures = {pool.submit(run_case, c, version_override, None, retrieval_enabled): (c, i) for c, i in jobs}
+        for future in as_completed(futures):
+            done.append((futures[future][0], future.result()))
+            if progress:
+                progress(len(done), len(jobs), futures[future][0]["case_id"])
+    runs_by_case: dict[str, list[dict[str, Any]]] = {c["case_id"]: [] for c in cases}
+    detail: dict[str, list[dict[str, Any]]] = {c["case_id"]: [] for c in cases}
+    for case, case_result in done:
+        printed = _fingerprint(case_result)
+        runs_by_case[case["case_id"]].append(printed)
+        detail[case["case_id"]].append({"run_id": case_result.get("run_id"), **printed,
+                                        "cost_usd": (case_result.get("metrics") or {}).get("cost_usd")})
+    scores = consistency(runs_by_case)
+    result = {"eval_id": new_eval_id("CONS"), "kind": "consistency", "repeats": repeats,
+              "prompt_version_set": {**prompts.active_version_set(), **(version_override or {})},
+              "version_override": version_override or {}, "retrieval_enabled": bool(retrieval_enabled),
+              "label": _label(version_override, retrieval_enabled),
+              "golden_dataset_version": golden_dataset.version(),
+              "started_at": started.isoformat(), "finished_at": now().isoformat(),
+              "consistency": {k: v for k, v in scores.items() if k != "per_case"},
+              "cases": [{"case_id": cid, "agrees": scores["per_case"][cid], "runs": detail[cid]} for cid in detail],
+              "cost_usd": round(sum(r.get("cost_usd") or 0 for runs in detail.values() for r in runs), 4)}
+    _save(result)
+    log_eval("eval_result", component="deepeval_harness", eval_id=result["eval_id"], phase="consistency",
+             prompt_version_set=result["prompt_version_set"], repeats=repeats, cases=len(cases),
+             metrics={"consistency_all_fields": scores["all_fields"],
+                      **{f"consistency_{k}": v for k, v in scores["by_field"].items()}})
     return result
 
 

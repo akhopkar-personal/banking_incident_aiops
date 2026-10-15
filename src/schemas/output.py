@@ -88,6 +88,7 @@ class OutputMetadata(Schema):
     action_policy_version: Optional[str] = None
     run_mode: RunMode = RunMode.LIVE
     reward_score_at_run: Optional[float] = None
+    retrieval_enabled: bool = True  # v1.12 (FR-75)
 
 
 class ResolutionInfo(Schema):

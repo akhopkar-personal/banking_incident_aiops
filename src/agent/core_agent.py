@@ -30,6 +30,7 @@ from src.logger_setup import log_context, log_error, log_interaction
 from src.safety import guardrails, output_checks
 from src.safety.injection_detector import scan
 from src.safety.redaction import redact
+from src.safety.scope_guard import check_request
 from src.schemas.analysis import SummaryFields
 from src.schemas.enums import ErrorType, IncidentState, InputMode, InvestigationStatus, RunMode, SeverityGroup, SeverityLevel
 from src.schemas.evidence import EvidenceItem
@@ -50,7 +51,8 @@ class IntakeRejection(BaseModel):
     """The input was not accepted; no incident was created (Section 4.1)."""
 
     reason: str  # not_an_incident_report, alert_json_missing_required_fields, no_time_window, no_data_source,
-    #              internal_error
+    #              internal_error; v1.12 (FR-77): refused_money_movement, refused_approval,
+    #              refused_legal_advice, refused_data_change_or_action
     message: str
 
 
@@ -111,6 +113,12 @@ def classify_request(state: dict[str, Any]) -> dict[str, Any]:
     given_reference = state.get("reference_time")
     out: dict[str, Any] = {"scenario_id": scenario_id, "reported_service": None, "reported_severity": None,
                            "hints": [], "timezone_assumed_utc": False}
+    refusal = check_request(raw)  # FR-77: before anything else, so no incident and no LLM sees the request
+    if refusal is not None:
+        # The text itself is not logged: it may hold customer details.
+        log_interaction("request_refused", component="intake", run_id=state.get("run_id"),
+                        category=refusal.category, input_mode="alert_json" if raw.startswith("{") else "free_text")
+        return _reject(refusal.reason, refusal.message)
 
     if not raw:
         out["input_mode"] = InputMode.DETECTION_REPLAY
@@ -320,6 +328,7 @@ def _metadata(state, rules_version: Optional[str]) -> OutputMetadata:
         timezone_assumed_utc=state["incident"].timezone_assumed_utc if state.get("incident") else False,
         langfuse_trace_id=state.get("langfuse_trace_id"), prompt_version_set=dict(state.get("prompt_version_set") or {}),
         rules_version=rules_version, action_policy_version=state.get("action_policy_version"),
+        retrieval_enabled=state.get("retrieval_enabled", True),
         run_mode=state.get("run_mode", RunMode.LIVE))
 
 
@@ -570,15 +579,16 @@ def run_investigation(raw_input: str = "", *, scenario_id: Optional[str] = None,
                       supplied_window: Optional[dict[str, Any]] = None, run_mode: RunMode = RunMode.LIVE,
                       prompt_version_override: Optional[dict[str, str]] = None,
                       progress_callback: Optional[Callable[[str, dict[str, Any]], None]] = None,
-                      reference_time: Optional[datetime] = None, withheld_sources: Optional[list[str]] = None
-                      ) -> Union[InvestigationOutput, IntakeRejection]:
+                      reference_time: Optional[datetime] = None, withheld_sources: Optional[list[str]] = None,
+                      retrieval_enabled: bool = True) -> Union[InvestigationOutput, IntakeRejection]:
     """Run one investigation (Section 4.1). An empty raw_input with a scenario_id is a detection replay."""
     from src.evaluation.langfuse_tracker import investigation_trace
 
     run_id = store.new_run_id()
     state = initial_state(raw_input, run_mode=run_mode, supplied_window=supplied_window, scenario_id=scenario_id,
                           prompt_version_override=prompt_version_override, run_id=run_id,
-                          reference_time=reference_time, withheld_sources=withheld_sources)
+                          reference_time=reference_time, withheld_sources=withheld_sources,
+                          retrieval_enabled=retrieval_enabled)
     final: dict[str, Any] = dict(state)
     # Evaluation runs get their own store (Section 4.6): no dedup against live incidents, and they stay
     # out of the UI's incident list. A caller may already have chosen a store (the harness sandbox).

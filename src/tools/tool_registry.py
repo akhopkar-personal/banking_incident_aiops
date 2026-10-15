@@ -243,6 +243,13 @@ class ToolRegistry:
         transport = "inprocess"
         started = time.perf_counter()
         error: Optional[str] = None
+        status = "failed"
+        if name == "search_knowledge_base" and not ctx.retrieval_enabled:
+            # Retrieval switched off (FR-75): the agents see no documents, as if the index were empty.
+            log_interaction("tool_call", component=caller, tool=name, caller=caller, transport="none", latency_ms=0,
+                            status="retrieval_disabled", incident_id=ctx.incident_id or "unknown",
+                            run_id=ctx.run_id or "unknown")
+            return []
         try:
             bridge = self._mcp() if spec.mcp and self.transport == "mcp" else None
             if bridge is not None:
@@ -259,16 +266,16 @@ class ToolRegistry:
             error = str(exc)
             raise
         except (TypeError, ValueError, KeyError) as exc:
-            error = f"{type(exc).__name__}: {exc}"
+            error, status = f"{type(exc).__name__}: {exc}", "invalid_arguments"
             raise InvalidToolArguments(f"{name} called with invalid arguments: {type(exc).__name__}") from exc
         finally:
             fields = {"tool": name, "caller": caller, "transport": transport,
                       "latency_ms": round((time.perf_counter() - started) * 1000),
                       "incident_id": ctx.incident_id or "unknown", "run_id": ctx.run_id or "unknown"}
             if error:
-                log_error("tool_call", component=caller, error=error, **fields)
+                log_error("tool_call", component=caller, error=error, status=status, **fields)
             else:
-                log_interaction("tool_call", component=caller, **fields)
+                log_interaction("tool_call", component=caller, status="ok", **fields)
 
     def call_for_llm(self, name: str, args: dict[str, Any], caller: str, ctx: ToolContext
                      ) -> tuple[str, list[str], Any]:
@@ -281,6 +288,10 @@ class ToolRegistry:
             return f"Error: tool {name!r} is not available to you ({exc.reason}).", ["tool_access_blocked"], None
         problem = self._check_llm_args(spec, args)
         if problem:
+            # FR-76: the model's mistake goes back to it and is logged; the tool is not run.
+            log_interaction("tool_call", component=caller, level="WARNING", tool=name, caller=caller,
+                            transport="none", latency_ms=0, status="invalid_arguments", error=problem,
+                            incident_id=ctx.incident_id or "unknown", run_id=ctx.run_id or "unknown")
             return f"Error: invalid arguments for {name}: {problem}. Correct them and try again.", [], None
         try:
             result = self.call(name, args, caller, ctx)

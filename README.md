@@ -215,6 +215,10 @@ Run from the `banking_incident_aiops` folder with the environment active.
 | Golden-set evaluation with the DeepEval judge (about 12 minutes and $0.15 to $0.25; nothing is dispatched) | `python scripts\run_eval.py` | `python scripts/run_eval.py` |
 | Same, cheaper: one scenario, programmatic metrics only | `python scripts\run_eval.py --scenario SC-03 --no-judge` | `python scripts/run_eval.py --scenario SC-03 --no-judge` |
 | Fixture checks (failure, LLM down, alert storm, injection, S1 page latency; about $0.02) | `python scripts\run_eval.py --fixtures` | `python scripts/run_eval.py --fixtures` |
+| Prompt strategies on a fixed test set (FR-78), then the comparison table | `python scripts\run_eval.py --case-set prompt-comparison` (then `--variant p2-checklist`, `--variant p3-examples`), then `python scripts\compare_evals.py EVAL-A EVAL-B EVAL-C` | `python scripts/run_eval.py --case-set prompt-comparison` (then the two variants), then `python scripts/compare_evals.py EVAL-A EVAL-B EVAL-C` |
+| Same test set without retrieval (FR-75) | `python scripts\run_eval.py --case-set prompt-comparison --no-retrieval` | `python scripts/run_eval.py --case-set prompt-comparison --no-retrieval` |
+| Consistency: each case 3 times (FR-79) | `python scripts\run_eval.py --case-set prompt-comparison --repeat 3` | `python scripts/run_eval.py --case-set prompt-comparison --repeat 3` |
+| Tool safeguards demo: correct, wrong, blocked, duplicate and over-budget calls (FR-76; no LLM, free) | `python scripts\demo_tool_safeguards.py` | `python scripts/demo_tool_safeguards.py` |
 | Evidence report for an adaptation | `python -m src.evaluation.evidence_report --adaptation-id ADP-001` | `python -m src.evaluation.evidence_report --adaptation-id ADP-001` |
 | Save the session's data (incidents, feedback, evaluations, logs) to git before Vocareum ends | (not needed) | `bash scripts/commit_state.sh` (add `--push` to push) |
 | Run a scenario without the LLM (writes to `data/outbox/`) | `python scripts\run_rules_only.py SC-01` | `python scripts/run_rules_only.py SC-01` |
@@ -252,8 +256,8 @@ Run from the `banking_incident_aiops` folder with the environment active.
 
 | Document | Path |
 |---|---|
-| Requirements specification | [docs/AI_Capstone_Project_Requirements_v0.17.md](docs/AI_Capstone_Project_Requirements_v0.17.md) |
-| Architecture specification | [docs/AI_Capstone_Project_Architecture_Specification_v1.11.md](docs/AI_Capstone_Project_Architecture_Specification_v1.11.md) |
+| Requirements specification | [docs/AI_Capstone_Project_Requirements_v0.18.md](docs/AI_Capstone_Project_Requirements_v0.18.md) |
+| Architecture specification | [docs/AI_Capstone_Project_Architecture_Specification_v1.12.md](docs/AI_Capstone_Project_Architecture_Specification_v1.12.md) |
 | Architecture diagrams (Mermaid sources and PNG exports) | [docs/diagrams/](docs/diagrams/) |
 | Synthetic scenarios and fixtures (one folder each, with `manifest.json`) | [data/telemetry/](data/telemetry/) |
 | Knowledge-base documents (drafts for SME review) | [knowledge/raw/](knowledge/raw/) |
