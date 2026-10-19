@@ -54,6 +54,27 @@ def generate(root: Path, write_golden: bool) -> list[Path]:
     return written
 
 
+GOLDEN_FILES = ("test_inputs.json", "eval_rubric.json")
+
+
+def _seed_part(data):
+    """The golden seed inside a golden file: without the cases SME promotion appended (variant
+    "feedback") and without the version number those promotions bumped (Req. Section 12.1)."""
+    if isinstance(data, dict):
+        return {**{k: v for k, v in data.items() if k != "version"},
+                "cases": [c for c in data["cases"] if c.get("variant") != "feedback"]}
+    return [item for item in data if item.get("variant") != "feedback"]
+
+
+def _same_seed(generated: Path, committed: Path) -> bool:
+    """The golden files grow in use, so they are compared by content, seed cases only."""
+    try:
+        return _seed_part(json.loads(generated.read_text(encoding="utf-8"))) == _seed_part(
+            json.loads(committed.read_text(encoding="utf-8")))
+    except ValueError:
+        return False
+
+
 def check() -> int:
     """Regenerate into a temporary directory and compare with the repository."""
     with tempfile.TemporaryDirectory() as tmp:
@@ -63,7 +84,12 @@ def check() -> int:
         for path in written:
             rel = path.relative_to(tmp_root)
             committed = REPO_ROOT / rel
-            if not committed.exists() or not filecmp.cmp(path, committed, shallow=False):
+            if not committed.exists():
+                stale.append(str(rel))
+            elif rel.name in GOLDEN_FILES:
+                if not _same_seed(path, committed):
+                    stale.append(str(rel))
+            elif not filecmp.cmp(path, committed, shallow=False):
                 stale.append(str(rel))
         committed_telemetry = {p.relative_to(REPO_ROOT) for p in (REPO_ROOT / "data" / "telemetry").rglob("*")
                                if p.is_file()}

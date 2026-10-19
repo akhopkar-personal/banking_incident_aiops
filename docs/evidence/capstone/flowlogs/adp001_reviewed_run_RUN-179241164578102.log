@@ -1,0 +1,52 @@
+Flow log of RUN-179241164578102, incident INC-20260409-001
+
+12:07:26.007     +0.00s INFO    [Detect] anomaly_detector | anomaly_detected: payments-service duplicate_transactions: observed 5.0 against baseline 0.0 (z None, threshold)
+12:07:26.009     +0.00s INFO    [Detect] anomaly_detector | anomaly_detected: payments-service complaints_30min:card_payment: observed 49.0 against baseline 0.45 (z None, threshold)
+12:07:26.023     +0.02s INFO    [Detect] alert_correlator | incident_deduplicated: idempotency_key ef2147a919035d50; anomaly_count 2; root_service payments-service
+12:07:26.025     +0.02s INFO    [Detect] correlate_dedup | node_completed: step finished in 51 ms
+12:07:26.032     +0.03s INFO    [Detect] redact | node_completed: step finished in 0 ms
+12:07:26.092     +0.09s INFO    [Triage] severity_rules_pass1 | severity_rules_evaluated: pass1: S2 (major); rules fired: R-S2-DUP
+12:07:26.092     +0.09s INFO    [Triage] severity_rules_pass1 | node_completed: step finished in 30 ms
+12:07:26.244     +0.24s INFO    [Triage] triage_agent | tool_call: tool query_complaints over mcp, 127 ms
+12:07:26.264     +0.26s INFO    [Triage] triage_agent | tool_call: tool get_service_dependencies over mcp, 18 ms
+12:07:26.896     +0.89s INFO    [Triage] triage_agent | tool_call: tool search_knowledge_base over mcp, 631 ms
+12:07:30.346     +4.34s INFO    [Triage] triage_agent | llm_call: gpt-4o-mini-2024-07-18 (structured): 3225 tokens in, 156 out, 3440 ms, finish stop
+12:07:30.346     +4.34s INFO    [Triage] triage_agent | node_completed: step finished in 4238 ms
+12:07:30.384     +4.38s INFO    [Triage] itsm_upsert | tool_call: tool itsm_upsert_incident over inprocess, 25 ms
+12:07:30.392     +4.38s INFO    [Triage] itsm_upsert | dispatch_itsm: ITSM upsert MOCK-ITSM-0003
+12:07:30.392     +4.38s INFO    [Triage] itsm_upsert | node_completed: step finished in 31 ms
+12:07:30.416     +4.41s INFO    [Triage] severity_rules_pass2 | severity_rules_evaluated: pass2: S2 (major); rules fired: R-S2-DUP, R-P2-INTEG, R-P2-CHANNEL
+12:07:30.416     +4.41s INFO    [Triage] severity_rules_pass2 | node_completed: step finished in 22 ms
+12:07:30.522     +4.51s INFO    [Analyse] change_correlation_agent | tool_call: tool query_change_records over mcp, 66 ms
+12:07:30.553     +4.55s INFO    [Analyse] change_correlation_agent | tool_call: tool get_service_dependencies over mcp, 12 ms
+12:07:33.125     +7.12s INFO    [Analyse] rca_agent | llm_call: gpt-4o-mini-2024-07-18 (tools): 2422 tokens in, 190 out, 2661 ms, finish tool_calls
+12:07:33.150     +7.14s INFO    [Analyse] rca_agent | tool_call: tool query_kafka_events over mcp, 31 ms
+12:07:33.178     +7.17s INFO    [Analyse] rca_agent | tool_call: tool query_logs over mcp, 47 ms
+12:07:33.181     +7.17s INFO    [Analyse] rca_agent | tool_call: tool query_complaints over mcp, 48 ms
+12:07:33.234     +7.23s INFO    [Analyse] change_correlation_agent | llm_call: gpt-4o-mini-2024-07-18 (structured): 759 tokens in, 157 out, 2689 ms, finish stop
+12:07:33.234     +7.23s INFO    [Analyse] change_correlation_agent | node_completed: step finished in 2797 ms
+12:07:39.483    +13.48s INFO    [Analyse] rca_agent | llm_call: gpt-4o-mini-2024-07-18 (tools): 4292 tokens in, 680 out, 6299 ms, finish stop
+12:07:49.221    +23.21s INFO    [Analyse] rca_agent | llm_call: gpt-4o-mini-2024-07-18 (structured): 3797 tokens in, 881 out, 9740 ms, finish stop
+12:07:49.230    +23.22s INFO    [Analyse] rca_agent | node_completed: step finished in 18775 ms
+12:07:49.244    +23.24s INFO    [Analyse] analysis_join | node_completed: step finished in 0 ms
+12:07:51.596    +25.59s INFO    [Analyse] recommendation_agent | tool_call: tool search_knowledge_base over mcp, 2339 ms
+12:07:53.997    +27.99s INFO    [Analyse] recommendation_agent | tool_call: tool search_knowledge_base over mcp, 2394 ms
+12:07:54.428    +28.42s INFO    [Analyse] recommendation_agent | tool_call: tool search_knowledge_base over mcp, 429 ms
+12:08:00.478    +34.47s INFO    [Analyse] recommendation_agent | llm_call: gpt-4o-mini-2024-07-18 (structured): 2378 tokens in, 412 out, 6044 ms, finish stop
+12:08:00.478    +34.47s INFO    [Analyse] recommendation_agent | node_completed: step finished in 11214 ms
+12:08:00.537    +34.53s INFO    [Respond] output_guardrails | guardrail_block: guardrail flags: ungrounded_removed
+12:08:00.537    +34.53s INFO    [Respond] output_guardrails | node_completed: step finished in 9 ms
+12:08:00.565    +34.56s INFO    [Respond] confidence_gate | node_completed: step finished in 0 ms
+12:08:00.579    +34.57s INFO    [Respond] final_severity_gate | node_completed: step finished in 0 ms
+12:08:00.639    +34.63s INFO    [Respond] dispatch_page | tool_call: tool page_oncall over inprocess, 2 ms
+12:08:00.646    +34.64s INFO    [Respond] dispatch_page | dispatch_page: page (update), PAGE-891CC8A4E1
+12:08:00.650    +34.64s INFO    [Respond] dispatch_page | node_completed: step finished in 33 ms
+12:08:00.684    +34.68s INFO    [Respond] notify | tool_call: tool lookup_stakeholders over inprocess, 0 ms
+12:08:00.701    +34.69s INFO    [Respond] notify | node_completed: step finished in 25 ms
+12:08:00.777    +34.77s INFO    [Respond] finalize | node_completed: step finished in 41 ms
+12:22:52.065   +926.06s INFO    [Close and learn] feedback_loop | feedback_candidate_created: feedback_id FB-96225DCF95; candidate_id FC-0002; issue_type root_cause_error
+12:22:52.070   +926.06s INFO    [Close and learn] review_store | review_decision: escalation review: reject → REJECTED; reason: The root cause does not mention the retry-policy configuration change on payments-service.
+12:22:52.071   +926.06s INFO    [Close and learn] review_store | rating_recorded: ratings rca 2, actions 3, severity 2, summary 2 (mean 2.25)
+12:35:33.342  +1687.34s INFO    [Close and learn] feedback_loop | feedback_candidate_promoted: feedback_id FB-96225DCF95; candidate_id FC-0002; case_id GC-SC05-FB002; golden_dataset_version golden-v3; reviewer_role sme; reviewer_id sme-1
+
+48 lines · run 34.77 s · 6 LLM calls, 19349 tokens · 14 tool calls · 0 errors

@@ -24,15 +24,28 @@ _ENV_NAMES = ("OPENAI_API_KEY", "OPENAI_BASE_URL", "LANGFUSE_PUBLIC_KEY", "LANGF
 def sandbox_settings(root, **overrides) -> Settings:
     """Settings that read the committed reference data and write only under `root`, with offline
     hash embeddings and in-process tools unless overridden. The files the learning loop writes
-    (golden dataset, prompt versions, retrieval aliases) are copied under `root` first."""
+    (golden dataset, prompt versions, retrieval aliases) are copied under `root` first, as their seed:
+    cases an SME promoted and prompt versions an adaptation created are left out, so tests do not
+    depend on how far the learning loop has been used on this machine."""
+    import json
     import shutil
 
     from src.config import REPO_ROOT
 
     golden = root / "golden"
     golden.mkdir(parents=True, exist_ok=True)
-    for name in ("eval_rubric.json", "test_inputs.json", "prompt_versions.json"):
-        shutil.copy(REPO_ROOT / "data" / name, golden / name)
+    data = REPO_ROOT / "data"
+    rubric = json.loads((data / "eval_rubric.json").read_text(encoding="utf-8"))
+    rubric.update(version="golden-v1", cases=[c for c in rubric["cases"] if c.get("variant") != "feedback"])
+    (golden / "eval_rubric.json").write_text(json.dumps(rubric, indent=2) + "\n", encoding="utf-8")
+    inputs = [i for i in json.loads((data / "test_inputs.json").read_text(encoding="utf-8"))
+              if i.get("variant") != "feedback"]
+    (golden / "test_inputs.json").write_text(json.dumps(inputs, indent=1) + "\n", encoding="utf-8")
+    versions = json.loads((data / "prompt_versions.json").read_text(encoding="utf-8"))
+    for entry in versions["agents"].values():
+        entry["versions"] = {k: v for k, v in entry["versions"].items() if not v.get("created_by_adaptation")}
+        entry["active"] = "v1"
+    (golden / "prompt_versions.json").write_text(json.dumps(versions, indent=2) + "\n", encoding="utf-8")
     shutil.copy(REPO_ROOT / "knowledge" / "retrieval_aliases.json", golden / "retrieval_aliases.json")
     values = dict(logs_dir=root / "logs", outbox_dir=root / "outbox", incident_state_dir=root / "state",
                   faiss_index_dir=root / "index", processed_dir=root / "processed",

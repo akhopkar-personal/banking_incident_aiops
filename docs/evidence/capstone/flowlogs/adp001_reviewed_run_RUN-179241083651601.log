@@ -1,0 +1,59 @@
+Flow log of RUN-179241083651601, incident INC-20260409-001
+
+11:54:00.800     +0.00s INFO    [Detect] anomaly_detector | anomaly_detected: payments-service duplicate_transactions: observed 6.0 against baseline 0.0 (z None, threshold)
+11:54:00.802     +0.00s INFO    [Detect] anomaly_detector | anomaly_detected: payments-service complaints_30min:card_payment: observed 68.0 against baseline 0.45 (z None, threshold)
+11:54:00.847     +0.05s INFO    [Detect] alert_correlator | incident_created: new incident for payments-service from 2 anomalies
+11:54:00.850     +0.05s INFO    [Detect] correlate_dedup | node_completed: step finished in 499 ms
+11:54:00.862     +0.06s INFO    [Detect] redact | node_completed: step finished in 0 ms
+11:54:01.013     +0.21s INFO    [Triage] severity_rules_pass1 | severity_rules_evaluated: pass1: S2 (major); rules fired: R-S2-DUP, R-S2-CMP
+11:54:01.013     +0.21s INFO    [Triage] severity_rules_pass1 | node_completed: step finished in 144 ms
+11:54:05.401     +4.60s INFO    [Other] tool_registry | mcp_server_started: tool_count 13; tools ["get_service_dependencies", "query_acl_audit", "query_api_metrics", "query_change_records", "query_cluster_quorum", "q…
+11:54:05.423     +4.62s INFO    [Triage] triage_agent | tool_call: tool query_complaints over mcp, 4395 ms
+11:54:05.426     +4.63s INFO    [Triage] triage_agent | tool_call: tool get_service_dependencies over mcp, 6 ms
+11:54:05.853     +5.05s INFO    [Triage] triage_agent | tool_call: tool search_knowledge_base over mcp, 418 ms
+11:54:14.159    +13.36s INFO    [Triage] triage_agent | llm_call: gpt-4o-mini-2024-07-18 (structured): 3547 tokens in, 143 out, 8299 ms, finish stop
+11:54:14.159    +13.36s INFO    [Triage] triage_agent | node_completed: step finished in 13138 ms
+11:54:14.202    +13.40s INFO    [Triage] itsm_upsert | tool_call: tool itsm_upsert_incident over inprocess, 20 ms
+11:54:14.218    +13.42s INFO    [Triage] itsm_upsert | dispatch_itsm: ITSM upsert MOCK-ITSM-0003 (created)
+11:54:14.218    +13.42s INFO    [Triage] itsm_upsert | node_completed: step finished in 40 ms
+11:54:14.342    +13.54s INFO    [Triage] severity_rules_pass2 | severity_rules_evaluated: pass2: S2 (major); rules fired: R-S2-DUP, R-S2-CMP, R-P2-INTEG, R-P2-CHANNEL
+11:54:14.342    +13.54s INFO    [Triage] severity_rules_pass2 | node_completed: step finished in 111 ms
+11:54:14.440    +13.64s INFO    [Analyse] change_correlation_agent | tool_call: tool query_change_records over mcp, 73 ms
+11:54:14.468    +13.67s INFO    [Analyse] change_correlation_agent | tool_call: tool get_service_dependencies over mcp, 10 ms
+11:54:16.963    +16.16s INFO    [Analyse] rca_agent | llm_call: gpt-4o-mini-2024-07-18 (tools): 2399 tokens in, 190 out, 2590 ms, finish tool_calls
+11:54:17.023    +16.22s INFO    [Analyse] rca_agent | tool_call: tool query_kafka_events over mcp, 48 ms
+11:54:17.042    +16.24s INFO    [Analyse] rca_agent | tool_call: tool query_complaints over mcp, 68 ms
+11:54:17.042    +16.24s INFO    [Analyse] rca_agent | tool_call: tool query_logs over mcp, 68 ms
+11:54:17.316    +16.52s INFO    [Analyse] change_correlation_agent | llm_call: gpt-4o-mini-2024-07-18 (structured): 737 tokens in, 167 out, 2842 ms, finish stop
+11:54:17.317    +16.52s INFO    [Analyse] change_correlation_agent | node_completed: step finished in 2950 ms
+11:54:22.740    +21.94s INFO    [Analyse] rca_agent | llm_call: gpt-4o-mini-2024-07-18 (tools): 4366 tokens in, 696 out, 5702 ms, finish stop
+11:54:30.894    +30.09s INFO    [Analyse] rca_agent | llm_call: gpt-4o-mini-2024-07-18 (structured): 3887 tokens in, 928 out, 8148 ms, finish stop
+11:54:30.894    +30.09s INFO    [Analyse] rca_agent | node_completed: step finished in 16527 ms
+11:54:30.925    +30.12s INFO    [Analyse] analysis_join | node_completed: step finished in 0 ms
+11:54:37.905    +37.10s INFO    [Analyse] recommendation_agent | tool_call: tool search_knowledge_base over mcp, 6976 ms
+11:54:40.286    +39.49s INFO    [Analyse] recommendation_agent | tool_call: tool search_knowledge_base over mcp, 2365 ms
+11:54:40.731    +39.93s INFO    [Analyse] recommendation_agent | tool_call: tool search_knowledge_base over mcp, 443 ms
+11:54:46.951    +46.15s INFO    [Analyse] recommendation_agent | llm_call: gpt-4o-mini-2024-07-18 (structured): 2548 tokens in, 544 out, 6220 ms, finish stop
+11:54:46.951    +46.15s INFO    [Analyse] recommendation_agent | node_completed: step finished in 16018 ms
+11:54:47.060    +46.26s INFO    [Respond] output_guardrails | guardrail_block: guardrail flags: ungrounded_removed
+11:54:47.060    +46.26s INFO    [Respond] output_guardrails | node_completed: step finished in 8 ms
+11:54:47.084    +46.28s INFO    [Respond] confidence_gate | node_completed: step finished in 0 ms
+11:54:47.084    +46.28s INFO    [Respond] final_severity_gate | node_completed: step finished in 0 ms
+11:54:47.141    +46.34s INFO    [Respond] dispatch_page | tool_call: tool page_oncall over inprocess, 3 ms
+11:54:47.144    +46.34s INFO    [Respond] dispatch_page | dispatch_page: page (new), PAGE-15FC7D35E4
+11:54:47.144    +46.34s INFO    [Respond] dispatch_page | node_completed: step finished in 27 ms
+11:54:47.181    +46.38s INFO    [Respond] notify | tool_call: tool lookup_stakeholders over inprocess, 19 ms
+11:54:47.204    +46.40s INFO    [Respond] notify | tool_call: tool send_chat_alert over inprocess, 1 ms
+11:54:47.204    +46.40s INFO    [Respond] notify | notification_sent: chat notification to incident-channel (S2), CHAT-6E95192A27
+11:54:47.216    +46.42s INFO    [Respond] notify | tool_call: tool send_chat_alert over inprocess, 1 ms
+11:54:47.216    +46.42s INFO    [Respond] notify | notification_sent: chat notification to team-channel (S2), CHAT-B80D0F1728
+11:54:47.232    +46.43s INFO    [Respond] notify | tool_call: tool send_email over inprocess, 1 ms
+11:54:47.232    +46.43s INFO    [Respond] notify | notification_sent: email notification to stakeholders (S2), MAIL-C14BABAEF2
+11:54:47.232    +46.43s INFO    [Respond] notify | node_completed: step finished in 71 ms
+11:54:47.283    +46.48s INFO    [Respond] finalize | node_completed: step finished in 30 ms
+12:17:12.450  +1391.65s INFO    [Close and learn] feedback_loop | feedback_candidate_created: feedback_id FB-BFD0B40860; candidate_id FC-0001; issue_type root_cause_error
+12:17:12.457  +1391.66s INFO    [Close and learn] review_store | review_decision: escalation review: reject → REJECTED; reason: Names the symptom (duplicate transactions, a processing error) instead of the cause: the retry-policy configuration change on payments-service resubmitted payments without an idempotency key.
+12:17:12.459  +1391.66s INFO    [Close and learn] review_store | rating_recorded: ratings rca 2, actions 3, severity 2, summary 2 (mean 2.25)
+12:32:27.417  +2306.62s INFO    [Close and learn] feedback_loop | feedback_candidate_promoted: feedback_id FB-BFD0B40860; candidate_id FC-0001; case_id GC-SC05-FB001; golden_dataset_version golden-v2; reviewer_role sme; reviewer_id sme-1
+
+55 lines · run 46.48 s · 6 LLM calls, 20152 tokens · 17 tool calls · 0 errors

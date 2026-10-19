@@ -81,8 +81,14 @@ commit `b0ea7e9` plus the two fixes listed in Section 10).
 | Evidence | Run or file | Log file and event |
 |---|---|---|
 | Feedback stored (reviews with ratings, candidates, pairwise labels) | `data/feedback/` | `interactions.log`: `review_decision`, `rating_recorded`, `feedback_candidate_created` |
-| **Before vs after an adaptation, with the evidence report E-1 to E-10** | **Not generated yet.** Needs human steps (Section 11) | `interactions.log` and `eval.log`: `adaptation_proposed`, `adaptation_approved`, `adaptation_applied` or `adaptation_reverted`, `eval_result` (phase baseline and candidate), `evidence_report_generated` |
-| Baseline for that comparison | Full golden baseline EVAL-20261015T144951477 | `eval.log`: `eval_result` |
+| E-1, E-2: two reviewers (`rev-a`, `rev-b`) rejected the two SC-05 runs as *root cause error*, with reasons and ratings; each became a feedback candidate (FC-0001, FC-0002) | `flowlogs/adp001_reviewed_run_RUN-179241083651601.log`, `flowlogs/adp001_reviewed_run_RUN-179241164578102.log` (incident INC-20260409-001) | `interactions.log`: `review_decision`, `rating_recorded`, `feedback_candidate_created` |
+| E-3: the SME (`sme-1`) promoted both into the golden dataset (golden-v1 → v2 → v3, 27 cases) | `data/eval_rubric.json`, `data/test_inputs.json` (variant `feedback`) | `interactions.log`: `feedback_candidate_promoted` |
+| E-5: the scan found the pattern (2 signals, 1 per reviewer, threshold 2) and proposed ADP-001, a prompt rule for the RCA Agent drafted by the LLM from the reviewers' reasons | `ADP-001_evidence_report.md`; `data/feedback/adaptation_log.json` | `interactions.log`: `adaptation_proposed` (ADP-001, ADP-002, ADP-003) |
+| **A rejected adaptation**: ADP-002 (low RCA ratings, same problem) rejected by the Evaluation Engineer with a reason | `data/feedback/adaptation_log.json` | `interactions.log`: `adaptation_rejected` (ADP-002, reviewer `ee-1`, reason "Same problem as ADP-001 … one change at a time") |
+| E-6: the Evaluation Engineer (`ee-1`) approved ADP-001 | `ADP-001_evidence_report.md` | `interactions.log`: `adaptation_approved` |
+| E-4, E-8: **before vs after on the full golden set (27 cases, judge on)**: root cause top-1 0.55 → 0.36 and top-3 0.59 → 0.50; faithfulness +4 and severity +4 points; nothing else changed. Target not improved, so the engine **reverted** v2 and kept v1 | `adp001_before_after.md` (per-case Prompt → Output → What changed), `ADP-001_evidence_report.md` | `eval.log`: `eval_result` phase before (EVAL-20261019T130818577), after (EVAL-20261019T132325374), phase regression_check `fail`; `interactions.log`: `adaptation_reverted` |
+| E-7, E-9, E-10: not applicable after a revert (v2 never went live, so there is nothing to compare blind or to use in new runs); the report marks them MISSING | `ADP-001_evidence_report.md` | none, by design |
+| Behaviour change by feedback, shown elsewhere: the SME-promoted cases now sit in every evaluation run (golden-v3), and the clarification and memory evidence in Section 7 | Section 7; `data/eval_rubric.json` | `eval.log`: `eval_result` (`golden_dataset_version` golden-v3) |
 
 ## 9. Phases 8 and 9: deployment, evaluation and safety
 
@@ -97,7 +103,7 @@ commit `b0ea7e9` plus the two fixes listed in Section 10).
 | Safety: prompt injection ignored | `runs/05_fixtures.txt` (check guardrail_pass) | `eval.log`: `eval_result` phase fixtures (`checks.guardrail_pass`) |
 | Safety: no invented data (uncited claims and actions removed) | Flow logs; `runs/03_actions_with_vs_without_retrieval.txt` | `interactions.log`: `guardrail_block` (`ungrounded_removed`, `uncited_action_removed`) |
 | Safety: escalation (S1 fast-path page, confidence gate, "Needs human RCA", human review of every recommendation) | `flowlogs/sc04_live_full_flow.log`; `data/outbox/` | `interactions.log`: `fast_path_page`, `dispatch_page`, `notification_sent`, `confidence_gate_flagged` |
-| Safety: no PII in logs (0 of 131 personal values from the source telemetry found in 5,963 log lines) | `python scripts/check_logs_pii.py` (rerun before submission) | All three log files |
+| Safety: no PII in logs (0 of 131 personal values from the source telemetry found in 10,223 log lines, rechecked after the adaptation cycle) | `python scripts/check_logs_pii.py` (rerun before submission) | All three log files |
 
 ## 10. Failures found during the evidence runs (for the evaluation report)
 
@@ -106,13 +112,13 @@ commit `b0ea7e9` plus the two fixes listed in Section 10).
 | 1 | 2 of 6 cases ended SYSTEM_ERROR | gpt-4o-mini filled `severity_inputs_found` with `""` for signals it did not find; strict validation rejected the whole RCA answer three times | `LenientNumberMap`: numeric text is read ("100%"), empty or text values are dropped; a list of names counts as no values (`src/schemas/common.py`); 2 regression tests | Before: EVAL-20261015T131648825, `flowlogs/bug_before_fix_GC-SC02-REPLAY_system_error.log` (`error.log`: `node_retry` ×2, `system_error`). After: EVAL-20261015T132212386, 0 system errors, `flowlogs/bug_after_fix_GC-SC02-REPLAY.log` |
 | 2 | The rules-only baseline in evaluation mode matched the live SC-04 incident and decided nothing | The evaluation store isolation existed for `run_investigation` but not for `run_rules_only` | Evaluation rules-only runs use their own store (`src/services/rules_only_runner.py`); 1 regression test | Before: first version of `runs/06_…SC-04.txt` (`deduplicated: true`, severity null; not kept). After: `runs/06_baseline_rules_only_SC-04.txt` (created, S1) |
 | 3 | With a key data source withheld, the agents did not abstain; SC-02 without Kafka data blamed a notification-service release at confidence 0.9 | The prompts do not tie confidence to missing sources | Not fixed: target for the adaptation cycle (Section 11) | `runs/12b_missing_evidence_detail.txt` (EVAL-20261015T144641054) |
+| 5 | The adaptation ADP-001 did not improve root cause accuracy (top-1 0.55 → 0.36), so it was reverted | **Structural:** the RCA Agent has no access to change records (only the Change Correlation Agent may call `query_change_records`), so a guideline telling it to name the configuration change cannot work; in SC-05 both versions still name the symptom. **Measurement:** most flipped cases have near-identical wording scored differently by the judge (for example GC-SC03-WIDE), and the same v1 scored 0.25 on 15 October and 0.55 on 19 October, so one judged run per version is noisy | Not fixable within the adaptation scope (prompt guidelines, examples, aliases). Next step: give the RCA Agent the change-correlation findings before it ranks hypotheses (an architecture change, reviewed by a human), and judge each version on repeated runs | `adp001_before_after.md`, `ADP-001_evidence_report.md`, `runs/13_full_golden_baseline.txt` |
 | 4 | Root cause accuracy and causal-change detection below target; red herrings sometimes blamed (SC-04 release DEP-0031) | Known baseline weakness (OI-25) | Prompt strategies tried (Section 4): they found the causal change more often but lost root-cause accuracy, so v1 stays the default for now | `prompt_comparison.md`, `runs/13_full_golden_baseline.txt` |
 
 ## 11. Still to generate
 
 | Evidence | Why it is not here yet | How |
 |---|---|---|
-| Adaptation cycle with evidence report E-1 to E-10, plus one rejected or reverted adaptation | Needs real human feedback: reviewers reject outputs with ratings, the SME promotes the candidates, an approver approves the adaptation | UI: Incident → Review (reject with reason and ratings, two reviewer IDs) → Review Queue (SME promotes) → Adaptation History (scan, approve, apply) → Feedback and RLHF (pairwise session) → evidence report |
 | UI screenshots for the demo script (Investigate, Incident with Flow log tab, Outbox, Resolve and Verify, Review Queue, Evaluation) | Screenshots must be taken in the browser | `streamlit run src/ui/app.py` |
 | LangFuse screenshots (a trace, its scores) | Cloud UI | Trace IDs are in the run outputs, for example 67bb6098032930db8e0571d6fd67b1ac (RUN-179207013737201) |
 | Final PII check | Logs keep growing until submission | `python scripts/check_logs_pii.py` |
@@ -120,3 +126,5 @@ commit `b0ea7e9` plus the two fixes listed in Section 10).
 ## 12. Cost of the evidence runs
 
 About $0.36 of agent calls (from the cost recorded in each output and evaluation file) plus about $0.15 to $0.20 for the DeepEval judge on 55 judged cases (the judge's cost is not recorded per run; this is an estimate), so about $0.50 to $0.55 in total.
+
+The adaptation cycle on 19 October added about $0.24 of agent calls (two investigations, the guideline draft, and the 54 golden runs before and after) plus about $0.15 for the judge. All evidence so far: about $0.90.
