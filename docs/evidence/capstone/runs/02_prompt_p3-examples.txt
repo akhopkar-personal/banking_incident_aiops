@@ -1,0 +1,71 @@
+
+  1/6 GC-SC01-FREETEXT
+
+
+  2/6 GC-SC01-REPLAY
+
+
+
+
+
+  3/6 GC-SC02-REPLAY
+
+
+  4/6 GC-SC02-FREETEXT
+
+
+
+
+
+  5/6 GC-SC04-REPLAY
+
+
+  6/6 GC-SC04-FREETEXT
+{
+  "eval_id": "EVAL-20261015T132931844",
+  "label": "p3-examples",
+  "golden_dataset_version": "golden-v1",
+  "prompt_version_set": {
+    "triage_agent": "v1",
+    "rca_agent": "p3-examples",
+    "change_correlation_agent": "p3-examples",
+    "recommendation_agent": "v1"
+  },
+  "use_judge": true,
+  "retrieval_enabled": true,
+  "metrics": {
+    "abstention_correct": 0.4,
+    "change_hit": 1.0,
+    "citation_validity": 1.0,
+    "contextual_recall": 0.7671,
+    "cost_usd": 0.0045,
+    "dispatch_routing_correct": 1.0,
+    "faithfulness": 0.7367,
+    "hallucination": 0.0444,
+    "latency_total_s": 50.3333,
+    "rca_rubric_top1": 0.0,
+    "rca_rubric_top3": 0.0,
+    "rca_top1": 0.2,
+    "rca_top3": 0.2,
+    "red_herring_rejected": 0.8,
+    "retrieval_recall_at_5": 1.0,
+    "severity_match": 1.0,
+    "severity_within_1": 1.0,
+    "system_error": 0.1667,
+    "triage_class_match": 1.0,
+    "hallucination_rate": 0.0,
+    "cases": 6.0,
+    "failed_cases": 0.0
+  }
+}
+LOW rca_top1                      0.200  target >= 0.6
+LOW rca_top3                      0.200  target >= 0.8
+ok  retrieval_recall_at_5         1.000  target >= 0.85
+LOW faithfulness                  0.737  target >= 0.8
+ok  hallucination_rate            0.000  target <= 0.1
+ok  citation_validity             1.000  target >= 0.95
+ok  severity_match                1.000  target >= 0.7
+ok  triage_class_match            1.000  target >= 0.8
+ok  change_hit                    1.000  target >= 0.8
+LOW abstention_correct            0.400  target >= 0.8
+ok  dispatch_routing_correct      1.000  target >= 1.0

@@ -1,0 +1,46 @@
+Flow log of RUN-179207028526603, incident INC-20260321-001
+
+13:18:05.624     +0.00s INFO    [Detect] anomaly_detector | anomaly_detected: kafka-platform broker_down: observed 1.0 against baseline 0.0 (z None, threshold)
+13:18:05.625     +0.00s INFO    [Detect] anomaly_detector | anomaly_detected: kafka-platform kafka_under_replicated: observed 6.0 against baseline 0.0 (z None, threshold)
+13:18:05.626     +0.00s INFO    [Detect] anomaly_detector | anomaly_detected: ledger-consumer consumer_lag: observed 85000.0 against baseline 188.3 (z 930.46, threshold)
+13:18:05.627     +0.00s INFO    [Detect] anomaly_detector | anomaly_detected: notification-service api_error_rate: observed 0.0104 against baseline 0.002 (z 34.06, zscore)
+13:18:05.629     +0.01s INFO    [Detect] anomaly_detector | anomaly_detected: notification-service api_p95_ms: observed 169.9 against baseline 89.815 (z 28.1, zscore)
+13:18:05.630     +0.01s INFO    [Detect] anomaly_detector | anomaly_detected: notification-service consumer_lag: observed 52000.0 against baseline 213.3 (z 454.57, threshold)
+13:18:05.631     +0.01s INFO    [Detect] anomaly_detector | anomaly_detected: accounts-service complaints_30min:balance_and_alerts: observed 71.0 against baseline 0.0 (z None, threshold)
+13:18:05.637     +0.01s INFO    [Detect] alert_correlator | incident_created: new incident for kafka-platform from 7 anomalies
+13:18:05.638     +0.01s INFO    [Detect] correlate_dedup | node_completed: step finished in 332 ms
+13:18:05.647     +0.02s INFO    [Detect] redact | node_completed: step finished in 0 ms
+13:18:05.762     +0.14s INFO    [Triage] severity_rules_pass1 | severity_rules_evaluated: pass1: S2 (major); rules fired: R-S2-URP, R-S2-LAG, R-S2-CMP
+13:18:05.768     +0.14s INFO    [Triage] severity_rules_pass1 | node_completed: step finished in 112 ms
+13:18:05.815     +0.19s INFO    [Triage] triage_agent | tool_call: tool query_complaints over mcp, 27 ms
+13:18:05.825     +0.20s INFO    [Triage] triage_agent | tool_call: tool get_service_dependencies over mcp, 9 ms
+13:18:06.136     +0.51s INFO    [Triage] triage_agent | tool_call: tool search_knowledge_base over mcp, 310 ms
+13:18:10.185     +4.56s INFO    [Triage] triage_agent | llm_call: gpt-4o-mini-2024-07-18 (structured): 4347 tokens in, 195 out, 4042 ms, finish stop
+13:18:10.186     +4.56s INFO    [Triage] triage_agent | node_completed: step finished in 4404 ms
+13:18:10.210     +4.59s INFO    [Triage] itsm_upsert | dispatch_suppressed: action itsm_upsert; reason evaluation_mode
+13:18:10.212     +4.59s INFO    [Triage] itsm_upsert | node_completed: step finished in 2 ms
+13:18:10.332     +4.71s INFO    [Triage] severity_rules_pass2 | severity_rules_evaluated: pass2: S2 (major); rules fired: R-S2-URP, R-S2-LAG, R-S2-CMP, R-P2-CHANNEL
+13:18:10.333     +4.71s INFO    [Triage] severity_rules_pass2 | node_completed: step finished in 104 ms
+13:18:10.441     +4.82s INFO    [Analyse] change_correlation_agent | tool_call: tool query_change_records over mcp, 88 ms
+13:18:10.451     +4.83s INFO    [Analyse] change_correlation_agent | tool_call: tool get_service_dependencies over mcp, 8 ms
+13:18:13.426     +7.80s INFO    [Analyse] rca_agent | llm_call: gpt-4o-mini-2024-07-18 (tools): 2901 tokens in, 204 out, 3050 ms, finish tool_calls
+13:18:13.480     +7.86s INFO    [Analyse] rca_agent | tool_call: tool query_kafka_events over mcp, 51 ms
+13:18:13.496     +7.87s INFO    [Analyse] rca_agent | tool_call: tool query_kafka_events over mcp, 66 ms
+13:18:13.504     +7.88s INFO    [Analyse] rca_agent | tool_call: tool query_cluster_quorum over mcp, 72 ms
+13:18:13.505     +7.88s INFO    [Analyse] rca_agent | tool_call: tool get_service_dependencies over mcp, 72 ms
+13:18:13.583     +7.96s INFO    [Analyse] change_correlation_agent | llm_call: gpt-4o-mini-2024-07-18 (structured): 757 tokens in, 147 out, 3130 ms, finish stop
+13:18:13.585     +7.96s INFO    [Analyse] change_correlation_agent | node_completed: step finished in 3233 ms
+13:18:21.322    +15.70s INFO    [Analyse] rca_agent | llm_call: gpt-4o-mini-2024-07-18 (tools): 3973 tokens in, 718 out, 7811 ms, finish stop
+13:18:30.420    +24.80s INFO    [Analyse] rca_agent | llm_call: gpt-4o-mini-2024-07-18 (structured): 3516 tokens in, 657 out, 9097 ms, finish stop
+13:18:30.421    +24.80s ERROR   [Analyse] rca_agent | node_retry: retry 1 of RcaDraft call: schema_invalid
+13:18:37.888    +32.26s INFO    [Analyse] rca_agent | llm_call: gpt-4o-mini-2024-07-18 (structured): 3516 tokens in, 657 out, 6449 ms, finish stop
+13:18:37.890    +32.27s ERROR   [Analyse] rca_agent | node_retry: retry 2 of RcaDraft call: schema_invalid
+13:18:47.783    +42.16s INFO    [Analyse] rca_agent | llm_call: gpt-4o-mini-2024-07-18 (structured): 3516 tokens in, 657 out, 7890 ms, finish stop
+13:18:47.787    +42.16s ERROR   [Analyse] rca_agent | system_error: failed in rca_agent: schema_invalid (RcaDraft output did not validate: 2 validation errors for RcaDraft severity_inputs_found.payment_route_failure_pct   Input should be a valid number, unable to parse string as a number [type=float_parsing, input_value='', input_type=str])
+13:18:47.795    +42.17s INFO    [Analyse] analysis_join | node_completed: step finished in 0 ms
+13:18:47.836    +42.21s INFO    [Respond] rules_only_dispatch | dispatch_suppressed: action page; reason evaluation_mode
+13:18:47.837    +42.21s INFO    [Respond] rules_only_dispatch | node_completed: step finished in 20 ms
+13:18:47.855    +42.23s ERROR   [Respond] system_error | system_error: failed in rca_agent: schema_invalid
+13:18:47.856    +42.23s INFO    [Respond] system_error | node_completed: step finished in 9 ms
+
+42 lines · run 42.23 s · 7 LLM calls, 25761 tokens · 9 tool calls · 4 errors

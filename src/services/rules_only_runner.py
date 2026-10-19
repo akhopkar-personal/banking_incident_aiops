@@ -12,6 +12,7 @@ CLI: python scripts/run_rules_only.py SC-01 [--evaluation] [--withhold DEP]
 from __future__ import annotations
 
 import json
+from contextlib import nullcontext
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any, Iterable, Optional
@@ -75,8 +76,12 @@ def run_rules_only(scenario_id: str, *, window_start: Optional[datetime] = None,
     withheld = tuple(withheld_sources)
     run_id = store.new_run_id()
     result = RulesOnlyResult(scenario_id=scenario_id, run_id=run_id)
+    # As in run_investigation (Architecture Spec Section 4.6): an evaluation run gets its own store, so it is
+    # never deduplicated against a live incident.
+    scope = (store.scoped(store.evaluation_dir(run_id))
+             if run_mode == RunMode.EVALUATION and store.current_scope() is None else nullcontext())
 
-    with log_context(run_id=run_id):
+    with scope, log_context(run_id=run_id):
         events = anomaly_detector.detect(scenario_id, start, end, withheld)
         groups = alert_correlator.group(events)
         primary = alert_correlator.primary_group(groups)

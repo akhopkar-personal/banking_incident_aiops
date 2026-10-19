@@ -1,0 +1,57 @@
+Flow log of RUN-179207230901901, incident INC-20260402-001
+
+13:51:50.437     +0.00s INFO    [Detect] anomaly_detector | anomaly_detected: api-gateway api_error_rate: observed 0.0728 against baseline 0.0029 (z 220.45, threshold)
+13:51:50.439     +0.00s INFO    [Detect] anomaly_detector | anomaly_detected: mobile-app api_error_rate: observed 0.052 against baseline 0.0041 (z 87.16, threshold)
+13:51:50.441     +0.00s INFO    [Detect] anomaly_detector | anomaly_detected: payment-network-gateway api_error_rate: observed 1.0 against baseline 0.0045 (z 2578.04, threshold)
+13:51:50.443     +0.01s INFO    [Detect] anomaly_detector | anomaly_detected: payment-network-gateway log_error_count: observed 6.0 against baseline 0.0 (z None, threshold)
+13:51:50.446     +0.01s INFO    [Detect] anomaly_detector | anomaly_detected: payment-network-gateway tls_failures: observed 1.0 against baseline 0.0 (z None, threshold)
+13:51:50.446     +0.01s INFO    [Detect] anomaly_detector | anomaly_detected: payments-service api_error_rate: observed 0.3119 against baseline 0.005 (z 406.34, threshold)
+13:51:50.447     +0.01s INFO    [Detect] anomaly_detector | anomaly_detected: payments-service complaints_30min:card_payment: observed 40.0 against baseline 0.0 (z None, threshold)
+13:51:50.451     +0.01s INFO    [Detect] alert_correlator | incident_deduplicated: idempotency_key 3982b138bff9f90c; anomaly_count 7; root_service payment-network-gateway
+13:51:50.452     +0.01s INFO    [Detect] correlate_dedup | node_completed: step finished in 168 ms
+13:51:50.464     +0.03s INFO    [Detect] redact | node_completed: step finished in 0 ms
+13:51:50.589     +0.15s INFO    [Triage] severity_rules_pass1 | severity_rules_evaluated: pass1: S1 (major); rules fired: R-S1-ERR, R-S1-ROUTE, R-S3-DEG
+13:51:50.590     +0.15s INFO    [Triage] severity_rules_pass1 | node_completed: step finished in 118 ms
+13:51:50.616     +0.18s INFO    [Triage] dispatch_fast_page | tool_call: tool page_oncall over inprocess, 9 ms
+13:51:50.622     +0.18s INFO    [Triage] dispatch_fast_page | dispatch_page: page (update), PAGE-40F5E025D0
+13:51:50.624     +0.19s INFO    [Triage] dispatch_fast_page | node_completed: step finished in 23 ms
+13:51:54.004     +3.57s INFO    [Other] tool_registry | mcp_server_started: tool_count 13; tools ["get_service_dependencies", "query_acl_audit", "query_api_metrics", "query_change_records", "query_cluster_quorum", "q…
+13:51:54.027     +3.59s INFO    [Triage] triage_agent | tool_call: tool query_complaints over mcp, 3409 ms
+13:51:54.037     +3.60s INFO    [Triage] triage_agent | tool_call: tool get_service_dependencies over mcp, 8 ms
+13:51:54.422     +3.98s INFO    [Triage] triage_agent | tool_call: tool search_knowledge_base over mcp, 383 ms
+13:52:00.928    +10.49s INFO    [Triage] triage_agent | llm_call: gpt-4o-mini-2024-07-18 (structured): 4601 tokens in, 217 out, 6499 ms, finish stop
+13:52:00.929    +10.49s INFO    [Triage] triage_agent | node_completed: step finished in 10324 ms
+13:52:00.960    +10.52s INFO    [Triage] itsm_upsert | tool_call: tool itsm_upsert_incident over inprocess, 3 ms
+13:52:00.978    +10.54s INFO    [Triage] itsm_upsert | dispatch_itsm: ITSM upsert MOCK-ITSM-0002
+13:52:00.979    +10.54s INFO    [Triage] itsm_upsert | node_completed: step finished in 22 ms
+13:52:01.093    +10.66s INFO    [Triage] severity_rules_pass2 | severity_rules_evaluated: pass2: S1 (major); rules fired: R-S1-ERR, R-S1-ROUTE, R-S3-DEG, R-P2-CHANNEL
+13:52:01.094    +10.66s INFO    [Triage] severity_rules_pass2 | node_completed: step finished in 92 ms
+13:52:01.176    +10.74s INFO    [Analyse] change_correlation_agent | tool_call: tool query_change_records over mcp, 51 ms
+13:52:01.212    +10.78s INFO    [Analyse] change_correlation_agent | tool_call: tool get_service_dependencies over mcp, 9 ms
+13:52:04.214    +13.78s INFO    [Analyse] rca_agent | llm_call: gpt-4o-mini-2024-07-18 (tools): 3202 tokens in, 248 out, 3075 ms, finish tool_calls
+13:52:04.246    +13.81s INFO    [Analyse] change_correlation_agent | llm_call: gpt-4o-mini-2024-07-18 (structured): 801 tokens in, 156 out, 3032 ms, finish stop
+13:52:04.248    +13.81s INFO    [Analyse] change_correlation_agent | node_completed: step finished in 3122 ms
+13:52:04.348    +13.91s INFO    [Analyse] rca_agent | tool_call: tool query_logs over mcp, 115 ms
+13:52:04.370    +13.93s INFO    [Analyse] rca_agent | tool_call: tool query_api_metrics over mcp, 134 ms
+13:52:04.379    +13.94s INFO    [Analyse] rca_agent | tool_call: tool query_api_metrics over mcp, 142 ms
+13:52:04.380    +13.94s INFO    [Analyse] rca_agent | tool_call: tool query_network over mcp, 141 ms
+13:52:11.501    +21.06s INFO    [Analyse] rca_agent | llm_call: gpt-4o-mini-2024-07-18 (tools): 4684 tokens in, 682 out, 7115 ms, finish stop
+13:52:21.876    +31.44s INFO    [Analyse] rca_agent | llm_call: gpt-4o-mini-2024-07-18 (structured): 4191 tokens in, 788 out, 10374 ms, finish stop
+13:52:21.878    +31.44s INFO    [Analyse] rca_agent | node_completed: step finished in 20753 ms
+13:52:21.894    +31.46s INFO    [Analyse] analysis_join | node_completed: step finished in 0 ms
+13:52:28.884    +38.45s INFO    [Analyse] recommendation_agent | tool_call: tool search_knowledge_base over mcp, 6967 ms
+13:52:31.235    +40.80s INFO    [Analyse] recommendation_agent | tool_call: tool search_knowledge_base over mcp, 2350 ms
+13:52:36.453    +46.02s INFO    [Analyse] recommendation_agent | llm_call: gpt-4o-mini-2024-07-18 (structured): 2336 tokens in, 460 out, 5212 ms, finish stop
+13:52:36.453    +46.02s INFO    [Analyse] recommendation_agent | node_completed: step finished in 14537 ms
+13:52:36.584    +46.15s INFO    [Respond] output_guardrails | guardrail_block: guardrail flags: tone_adjusted
+13:52:36.584    +46.15s INFO    [Respond] output_guardrails | node_completed: step finished in 9 ms
+13:52:36.615    +46.18s INFO    [Respond] confidence_gate | node_completed: step finished in 0 ms
+13:52:36.633    +46.20s INFO    [Respond] final_severity_gate | node_completed: step finished in 0 ms
+13:52:36.687    +46.25s INFO    [Respond] dispatch_page | tool_call: tool page_oncall over inprocess, 2 ms
+13:52:36.689    +46.25s INFO    [Respond] dispatch_page | dispatch_page: page (update), PAGE-DB378D92CA
+13:52:36.690    +46.25s INFO    [Respond] dispatch_page | node_completed: step finished in 27 ms
+13:52:36.722    +46.28s INFO    [Respond] notify | tool_call: tool lookup_stakeholders over inprocess, 1 ms
+13:52:36.726    +46.29s INFO    [Respond] notify | node_completed: step finished in 6 ms
+13:52:36.797    +46.36s INFO    [Respond] finalize | node_completed: step finished in 39 ms
+
+53 lines · run 46.36 s · 6 LLM calls, 22366 tokens · 15 tool calls · 0 errors

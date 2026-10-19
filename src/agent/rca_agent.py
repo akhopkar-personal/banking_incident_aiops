@@ -19,7 +19,7 @@ from src import config as app_config
 from src.agent.agent_support import AgentRun, fmt_anomalies, fmt_evidence, fmt_incident
 from src.logger_setup import log_interaction
 from src.schemas.analysis import Hypothesis, RcaResult, TimelineEvent
-from src.schemas.common import EVIDENCE_ID_PATTERN, Confidence, LenientStrList
+from src.schemas.common import EVIDENCE_ID_PATTERN, Confidence, LenientNumberMap, LenientStrList
 from src.schemas.evidence import EvidenceItem, ToolSummary
 from src.tools.implementations._common import lookup_evidence
 from src.tools.tool_registry import get_registry
@@ -65,7 +65,7 @@ class RcaDraft(BaseModel):
     timeline: list[_TimelineDraft]
     hypotheses: list[_HypothesisDraft] = Field(description="Most likely first, at most 3")
     confirmed_anomalies: LenientStrList
-    severity_inputs_found: dict[str, float]
+    severity_inputs_found: LenientNumberMap
 
 
 def plan_calls(calls: list[dict[str, Any]], used: int, budget: int, seen: set[str]

@@ -1,0 +1,36 @@
+
+1. Correct tool and arguments
+  rca_agent -> query_network({"service": ["payment-network-gateway"]})
+  outcome: ran
+  the model receives: {"tool": "query_network", "service_scope": ["payment-network-gateway"], "window_start": "2026-04-02T07:30:00Z", "window_end": "2026-04-02T09:00:00Z", "record_count": 270, "aggregates": {"card.handshake_failures": 60.0, "…
+
+2. Wrong arguments (unknown service name)
+  rca_agent -> query_api_metrics({"service": ["payments"]})
+  outcome: rejected
+  the model receives: Error: invalid arguments for query_api_metrics: unknown service payments; use canonical names such as payments-service. Correct them and try again.
+
+3. Tool outside the agent's allowed set
+  rca_agent -> query_change_records({})
+  outcome: blocked, flags ['tool_access_blocked']
+  the model receives: Error: tool 'query_change_records' is not available to you (tool is not in this caller's allowed set).
+
+4. Dispatch tool asked for by an agent
+  recommendation_agent -> page_oncall({"incident_id": "INC-DEMO-TOOLS-20261015134820", "severity": "S1", "summary": "test"})
+  outcome: blocked, flags ['tool_access_blocked']
+  the model receives: Error: tool 'page_oncall' is not available to you (dispatch tools are callable only by designated workflow nodes).
+
+5. Loop prevention: the model asks for 11 calls with a budget of 8
+  run: 8; skipped: query_logs payment-network-gateway (duplicate_call), query_api_metrics notification-service (budget_exhausted), query_api_metrics core-banking-db (budget_exhausted)
+
+Flow log of RUN-DEMO-TOOLS-20261015134820 (also: python scripts/show_flow_log.py RUN-DEMO-TOOLS-20261015134820)
+
+Flow log of RUN-DEMO-TOOLS-20261015134820, incident INC-DEMO-TOOLS-20261015134820
+
+13:48:25.304     +0.00s INFO    [Analyse] rca_agent | tool_call: tool query_network over mcp, 5183 ms
+13:48:25.305     +0.00s WARNING [Analyse] rca_agent | tool_call: tool query_api_metrics invalid arguments: unknown service payments; use canonical names such as payments-service
+13:48:25.308     +0.00s ERROR   [Analyse] tool_registry | tool_access_blocked: tool query_change_records blocked for rca_agent: tool is not in this caller's allowed set
+13:48:25.309     +0.01s ERROR   [Analyse] tool_registry | tool_access_blocked: tool page_oncall blocked for recommendation_agent: dispatch tools are callable only by designated workflow nodes
+13:48:25.310     +0.01s WARNING [Analyse] rca_agent | tool_call: tool query_logs duplicate call
+13:48:25.312     +0.01s WARNING [Analyse] rca_agent | tool_call: tool query_api_metrics budget exhausted
+13:48:25.313     +0.01s WARNING [Analyse] rca_agent | tool_call: tool query_api_metrics budget exhausted
+

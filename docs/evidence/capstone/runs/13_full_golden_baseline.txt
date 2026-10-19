@@ -1,0 +1,191 @@
+
+
+
+
+
+
+
+
+
+
+
+  1/25 GC-SC01-REPLAY
+  2/25 GC-SC01-FREETEXT
+[10/15/26 20:21:38] ERROR    Failed to export spans batch due to    http.py:222
+                             timeout, max retries or shutdown.                 
+
+
+
+
+
+
+
+
+
+  3/25 GC-SC01-NARROW
+
+
+  4/25 GC-SC01-WIDE
+
+
+
+
+  5/25 GC-SC01-MISSING
+
+
+
+
+
+
+
+
+
+
+  6/25 GC-SC02-FREETEXT
+  7/25 GC-SC02-REPLAY
+
+
+
+
+
+
+
+
+
+  8/25 GC-SC02-WIDE
+
+
+  9/25 GC-SC02-NARROW
+
+
+  10/25 GC-SC02-MISSING
+
+
+
+
+
+
+  11/25 GC-SC03-REPLAY
+
+
+
+
+
+
+
+
+  12/25 GC-SC03-FREETEXT
+
+
+
+
+  13/25 GC-SC03-NARROW
+
+
+
+
+  14/25 GC-SC03-WIDE
+
+
+  15/25 GC-SC03-MISSING
+
+
+
+
+
+
+  16/25 GC-SC04-REPLAY
+
+
+  17/25 GC-SC04-FREETEXT
+
+
+
+
+
+
+  18/25 GC-SC04-NARROW
+
+
+  19/25 GC-SC04-WIDE
+
+
+
+
+  20/25 GC-SC04-MISSING
+
+
+
+
+  21/25 GC-SC05-REPLAY
+
+
+
+
+
+
+
+
+
+  22/25 GC-SC05-FREETEXT
+
+
+
+  23/25 GC-SC05-NARROW
+
+
+
+
+
+
+  24/25 GC-SC05-WIDE
+
+  25/25 GC-SC05-MISSING
+{
+  "eval_id": "EVAL-20261015T144951477",
+  "label": "full golden baseline v1",
+  "golden_dataset_version": "golden-v1",
+  "prompt_version_set": {
+    "triage_agent": "v1",
+    "rca_agent": "v1",
+    "change_correlation_agent": "v1",
+    "recommendation_agent": "v1"
+  },
+  "use_judge": true,
+  "retrieval_enabled": true,
+  "metrics": {
+    "abstention_correct": 0.8,
+    "change_hit": 0.2143,
+    "citation_validity": 1.0,
+    "contextual_recall": 0.9295,
+    "cost_usd": 0.0042,
+    "dispatch_routing_correct": 0.96,
+    "faithfulness": 0.9123,
+    "hallucination": 0.1711,
+    "latency_total_s": 63.8892,
+    "rca_rubric_top1": 0.2,
+    "rca_rubric_top3": 0.2,
+    "rca_top1": 0.25,
+    "rca_top3": 0.4,
+    "red_herring_rejected": 0.88,
+    "retrieval_recall_at_5": 0.96,
+    "severity_match": 0.96,
+    "severity_within_1": 0.96,
+    "system_error": 0.0,
+    "triage_class_match": 0.96,
+    "hallucination_rate": 0.08,
+    "cases": 25.0,
+    "failed_cases": 0.0
+  }
+}
+LOW rca_top1                      0.250  target >= 0.6
+LOW rca_top3                      0.400  target >= 0.8
+ok  retrieval_recall_at_5         0.960  target >= 0.85
+ok  faithfulness                  0.912  target >= 0.8
+ok  hallucination_rate            0.080  target <= 0.1
+ok  citation_validity             1.000  target >= 0.95
+ok  severity_match                0.960  target >= 0.7
+ok  triage_class_match            0.960  target >= 0.8
+LOW change_hit                    0.214  target >= 0.8
+ok  abstention_correct            0.800  target >= 0.8
+LOW dispatch_routing_correct      0.960  target >= 1.0

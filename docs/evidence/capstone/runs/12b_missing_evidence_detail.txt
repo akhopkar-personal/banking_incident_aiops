@@ -1,0 +1,9 @@
+eval EVAL-20261015T144641054
+GC-SC02-MISSING: withheld ['KFK'], expected abstention True
+  status PENDING_REVIEW, needs_human_rca False, top confidence 0.9
+  top cause: A release in the notification-service introduced a regression causing increased error rates and latency in the /notify/v1/send endpoint.
+  missing evidence noted: ['No evidence contradicts this hypothesis.']
+GC-SC04-MISSING: withheld ['NET'], expected abstention True
+  status PENDING_REVIEW, needs_human_rca False, top confidence 1.0
+  top cause: Expired TLS certificate for the card payment route.
+  missing evidence noted: ['No evidence contradicts this hypothesis.']

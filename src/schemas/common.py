@@ -40,6 +40,34 @@ def _as_list(value: object) -> object:
 
 # For list-of-string fields an LLM fills in (Architecture Spec Section 6.1).
 LenientStrList = Annotated[list[str], BeforeValidator(_as_list)]
+
+
+def _numbers_only(value: object) -> object:
+    """LLMs fill a name-to-number map with "" or text for values they did not find (seen with
+    gpt-4o-mini, Architecture Spec Section 6.3): keep the entries that read as numbers ("100%" and
+    "1,234" included) and drop the rest, instead of rejecting the whole answer. A list (names
+    without values, seen with the few-shot prompt variant) or an empty value carries no numbers."""
+    if isinstance(value, (list, tuple, str)) or value is None:
+        return {}
+    if not isinstance(value, dict):
+        return value
+    kept: dict[object, float] = {}
+    for key, item in value.items():
+        if isinstance(item, bool):
+            continue
+        if isinstance(item, (int, float)):
+            kept[key] = float(item)
+            continue
+        text = str(item).strip().rstrip("%").replace(",", "").strip()
+        try:
+            kept[key] = float(text)
+        except ValueError:
+            continue
+    return kept
+
+
+# For name-to-number maps an LLM fills in (v1.12).
+LenientNumberMap = Annotated[dict[str, float], BeforeValidator(_numbers_only)]
 LenientEvidenceIds = Annotated[list[EvidenceId], BeforeValidator(_as_list)]
 
 

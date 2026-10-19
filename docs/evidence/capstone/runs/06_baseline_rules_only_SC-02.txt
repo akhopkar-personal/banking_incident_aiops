@@ -1,0 +1,38 @@
+{
+  "scenario_id": "SC-02",
+  "run_id": "RUN-179207222276501",
+  "incident_id": "INC-20260321-001",
+  "created": true,
+  "deduplicated": false,
+  "root_service": "kafka-platform",
+  "anomaly_events": 7,
+  "incident_groups": 1,
+  "severity": "S2",
+  "rules_fired": [
+    "R-S2-URP",
+    "R-S2-LAG",
+    "R-S2-CMP"
+  ],
+  "flags": [],
+  "dispatch": {
+    "paged": false,
+    "fast_path": false,
+    "notifications": [],
+    "suppressed": true,
+    "intended": {
+      "itsm_upsert": {
+        "incident_id": "INC-20260321-001",
+        "severity": "S2",
+        "issue_class": null,
+        "summary": "INC-20260321-001: S2 by rules: R-S2-URP (6 vs 0), R-S2-LAG (85000 vs 10000), R-S2-CMP (71 vs 50)",
+        "scenario_id": "SC-02"
+      },
+      "page": {
+        "team": "incident-escalation",
+        "summary": "INC-20260321-001 S2 (rules only, no AI investigation): S2 by rules: R-S2-URP (6 vs 0), R-S2-LAG (85000 vs 10000), R-S2-CMP (71 vs 50)",
+        "fast_path": false
+      }
+    }
+  },
+  "guardrail_flags": []
+}

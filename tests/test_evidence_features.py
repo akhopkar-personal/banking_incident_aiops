@@ -184,3 +184,38 @@ def test_consistency_run_repeats_each_case(fake, sandbox):
     assert deepeval_harness.load_result(result["eval_id"])["repeats"] == 2
     with pytest.raises(ValueError, match="at least 2"):
         deepeval_harness.run_consistency(1, case_ids=["GC-SC02-REPLAY"])
+
+
+# ------------------------------------------------- debugged failure (v1.12)
+
+
+def test_rca_draft_drops_empty_and_text_signal_values():
+    """Real failure in the 2026-10-15 evaluation: gpt-4o-mini answered severity_inputs_found with ""
+    for signals it did not find, the RCA answer failed validation three times and the run ended
+    SYSTEM_ERROR. Non-numeric values are now dropped and numeric text is read."""
+    draft = rca_agent.RcaDraft.model_validate({
+        "timeline": [], "hypotheses": [], "confirmed_anomalies": [],
+        "severity_inputs_found": {"payment_route_failure_pct": "", "offline_partitions": "n/a",
+                                  "customer_error_rate_pct": "100%", "consumer_lag_payments": "1,234",
+                                  "duplicate_transaction_ids": 3, "complaints_per_product_30min": True}})
+    assert draft.severity_inputs_found == {"customer_error_rate_pct": 100.0, "consumer_lag_payments": 1234.0,
+                                           "duplicate_transaction_ids": 3.0}
+
+
+def test_rca_draft_reads_a_list_of_signal_names_as_no_values():
+    """Second failure, with the p3-examples variant: the map came back as a list of names."""
+    draft = rca_agent.RcaDraft.model_validate({"timeline": [], "hypotheses": [], "confirmed_anomalies": [],
+                                               "severity_inputs_found": ["customer_error_rate_pct"]})
+    assert draft.severity_inputs_found == {}
+
+
+def test_rules_only_evaluation_run_is_never_deduplicated_against_a_live_incident(sandbox):
+    """Found while generating the baseline evidence: an evaluation rules-only run of SC-04 matched the live
+    SC-04 incident and decided nothing. It now uses its own store, like run_investigation."""
+    from src.services.rules_only_runner import run_rules_only
+
+    live = run_rules_only("SC-04")
+    evaluated = run_rules_only("SC-04", run_mode=RunMode.EVALUATION)
+    assert live.created and evaluated.created and not evaluated.deduplicated
+    assert evaluated.rules_pass1 is not None and evaluated.rules_pass1.level.value == "S1"
+    assert [v.incident_id for v in store.list_incidents()] == [live.incident_id]

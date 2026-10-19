@@ -1,0 +1,66 @@
+Flow log of RUN-179207569709101, incident INC-20260327-001
+
+14:48:18.440     +0.00s INFO    [Detect] anomaly_detector | anomaly_detected: core-banking-db db_connections_used_pct: observed 0.98 against baseline 0.361 (z 57.72, threshold)
+14:48:18.443     +0.00s INFO    [Detect] anomaly_detector | anomaly_detected: core-banking-db db_cpu_pct: observed 93.4 against baseline 44.505 (z 39.86, threshold)
+14:48:18.444     +0.00s INFO    [Detect] anomaly_detector | anomaly_detected: core-banking-db db_lock_wait_ms: observed 419.8 against baseline 36.25 (z 102.09, zscore)
+14:48:18.445     +0.01s INFO    [Detect] anomaly_detector | anomaly_detected: core-banking-db db_slow_queries: observed 60.0 against baseline 1.75 (z 38.51, zscore)
+14:48:18.446     +0.01s INFO    [Detect] anomaly_detector | anomaly_detected: accounts-service api_error_rate: observed 0.0623 against baseline 0.0031 (z 146.7, threshold)
+14:48:18.448     +0.01s INFO    [Detect] anomaly_detector | anomaly_detected: accounts-service api_p95_ms: observed 708.6 against baseline 150.67 (z 136.71, zscore)
+14:48:18.449     +0.01s INFO    [Detect] anomaly_detector | anomaly_detected: accounts-service log_error_count: observed 4.0 against baseline 0.0 (z None, threshold)
+14:48:18.450     +0.01s INFO    [Detect] anomaly_detector | anomaly_detected: api-gateway api_error_rate: observed 0.0312 against baseline 0.0029 (z 64.24, zscore)
+14:48:18.452     +0.01s INFO    [Detect] anomaly_detector | anomaly_detected: api-gateway api_p95_ms: observed 472.2 against baseline 179.47 (z 51.72, zscore)
+14:48:18.453     +0.01s INFO    [Detect] anomaly_detector | anomaly_detected: auth-service api_error_rate: observed 0.0624 against baseline 0.0019 (z 245.12, threshold)
+14:48:18.454     +0.01s INFO    [Detect] anomaly_detector | anomaly_detected: auth-service api_p95_ms: observed 629.5 against baseline 121.99 (z 164.76, zscore)
+14:48:18.456     +0.02s INFO    [Detect] anomaly_detector | anomaly_detected: mobile-app api_error_rate: observed 0.0312 against baseline 0.0039 (z 54.9, zscore)
+14:48:18.457     +0.02s INFO    [Detect] anomaly_detector | anomaly_detected: mobile-app api_p95_ms: observed 880.9 against baseline 419.28 (z 38.5, zscore)
+14:48:18.458     +0.02s INFO    [Detect] anomaly_detector | anomaly_detected: net-banking api_error_rate: observed 0.0312 against baseline 0.0039 (z 57.68, zscore)
+14:48:18.459     +0.02s INFO    [Detect] anomaly_detector | anomaly_detected: net-banking api_p95_ms: observed 797.6 against baseline 381.375 (z 49.35, zscore)
+14:48:18.459     +0.02s INFO    [Detect] anomaly_detector | anomaly_detected: payments-service api_error_rate: observed 0.0208 against baseline 0.005 (z 19.46, zscore)
+14:48:18.460     +0.02s INFO    [Detect] anomaly_detector | anomaly_detected: payments-service api_p95_ms: observed 491.0 against baseline 257.065 (z 37.29, zscore)
+14:48:18.460     +0.02s INFO    [Detect] anomaly_detector | anomaly_detected: auth-service complaints_30min:login: observed 32.0 against baseline 0.4 (z None, threshold)
+14:48:18.465     +0.03s INFO    [Detect] alert_correlator | incident_created: new incident for core-banking-db from 18 anomalies
+14:48:18.466     +0.03s INFO    [Detect] correlate_dedup | node_completed: step finished in 144 ms
+14:48:18.479     +0.04s INFO    [Detect] redact | node_completed: step finished in 0 ms
+14:48:18.580     +0.14s INFO    [Triage] severity_rules_pass1 | severity_rules_evaluated: pass1: S1 (major); rules fired: R-S1-LAT, R-S3-DEG
+14:48:18.581     +0.14s INFO    [Triage] severity_rules_pass1 | node_completed: step finished in 92 ms
+14:48:18.615     +0.17s INFO    [Triage] dispatch_fast_page | dispatch_suppressed: action page; reason evaluation_mode
+14:48:18.616     +0.18s INFO    [Triage] dispatch_fast_page | node_completed: step finished in 25 ms
+14:48:22.827     +4.39s INFO    [Other] tool_registry | mcp_server_started: tool_count 13; tools ["get_service_dependencies", "query_acl_audit", "query_api_metrics", "query_change_records", "query_cluster_quorum", "q…
+14:48:22.856     +4.42s INFO    [Triage] triage_agent | tool_call: tool query_complaints over mcp, 4241 ms
+14:48:22.868     +4.43s INFO    [Triage] triage_agent | tool_call: tool get_service_dependencies over mcp, 11 ms
+14:48:23.344     +4.90s INFO    [Triage] triage_agent | tool_call: tool search_knowledge_base over mcp, 473 ms
+14:48:31.186    +12.75s INFO    [Triage] triage_agent | llm_call: gpt-4o-mini-2024-07-18 (structured): 5946 tokens in, 233 out, 7830 ms, finish stop
+14:48:31.187    +12.75s INFO    [Triage] triage_agent | node_completed: step finished in 12588 ms
+14:48:31.225    +12.79s INFO    [Triage] itsm_upsert | dispatch_suppressed: action itsm_upsert; reason evaluation_mode
+14:48:31.226    +12.79s INFO    [Triage] itsm_upsert | node_completed: step finished in 1 ms
+14:48:31.344    +12.90s INFO    [Triage] severity_rules_pass2 | severity_rules_evaluated: pass2: S1 (major); rules fired: R-S1-LAT, R-S3-DEG, R-P2-CHANNEL
+14:48:31.347    +12.91s INFO    [Triage] severity_rules_pass2 | node_completed: step finished in 93 ms
+14:48:31.418    +12.98s INFO    [Analyse] change_correlation_agent | tool_call: tool query_change_records over mcp, 23 ms
+14:48:31.480    +13.04s INFO    [Analyse] change_correlation_agent | tool_call: tool get_service_dependencies over mcp, 51 ms
+14:48:34.622    +16.18s INFO    [Analyse] change_correlation_agent | llm_call: gpt-4o-mini-2024-07-18 (structured): 792 tokens in, 159 out, 3139 ms, finish stop
+14:48:34.624    +16.18s INFO    [Analyse] change_correlation_agent | node_completed: step finished in 3245 ms
+14:48:34.927    +16.49s INFO    [Analyse] rca_agent | llm_call: gpt-4o-mini-2024-07-18 (tools): 4374 tokens in, 158 out, 3509 ms, finish tool_calls
+14:48:34.932    +16.49s WARNING [Analyse] rca_agent | tool_call: tool query_logs invalid arguments: service: Input should be a valid list
+14:48:34.990    +16.55s INFO    [Analyse] rca_agent | tool_call: tool query_db_infra_metrics over mcp, 62 ms
+14:48:34.992    +16.55s INFO    [Analyse] rca_agent | tool_call: tool query_api_metrics over mcp, 59 ms
+14:48:37.253    +18.81s INFO    [Analyse] rca_agent | llm_call: gpt-4o-mini-2024-07-18 (tools): 6909 tokens in, 56 out, 2255 ms, finish tool_calls
+14:48:37.334    +18.89s INFO    [Analyse] rca_agent | tool_call: tool query_logs over mcp, 76 ms
+14:48:37.336    +18.90s INFO    [Analyse] rca_agent | tool_call: tool query_logs over mcp, 79 ms
+14:48:47.318    +28.88s INFO    [Analyse] rca_agent | llm_call: gpt-4o-mini-2024-07-18 (structured): 6227 tokens in, 985 out, 9979 ms, finish stop
+14:48:47.320    +28.88s INFO    [Analyse] rca_agent | node_completed: step finished in 15926 ms
+14:48:47.340    +28.90s INFO    [Analyse] analysis_join | node_completed: step finished in 0 ms
+14:48:55.320    +36.88s INFO    [Analyse] recommendation_agent | tool_call: tool search_knowledge_base over mcp, 7948 ms
+14:48:57.748    +39.31s INFO    [Analyse] recommendation_agent | tool_call: tool search_knowledge_base over mcp, 2427 ms
+14:49:02.699    +44.26s INFO    [Analyse] recommendation_agent | llm_call: gpt-4o-mini-2024-07-18 (structured): 2046 tokens in, 392 out, 4946 ms, finish stop
+14:49:02.700    +44.26s INFO    [Analyse] recommendation_agent | node_completed: step finished in 15329 ms
+14:49:02.818    +44.38s INFO    [Respond] output_guardrails | node_completed: step finished in 12 ms
+14:49:02.861    +44.42s INFO    [Respond] confidence_gate | node_completed: step finished in 0 ms
+14:49:02.881    +44.44s INFO    [Respond] final_severity_gate | node_completed: step finished in 0 ms
+14:49:02.912    +44.47s INFO    [Respond] dispatch_page | dispatch_suppressed: action page_update; reason evaluation_mode
+14:49:02.913    +44.47s INFO    [Respond] dispatch_page | node_completed: step finished in 2 ms
+14:49:02.945    +44.51s INFO    [Respond] notify | tool_call: tool lookup_stakeholders over inprocess, 1 ms
+14:49:02.946    +44.51s INFO    [Respond] notify | dispatch_suppressed: action notify; reason evaluation_mode
+14:49:02.947    +44.51s INFO    [Respond] notify | node_completed: step finished in 3 ms
+14:49:02.999    +44.56s INFO    [Respond] finalize | node_completed: step finished in 20 ms
+
+62 lines · run 44.56 s · 6 LLM calls, 28277 tokens · 13 tool calls · 0 errors

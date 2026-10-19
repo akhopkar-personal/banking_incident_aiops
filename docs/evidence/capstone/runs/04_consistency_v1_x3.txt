@@ -1,0 +1,34 @@
+  1/18 GC-SC01-REPLAY
+  2/18 GC-SC01-REPLAY
+  3/18 GC-SC01-FREETEXT
+  4/18 GC-SC01-REPLAY
+  5/18 GC-SC01-FREETEXT
+  6/18 GC-SC01-FREETEXT
+[10/15/26 19:11:16] ERROR    Failed to export spans batch due to    http.py:222
+                             timeout, max retries or shutdown.                 
+  7/18 GC-SC02-REPLAY
+  8/18 GC-SC02-REPLAY
+  9/18 GC-SC02-FREETEXT
+  10/18 GC-SC02-REPLAY
+  11/18 GC-SC02-FREETEXT
+  12/18 GC-SC02-FREETEXT
+  13/18 GC-SC04-REPLAY
+  14/18 GC-SC04-REPLAY
+  15/18 GC-SC04-REPLAY
+  16/18 GC-SC04-FREETEXT
+  17/18 GC-SC04-FREETEXT
+  18/18 GC-SC04-FREETEXT
+Consistency CONS-20261015T134417037 (active prompts): 6 cases x 3 runs, $0.0748
+  status                 100.0% of cases agree across runs
+  severity                83.3% of cases agree across runs
+  issue_class            100.0% of cases agree across runs
+  rca_top1_correct        83.3% of cases agree across runs
+  red_herring_rejected    83.3% of cases agree across runs
+  top_change              83.3% of cases agree across runs
+  all fields              83.3%
+  GC-SC01-REPLAY     consistent
+  GC-SC01-FREETEXT   consistent
+  GC-SC02-REPLAY     differs in severity, rca_top1_correct, red_herring_rejected, top_change
+  GC-SC02-FREETEXT   consistent
+  GC-SC04-REPLAY     consistent
+  GC-SC04-FREETEXT   consistent

@@ -1,0 +1,38 @@
+{
+  "scenario_id": "SC-04",
+  "run_id": "RUN-179207222639401",
+  "incident_id": "INC-20260402-001",
+  "created": true,
+  "deduplicated": false,
+  "root_service": "payment-network-gateway",
+  "anomaly_events": 7,
+  "incident_groups": 1,
+  "severity": "S1",
+  "rules_fired": [
+    "R-S1-ERR",
+    "R-S1-ROUTE",
+    "R-S3-DEG"
+  ],
+  "flags": [],
+  "dispatch": {
+    "paged": false,
+    "fast_path": false,
+    "notifications": [],
+    "suppressed": true,
+    "intended": {
+      "page": {
+        "team": "incident-escalation",
+        "summary": "INC-20260402-001 S1 (fast path, rules only): S1 by rules: R-S1-ERR (31.19 vs 15), R-S1-ROUTE (100 vs 50), R-S3-DEG (1 vs 1)",
+        "fast_path": true
+      },
+      "itsm_upsert": {
+        "incident_id": "INC-20260402-001",
+        "severity": "S1",
+        "issue_class": null,
+        "summary": "INC-20260402-001: S1 by rules: R-S1-ERR (31.19 vs 15), R-S1-ROUTE (100 vs 50), R-S3-DEG (1 vs 1)",
+        "scenario_id": "SC-04"
+      }
+    }
+  },
+  "guardrail_flags": []
+}

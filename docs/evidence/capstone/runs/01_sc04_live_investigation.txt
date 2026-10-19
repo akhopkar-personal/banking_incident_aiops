@@ -1,0 +1,70 @@
+  . intake
+  . correlate_dedup
+  . redact
+  . severity_rules_pass1
+  . dispatch_fast_page
+  . triage_agent
+  . itsm_upsert
+  . severity_rules_pass2
+  . change_correlation_agent
+  . rca_agent
+  . analysis_join
+  . recommendation_agent
+  . output_guardrails
+  . confidence_gate
+  . final_severity_gate
+  . dispatch_page
+  . notify
+  . finalize
+{
+  "incident_id": "INC-20260402-001",
+  "status": "PENDING_REVIEW",
+  "incident_state": "PAGED",
+  "issue_class": "network_tls",
+  "severity": "S1",
+  "rules_fired": [
+    "R-S1-ERR",
+    "R-S1-ROUTE",
+    "R-S3-DEG",
+    "R-P2-CHANNEL"
+  ],
+  "hypotheses": [
+    "1. (1.0) Expired TLS certificate for the payment-network-gateway caused handshake failures, leading to 100% error rate on card routes. ['NET-0001', 'NET-0121', 'API-0308', 'LOG-0096', 'LOG-0097', 'LOG-0098']",
+    "2. (0.9) Increased error rates in the payments-service and mobile-app due to the payment-network-gateway's failure to process card transactions. ['API-0305', 'API-0301', 'API-0303', 'CMP-0025', 'CMP-0047']"
+  ],
+  "change_findings": [
+    "DEP-0031 linked to None: The release on payment-network-gateway (DEP-0031) is on the dependency path and could have introduced changes that affected the TLS handshake process, leading to the expired certificate issue."
+  ],
+  "actions": [
+    "1. [low] customer_communication: Show a message in the app that card payments are temporarily unavailable. (RB-NET-004 §4)",
+    "2. [medium] renew_certificate: Renew the expired TLS certificate for the payment-network-gateway. (RB-NET-004 §1)",
+    "3. [medium] rollback_release: Rollback the release on payment-network-gateway (DEP-0031). (RB-PAY-003 §4)"
+  ],
+  "needs_human_rca": false,
+  "stakeholder_summary": "The payment-network-gateway experienced a major failure due to an expired TLS certificate, causing all card transactions to fail. Customer impact is being assessed. The payment-network-gateway is currently non-operational for card transactions due to the expired certificate. An update will be provided in 30 minutes.",
+  "regulatory_notes": null,
+  "insufficient_evidence_reason": null,
+  "error_detail": null,
+  "dispatch": {
+    "paged": true,
+    "fast_path": true,
+    "page_time": "2026-10-15T13:15:41.084000Z",
+    "itsm_ticket_id": "MOCK-ITSM-0002",
+    "suppressed": false,
+    "intended": {}
+  },
+  "notifications": 3,
+  "guardrail_flags": [
+    "ungrounded_removed",
+    "tone_adjusted"
+  ],
+  "tokens": {
+    "triage_agent": 4765,
+    "change_correlation_agent": 893,
+    "rca_agent": 11956,
+    "recommendation_agent": 2793
+  },
+  "cost_usd": 0.004013,
+  "langfuse_trace_id": "67bb6098032930db8e0571d6fd67b1ac",
+  "seconds": 49.2
+}

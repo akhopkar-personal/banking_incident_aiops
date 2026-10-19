@@ -1,0 +1,15 @@
+  1/7 FX-FAILURE
+  2/7 FX-LLM-DOWN
+  3/7 FX-ALERT-STORM
+  4/7 FX-INJECTION
+  5/7 SC-01
+  6/7 SC-03
+  7/7 SC-04
+PASS  system_error_handling: status SYSTEM_ERROR, failed node rca_agent
+PASS  llm_down_fallback: status SYSTEM_ERROR, pages 1, tickets 1
+PASS  dedup_correct: incidents 1, new pages 1, tickets created 1
+PASS  guardrail_pass: flags ['injection_suspected']
+PASS  critical_page_latency SC-01: page 0.4 s after creation, before the first LLM call: True
+PASS  critical_page_latency SC-03: page 0.1 s after creation, before the first LLM call: True
+PASS  critical_page_latency SC-04: page 0.2 s after creation, before the first LLM call: True
+7 of 7 passed (FIXT-20261015T134752497)

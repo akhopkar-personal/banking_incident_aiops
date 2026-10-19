@@ -1,0 +1,11 @@
+Flow log of RUN-DEMO-TOOLS-20261015134820, incident INC-DEMO-TOOLS-20261015134820
+
+13:48:25.304     +0.00s INFO    [Analyse] rca_agent | tool_call: tool query_network over mcp, 5183 ms
+13:48:25.305     +0.00s WARNING [Analyse] rca_agent | tool_call: tool query_api_metrics invalid arguments: unknown service payments; use canonical names such as payments-service
+13:48:25.308     +0.00s ERROR   [Analyse] tool_registry | tool_access_blocked: tool query_change_records blocked for rca_agent: tool is not in this caller's allowed set
+13:48:25.309     +0.01s ERROR   [Analyse] tool_registry | tool_access_blocked: tool page_oncall blocked for recommendation_agent: dispatch tools are callable only by designated workflow nodes
+13:48:25.310     +0.01s WARNING [Analyse] rca_agent | tool_call: tool query_logs duplicate call
+13:48:25.312     +0.01s WARNING [Analyse] rca_agent | tool_call: tool query_api_metrics budget exhausted
+13:48:25.313     +0.01s WARNING [Analyse] rca_agent | tool_call: tool query_api_metrics budget exhausted
+
+7 lines · run 0.01 s · 0 LLM calls, 0 tokens · 5 tool calls · 2 errors

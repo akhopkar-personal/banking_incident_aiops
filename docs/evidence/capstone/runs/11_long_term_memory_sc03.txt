@@ -1,0 +1,722 @@
+  . intake
+  . correlate_dedup
+  . redact
+  . severity_rules_pass1
+  . dispatch_fast_page
+  . triage_agent
+  . itsm_upsert
+  . severity_rules_pass2
+  . change_correlation_agent
+  . rca_agent
+  . analysis_join
+  . recommendation_agent
+  . output_guardrails
+  . confidence_gate
+  . final_severity_gate
+  . dispatch_page
+  . notify
+  . finalize
+{
+  "incident_id": "INC-20260327-001",
+  "run_id": "RUN-179207569709101",
+  "status": "PENDING_REVIEW",
+  "incident_state": "OPEN",
+  "issue_class": "database_capacity",
+  "severity": {
+    "level": "S1",
+    "rationale": "S1 by rules: R-S1-LAT (2 vs 2), R-S3-DEG (1 vs 1), R-P2-CHANNEL (1 vs 1)",
+    "source": "rules",
+    "llm_proposed_level": "S1",
+    "rules_fired": [
+      {
+        "rule_id": "R-S1-LAT",
+        "observed": 2.0,
+        "threshold": 2.0,
+        "severity": "S1",
+        "flags": []
+      },
+      {
+        "rule_id": "R-S3-DEG",
+        "observed": 1.0,
+        "threshold": 1.0,
+        "severity": "S3",
+        "flags": []
+      },
+      {
+        "rule_id": "R-P2-CHANNEL",
+        "observed": 1.0,
+        "threshold": 1.0,
+        "severity": "S3",
+        "flags": []
+      }
+    ],
+    "rescored": false,
+    "flags": []
+  },
+  "affected_services": [
+    {
+      "service": "core-banking-db",
+      "role": "origin"
+    },
+    {
+      "service": "payments-service",
+      "role": "downstream"
+    },
+    {
+      "service": "accounts-service",
+      "role": "downstream"
+    },
+    {
+      "service": "api-gateway",
+      "role": "downstream"
+    },
+    {
+      "service": "mobile-app",
+      "role": "downstream"
+    },
+    {
+      "service": "net-banking",
+      "role": "downstream"
+    }
+  ],
+  "timeline": [
+    {
+      "timestamp": "2026-03-27T18:01:00Z",
+      "source": "DBM",
+      "service": "core-banking-db",
+      "description": "core-banking-db connections at 300/500, CPU 78.0%, lock wait 419.6 ms",
+      "evidence_id": "DBM-0030"
+    },
+    {
+      "timestamp": "2026-03-27T18:02:00Z",
+      "source": "API",
+      "service": "auth-service",
+      "description": "auth-service error rate first above 2%: 6.1%",
+      "evidence_id": "API-0304"
+    },
+    {
+      "timestamp": "2026-03-27T18:02:00Z",
+      "source": "API",
+      "service": "accounts-service",
+      "description": "accounts-service error rate first above 2%: 6.2%",
+      "evidence_id": "API-0306"
+    },
+    {
+      "timestamp": "2026-03-27T18:02:04Z",
+      "source": "LOG",
+      "service": "accounts-service",
+      "description": "Connection pool exhausted: waited 2000 ms for a connection to core-banking-db",
+      "evidence_id": "LOG-0094"
+    },
+    {
+      "timestamp": "2026-03-27T18:05:00Z",
+      "source": "API",
+      "service": "auth-service",
+      "description": "auth-service p95 630 ms = 5.2x baseline 122 ms",
+      "evidence_id": "API-0334"
+    },
+    {
+      "timestamp": "2026-03-27T18:11:00Z",
+      "source": "DBM",
+      "service": "core-banking-db",
+      "description": "Peak lock wait 420 ms (12x baseline)",
+      "evidence_id": "DBM-0040"
+    },
+    {
+      "timestamp": "2026-03-27T18:25:59Z",
+      "source": "CMP",
+      "service": "auth-service",
+      "description": "Complaint (login): Net banking login extremely slow this evening.",
+      "evidence_id": "CMP-0030"
+    },
+    {
+      "timestamp": "2026-03-27T18:36:54Z",
+      "source": "CMP",
+      "service": "auth-service",
+      "description": "Complaint (login): Net banking login extremely slow this evening.",
+      "evidence_id": "CMP-0041"
+    },
+    {
+      "timestamp": "2026-03-27T19:00:00Z",
+      "source": "API",
+      "service": "auth-service",
+      "description": "auth-service error rate 6.2%",
+      "evidence_id": "API-0884"
+    }
+  ],
+  "hypotheses": [
+    {
+      "rank": 1,
+      "root_cause": "Core-banking-db is experiencing high connection usage and CPU load, leading to saturation.",
+      "confidence": 0.9,
+      "supporting_evidence": [
+        "DBM-0030",
+        "DBM-0034",
+        "DBM-0035"
+      ],
+      "contradicting_or_missing_evidence": [
+        "No contradicting evidence found."
+      ]
+    },
+    {
+      "rank": 2,
+      "root_cause": "Connection pool exhaustion in accounts-service due to high load on core-banking-db.",
+      "confidence": 0.85,
+      "supporting_evidence": [
+        "LOG-0094",
+        "API-0306"
+      ],
+      "contradicting_or_missing_evidence": [
+        "No contradicting evidence found."
+      ]
+    },
+    {
+      "rank": 3,
+      "root_cause": "Increased error rates in downstream services due to timeouts and high latency from core-banking-db.",
+      "confidence": 0.8,
+      "supporting_evidence": [
+        "API-0304",
+        "API-0334",
+        "API-0884",
+        "CMP-0030"
+      ],
+      "contradicting_or_missing_evidence": [
+        "No contradicting evidence found."
+      ]
+    }
+  ],
+  "change_findings": [
+    {
+      "change_id": "DEP-0021",
+      "change_type": "config",
+      "service": "core-banking-db",
+      "time_before_onset_min": 74.0,
+      "on_dependency_path": true,
+      "linked_hypothesis_rank": 1,
+      "rationale": "The configuration change on core-banking-db moved the EOD reconciliation batch schedule to a time that coincides with the incident onset, likely causing increased load on the database as it processes the batch during peak usage."
+    }
+  ],
+  "evidence": {
+    "API-0304": {
+      "evidence_id": "API-0304",
+      "source": "API",
+      "service": "auth-service",
+      "timestamp": "2026-03-27T18:02:00Z",
+      "summary": "auth-service /auth/v1/login error rate 6.1%, p95 615 ms at 18:02:00Z",
+      "record": {
+        "timestamp": "2026-03-27T18:02:00Z",
+        "service": "auth-service",
+        "environment": "prod",
+        "record_id": "API-0304",
+        "endpoint": "/auth/v1/login",
+        "request_count": 935,
+        "error_rate": 0.0606,
+        "p95_latency_ms": 614.7,
+        "status_code_breakdown": {
+          "2xx": 869,
+          "4xx": 9,
+          "5xx": 57
+        }
+      }
+    },
+    "API-0306": {
+      "evidence_id": "API-0306",
+      "source": "API",
+      "service": "accounts-service",
+      "timestamp": "2026-03-27T18:02:00Z",
+      "summary": "accounts-service /accounts/v1/balance error rate 6.2%, p95 689 ms at 18:02:00Z",
+      "record": {
+        "timestamp": "2026-03-27T18:02:00Z",
+        "service": "accounts-service",
+        "environment": "prod",
+        "record_id": "API-0306",
+        "endpoint": "/accounts/v1/balance",
+        "request_count": 1056,
+        "error_rate": 0.0616,
+        "p95_latency_ms": 689.0,
+        "status_code_breakdown": {
+          "2xx": 980,
+          "4xx": 11,
+          "5xx": 65
+        }
+      }
+    },
+    "API-0334": {
+      "evidence_id": "API-0334",
+      "source": "API",
+      "service": "auth-service",
+      "timestamp": "2026-03-27T18:05:00Z",
+      "summary": "auth-service /auth/v1/login error rate 6.2%, p95 630 ms at 18:05:00Z",
+      "record": {
+        "timestamp": "2026-03-27T18:05:00Z",
+        "service": "auth-service",
+        "environment": "prod",
+        "record_id": "API-0334",
+        "endpoint": "/auth/v1/login",
+        "request_count": 871,
+        "error_rate": 0.0623,
+        "p95_latency_ms": 629.5,
+        "status_code_breakdown": {
+          "2xx": 808,
+          "4xx": 9,
+          "5xx": 54
+        }
+      }
+    },
+    "API-0884": {
+      "evidence_id": "API-0884",
+      "source": "API",
+      "service": "auth-service",
+      "timestamp": "2026-03-27T19:00:00Z",
+      "summary": "auth-service /auth/v1/login error rate 6.2%, p95 609 ms at 19:00:00Z",
+      "record": {
+        "timestamp": "2026-03-27T19:00:00Z",
+        "service": "auth-service",
+        "environment": "prod",
+        "record_id": "API-0884",
+        "endpoint": "/auth/v1/login",
+        "request_count": 919,
+        "error_rate": 0.0624,
+        "p95_latency_ms": 609.3,
+        "status_code_breakdown": {
+          "2xx": 853,
+          "4xx": 9,
+          "5xx": 57
+        }
+      }
+    },
+    "CMP-0003": {
+      "evidence_id": "CMP-0003",
+      "source": "CMP",
+      "service": "auth-service",
+      "timestamp": "2026-03-27T17:44:15Z",
+      "summary": "Complaint (login, slow_login, cluster of 26): Login page keeps spinning and then times out. Account number ACCT_5A23.",
+      "record": {
+        "timestamp": "2026-03-27T17:44:15Z",
+        "service": "auth-service",
+        "environment": "prod",
+        "record_id": "CMP-0003",
+        "complaint_id": "CPL-20260327-0003",
+        "channel": "app",
+        "text": "Login page keeps spinning and then times out. Account number ACCT_5A23.",
+        "product": "login",
+        "customer_ref": "CUST-819165"
+      }
+    },
+    "CMP-0008": {
+      "evidence_id": "CMP-0008",
+      "source": "CMP",
+      "service": "auth-service",
+      "timestamp": "2026-03-27T18:07:41Z",
+      "summary": "Complaint (login, slow_login, cluster of 26): Net banking login extremely slow this evening. Account number ACCT_6D38.",
+      "record": {
+        "timestamp": "2026-03-27T18:07:41Z",
+        "service": "auth-service",
+        "environment": "prod",
+        "record_id": "CMP-0008",
+        "complaint_id": "CPL-20260327-0017",
+        "channel": "social",
+        "text": "Net banking login extremely slow this evening. Account number ACCT_6D38.",
+        "product": "login",
+        "customer_ref": "CUST-585228"
+      }
+    },
+    "CMP-0014": {
+      "evidence_id": "CMP-0014",
+      "source": "CMP",
+      "service": "auth-service",
+      "timestamp": "2026-03-27T18:12:20Z",
+      "summary": "Complaint (login, stale_balance, cluster of 7): Cannot see my balance, the screen just loads forever.",
+      "record": {
+        "timestamp": "2026-03-27T18:12:20Z",
+        "service": "auth-service",
+        "environment": "prod",
+        "record_id": "CMP-0014",
+        "complaint_id": "CPL-20260327-0022",
+        "channel": "app",
+        "text": "Cannot see my balance, the screen just loads forever.",
+        "product": "login",
+        "customer_ref": "CUST-145983"
+      }
+    },
+    "CMP-0017": {
+      "evidence_id": "CMP-0017",
+      "source": "CMP",
+      "service": "auth-service",
+      "timestamp": "2026-03-27T18:15:13Z",
+      "summary": "Complaint (login, stale_balance, cluster of 7): Cannot see my balance, the screen just loads forever.",
+      "record": {
+        "timestamp": "2026-03-27T18:15:13Z",
+        "service": "auth-service",
+        "environment": "prod",
+        "record_id": "CMP-0017",
+        "complaint_id": "CPL-20260327-0009",
+        "channel": "app",
+        "text": "Cannot see my balance, the screen just loads forever.",
+        "product": "login",
+        "customer_ref": "CUST-552527"
+      }
+    },
+    "CMP-0020": {
+      "evidence_id": "CMP-0020",
+      "source": "CMP",
+      "service": "payments-service",
+      "timestamp": "2026-03-27T18:16:46Z",
+      "summary": "Complaint (fund_transfer, payment_failed, cluster of 5): Tried to send money three times, all failed. Very frustrating.",
+      "record": {
+        "timestamp": "2026-03-27T18:16:46Z",
+        "service": "payments-service",
+        "environment": "prod",
+        "record_id": "CMP-0020",
+        "complaint_id": "CPL-20260327-0010",
+        "channel": "app",
+        "text": "Tried to send money three times, all failed. Very frustrating.",
+        "product": "fund_transfer",
+        "customer_ref": "CUST-300560"
+      }
+    },
+    "CMP-0030": {
+      "evidence_id": "CMP-0030",
+      "source": "CMP",
+      "service": "auth-service",
+      "timestamp": "2026-03-27T18:25:59Z",
+      "summary": "Complaint (login): Net banking login extremely slow this evening. at 18:25:59Z",
+      "record": {
+        "timestamp": "2026-03-27T18:25:59Z",
+        "service": "auth-service",
+        "environment": "prod",
+        "record_id": "CMP-0030",
+        "complaint_id": "CPL-20260327-0035",
+        "channel": "social",
+        "text": "Net banking login extremely slow this evening.",
+        "product": "login",
+        "customer_ref": "CUST-336098"
+      }
+    },
+    "CMP-0041": {
+      "evidence_id": "CMP-0041",
+      "source": "CMP",
+      "service": "auth-service",
+      "timestamp": "2026-03-27T18:36:54Z",
+      "summary": "Complaint (login): Net banking login extremely slow this evening. at 18:36:54Z",
+      "record": {
+        "timestamp": "2026-03-27T18:36:54Z",
+        "service": "auth-service",
+        "environment": "prod",
+        "record_id": "CMP-0041",
+        "complaint_id": "CPL-20260327-0046",
+        "channel": "call_centre",
+        "text": "Net banking login extremely slow this evening.",
+        "product": "login",
+        "customer_ref": "CUST-120670"
+      }
+    },
+    "CMP-0044": {
+      "evidence_id": "CMP-0044",
+      "source": "CMP",
+      "service": "accounts-service",
+      "timestamp": "2026-03-27T18:40:46Z",
+      "summary": "Complaint (balance_and_alerts, stale_balance, cluster of 2): Balance in the app looks wrong, my last two transactions are missing. My name is PERSON_CFE6, call me on PHONE_F642.",
+      "record": {
+        "timestamp": "2026-03-27T18:40:46Z",
+        "service": "accounts-service",
+        "environment": "prod",
+        "record_id": "CMP-0044",
+        "complaint_id": "CPL-20260327-0014",
+        "channel": "call_centre",
+        "text": "Balance in the app looks wrong, my last two transactions are missing. My name is PERSON_CFE6, call me on PHONE_F642.",
+        "product": "balance_and_alerts",
+        "customer_ref": "CUST-531699"
+      }
+    },
+    "CMP-0045": {
+      "evidence_id": "CMP-0045",
+      "source": "CMP",
+      "service": "accounts-service",
+      "timestamp": "2026-03-27T18:46:39Z",
+      "summary": "Complaint (balance_and_alerts, stale_balance, cluster of 2): Balance in the app looks wrong, my last two transactions are missing.",
+      "record": {
+        "timestamp": "2026-03-27T18:46:39Z",
+        "service": "accounts-service",
+        "environment": "prod",
+        "record_id": "CMP-0045",
+        "complaint_id": "CPL-20260327-0015",
+        "channel": "social",
+        "text": "Balance in the app looks wrong, my last two transactions are missing.",
+        "product": "balance_and_alerts",
+        "customer_ref": "CUST-521063"
+      }
+    },
+    "DBM-0030": {
+      "evidence_id": "DBM-0030",
+      "source": "DBM",
+      "service": "core-banking-db",
+      "timestamp": "2026-03-27T18:01:00Z",
+      "summary": "cbdb-prod-01 connections 300/500, CPU 78.0%, lock wait 419.6 ms at 18:01:00Z",
+      "record": {
+        "timestamp": "2026-03-27T18:01:00Z",
+        "service": "core-banking-db",
+        "environment": "prod",
+        "record_id": "DBM-0030",
+        "db_instance": "cbdb-prod-01",
+        "active_connections": 300,
+        "max_connections": 500,
+        "cpu_pct": 78.0,
+        "mem_pct": 78.3,
+        "slow_query_count": 43,
+        "lock_wait_ms": 419.6
+      }
+    },
+    "DBM-0034": {
+      "evidence_id": "DBM-0034",
+      "source": "DBM",
+      "service": "core-banking-db",
+      "timestamp": "2026-03-27T18:05:00Z",
+      "summary": "cbdb-prod-01 connections 488/500, CPU 93.4%, lock wait 353.6 ms at 18:05:00Z",
+      "record": {
+        "timestamp": "2026-03-27T18:05:00Z",
+        "service": "core-banking-db",
+        "environment": "prod",
+        "record_id": "DBM-0034",
+        "db_instance": "cbdb-prod-01",
+        "active_connections": 488,
+        "max_connections": 500,
+        "cpu_pct": 93.4,
+        "mem_pct": 79.8,
+        "slow_query_count": 60,
+        "lock_wait_ms": 353.6
+      }
+    },
+    "DBM-0035": {
+      "evidence_id": "DBM-0035",
+      "source": "DBM",
+      "service": "core-banking-db",
+      "timestamp": "2026-03-27T18:06:00Z",
+      "summary": "cbdb-prod-01 connections 490/500, CPU 90.9%, lock wait 354.7 ms at 18:06:00Z",
+      "record": {
+        "timestamp": "2026-03-27T18:06:00Z",
+        "service": "core-banking-db",
+        "environment": "prod",
+        "record_id": "DBM-0035",
+        "db_instance": "cbdb-prod-01",
+        "active_connections": 490,
+        "max_connections": 500,
+        "cpu_pct": 90.9,
+        "mem_pct": 79.4,
+        "slow_query_count": 49,
+        "lock_wait_ms": 354.7
+      }
+    },
+    "DBM-0040": {
+      "evidence_id": "DBM-0040",
+      "source": "DBM",
+      "service": "core-banking-db",
+      "timestamp": "2026-03-27T18:11:00Z",
+      "summary": "cbdb-prod-01 connections 489/500, CPU 91.2%, lock wait 419.8 ms at 18:11:00Z",
+      "record": {
+        "timestamp": "2026-03-27T18:11:00Z",
+        "service": "core-banking-db",
+        "environment": "prod",
+        "record_id": "DBM-0040",
+        "db_instance": "cbdb-prod-01",
+        "active_connections": 489,
+        "max_connections": 500,
+        "cpu_pct": 91.2,
+        "mem_pct": 78.2,
+        "slow_query_count": 60,
+        "lock_wait_ms": 419.8
+      }
+    },
+    "DEP-0021": {
+      "evidence_id": "DEP-0021",
+      "source": "DEP",
+      "service": "core-banking-db",
+      "timestamp": "2026-03-27T16:47:00Z",
+      "summary": "config on core-banking-db at 2026-03-27 16:47Z: EOD reconciliation batch schedule moved from 22:00 to 18:00 UTC to meet the new reporting cut-off (OPS-771) (rollback available)",
+      "record": {
+        "timestamp": "2026-03-27T16:47:00Z",
+        "service": "core-banking-db",
+        "environment": "prod",
+        "record_id": "DEP-0021",
+        "deployment_id": "CR-25230",
+        "change_type": "config",
+        "author": "batch-scheduler-config",
+        "change_summary": "EOD reconciliation batch schedule moved from 22:00 to 18:00 UTC to meet the new reporting cut-off (OPS-771)",
+        "rollback_available": true
+      }
+    },
+    "LOG-0094": {
+      "evidence_id": "LOG-0094",
+      "source": "LOG",
+      "service": "accounts-service",
+      "timestamp": "2026-03-27T18:02:04Z",
+      "summary": "ERROR accounts-service CONN_POOL_EXHAUSTED: Connection pool exhausted: waited 2000 ms for a connection to core-banking-db at 18:02:04Z",
+      "record": {
+        "timestamp": "2026-03-27T18:02:04Z",
+        "service": "accounts-service",
+        "environment": "prod",
+        "trace_id": "tr-8595230e0d51f439",
+        "record_id": "LOG-0094",
+        "level": "ERROR",
+        "message": "Connection pool exhausted: waited 2000 ms for a connection to core-banking-db",
+        "error_code": "CONN_POOL_EXHAUSTED",
+        "host": "accounts-01"
+      }
+    },
+    "LOG-0098": {
+      "evidence_id": "LOG-0098",
+      "source": "LOG",
+      "service": "accounts-service",
+      "timestamp": "2026-03-27T18:02:23Z",
+      "summary": "ERROR accounts-service CONN_POOL_EXHAUSTED: Connection pool exhausted: waited 2000 ms for a connection to core-banking-db at 18:02:23Z",
+      "record": {
+        "timestamp": "2026-03-27T18:02:23Z",
+        "service": "accounts-service",
+        "environment": "prod",
+        "trace_id": "tr-86214b587a0d7155",
+        "record_id": "LOG-0098",
+        "level": "ERROR",
+        "message": "Connection pool exhausted: waited 2000 ms for a connection to core-banking-db",
+        "error_code": "CONN_POOL_EXHAUSTED",
+        "host": "accounts-02"
+      }
+    },
+    "LOG-0101": {
+      "evidence_id": "LOG-0101",
+      "source": "LOG",
+      "service": "accounts-service",
+      "timestamp": "2026-03-27T18:02:41Z",
+      "summary": "ERROR accounts-service CONN_POOL_EXHAUSTED: Connection pool exhausted: waited 2000 ms for a connection to core-banking-db at 18:02:41Z",
+      "record": {
+        "timestamp": "2026-03-27T18:02:41Z",
+        "service": "accounts-service",
+        "environment": "prod",
+        "trace_id": "tr-46783fb42bd90eed",
+        "record_id": "LOG-0101",
+        "level": "ERROR",
+        "message": "Connection pool exhausted: waited 2000 ms for a connection to core-banking-db",
+        "error_code": "CONN_POOL_EXHAUSTED",
+        "host": "accounts-02"
+      }
+    }
+  },
+  "recommended_actions": [
+    {
+      "step": 1,
+      "action": "investigate_further",
+      "action_type": "investigate_further",
+      "risk_level": "low",
+      "runbook_citation": "",
+      "expected_effect": "Gather more data on the current load and performance of core-banking-db.",
+      "requires_approval": true,
+      "policy_flags": []
+    },
+    {
+      "step": 2,
+      "action": "reschedule_batch_job",
+      "action_type": "reschedule_batch_job",
+      "risk_level": "medium",
+      "runbook_citation": "RB-DB-002 §4",
+      "expected_effect": "Reduce load on core-banking-db by moving the EOD reconciliation batch to a less busy time.",
+      "requires_approval": true,
+      "policy_flags": []
+    },
+    {
+      "step": 3,
+      "action": "rollback_release",
+      "action_type": "rollback_release",
+      "risk_level": "medium",
+      "runbook_citation": "RB-DB-002 §4",
+      "expected_effect": "Revert the configuration change that moved the EOD reconciliation batch schedule.",
+      "requires_approval": true,
+      "policy_flags": []
+    }
+  ],
+  "needs_human_rca": false,
+  "stakeholder_summary": "The core-banking-db experienced high connection usage and CPU load, leading to service degradation. Error rates for login and balance services reached 6.2% during the incident. The incident is ongoing with high load on core-banking-db. Next update will be provided in 30 minutes.",
+  "dispatch": {
+    "paged": false,
+    "fast_path": false,
+    "notifications": [],
+    "suppressed": true,
+    "intended": {
+      "page": {
+        "team": "incident-escalation",
+        "summary": "INC-20260327-001 S1 (fast path, rules only): S1 by rules: R-S1-LAT (2 vs 2), R-S3-DEG (1 vs 1)",
+        "fast_path": true
+      },
+      "itsm_upsert": {
+        "incident_id": "INC-20260327-001",
+        "severity": "S1",
+        "issue_class": "database_capacity",
+        "summary": "INC-20260327-001: S1 by rules: R-S1-LAT (2 vs 2), R-S3-DEG (1 vs 1)",
+        "scenario_id": "SC-03"
+      },
+      "page_update": {
+        "team": "incident-escalation",
+        "summary": "INC-20260327-001 S1: The core-banking-db is experiencing high connection usage and CPU load due to a configuration change that moved the EOD reconciliation batch schedule to coincide with peak usage times, leading to saturation."
+      },
+      "notify": [
+        {
+          "channel": "chat",
+          "audience": "incident-channel",
+          "destination": "#inc-inc-20260327-001"
+        },
+        {
+          "channel": "chat",
+          "audience": "team-channel",
+          "destination": "#team-core-banking-dba"
+        },
+        {
+          "channel": "email",
+          "audience": "stakeholders",
+          "destination": "EMAIL_FB75,EMAIL_77F5,EMAIL_D0EC"
+        }
+      ]
+    }
+  },
+  "metadata": {
+    "model": "gpt-4o-mini",
+    "token_counts": {
+      "triage_agent": 6179,
+      "change_correlation_agent": 951,
+      "rca_agent": 18709,
+      "recommendation_agent": 2438
+    },
+    "cost_estimate_usd": 0.005134,
+    "latency_ms_per_stage": {
+      "intake": 1,
+      "correlate_dedup": 144,
+      "redact": 0,
+      "severity_rules_pass1": 92,
+      "dispatch_fast_page": 25,
+      "triage_agent": 12588,
+      "itsm_upsert": 1,
+      "severity_rules_pass2": 93,
+      "change_correlation_agent": 3245,
+      "rca_agent": 15926,
+      "analysis_join": 0,
+      "recommendation_agent": 15329,
+      "output_guardrails": 12,
+      "confidence_gate": 0,
+      "final_severity_gate": 0,
+      "dispatch_page": 2,
+      "notify": 3
+    },
+    "guardrail_flags": [
+      "pii_redacted_output"
+    ],
+    "timezone_assumed_utc": false,
+    "langfuse_trace_id": "9469917f42e5b44734b6d6dc1250cae7",
+    "prompt_version_set": {
+      "triage_agent": "v1",
+      "change_correlation_agent": "v1",
+      "rca_agent": "v1",
+      "recommendation_agent": "v1"
+    },
+    "rules_version": "rules-v1",
+    "action_policy_version": "policy-v1",
+    "run_mode": "evaluation",
+    "retrieval_enabled": true
+  }
+}

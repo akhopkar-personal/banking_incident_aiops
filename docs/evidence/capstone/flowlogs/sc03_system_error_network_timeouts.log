@@ -1,0 +1,62 @@
+Flow log of RUN-179207236546601, incident INC-20260327-001
+
+13:52:46.816     +0.00s INFO    [Detect] anomaly_detector | anomaly_detected: core-banking-db db_connections_used_pct: observed 0.98 against baseline 0.361 (z 57.72, threshold)
+13:52:46.819     +0.00s INFO    [Detect] anomaly_detector | anomaly_detected: core-banking-db db_cpu_pct: observed 93.4 against baseline 44.505 (z 39.86, threshold)
+13:52:46.819     +0.00s INFO    [Detect] anomaly_detector | anomaly_detected: core-banking-db db_lock_wait_ms: observed 419.8 against baseline 36.25 (z 102.09, zscore)
+13:52:46.821     +0.01s INFO    [Detect] anomaly_detector | anomaly_detected: core-banking-db db_slow_queries: observed 60.0 against baseline 1.75 (z 38.51, zscore)
+13:52:46.821     +0.01s INFO    [Detect] anomaly_detector | anomaly_detected: accounts-service api_error_rate: observed 0.0623 against baseline 0.0031 (z 146.7, threshold)
+13:52:46.823     +0.01s INFO    [Detect] anomaly_detector | anomaly_detected: accounts-service api_p95_ms: observed 708.6 against baseline 150.67 (z 136.71, zscore)
+13:52:46.824     +0.01s INFO    [Detect] anomaly_detector | anomaly_detected: accounts-service log_error_count: observed 4.0 against baseline 0.0 (z None, threshold)
+13:52:46.824     +0.01s INFO    [Detect] anomaly_detector | anomaly_detected: api-gateway api_error_rate: observed 0.0312 against baseline 0.0029 (z 64.24, zscore)
+13:52:46.825     +0.01s INFO    [Detect] anomaly_detector | anomaly_detected: api-gateway api_p95_ms: observed 472.2 against baseline 179.47 (z 51.72, zscore)
+13:52:46.826     +0.01s INFO    [Detect] anomaly_detector | anomaly_detected: auth-service api_error_rate: observed 0.0624 against baseline 0.0019 (z 245.12, threshold)
+13:52:46.828     +0.01s INFO    [Detect] anomaly_detector | anomaly_detected: auth-service api_p95_ms: observed 629.5 against baseline 121.99 (z 164.76, zscore)
+13:52:46.828     +0.01s INFO    [Detect] anomaly_detector | anomaly_detected: mobile-app api_error_rate: observed 0.0312 against baseline 0.0039 (z 54.9, zscore)
+13:52:46.829     +0.01s INFO    [Detect] anomaly_detector | anomaly_detected: mobile-app api_p95_ms: observed 880.9 against baseline 419.28 (z 38.5, zscore)
+13:52:46.830     +0.01s INFO    [Detect] anomaly_detector | anomaly_detected: net-banking api_error_rate: observed 0.0312 against baseline 0.0039 (z 57.68, zscore)
+13:52:46.832     +0.02s INFO    [Detect] anomaly_detector | anomaly_detected: net-banking api_p95_ms: observed 797.6 against baseline 381.375 (z 49.35, zscore)
+13:52:46.833     +0.02s INFO    [Detect] anomaly_detector | anomaly_detected: payments-service api_error_rate: observed 0.0208 against baseline 0.005 (z 19.46, zscore)
+13:52:46.835     +0.02s INFO    [Detect] anomaly_detector | anomaly_detected: payments-service api_p95_ms: observed 491.0 against baseline 257.065 (z 37.29, zscore)
+13:52:46.836     +0.02s INFO    [Detect] anomaly_detector | anomaly_detected: auth-service complaints_30min:login: observed 32.0 against baseline 0.4 (z None, threshold)
+13:52:46.841     +0.03s INFO    [Detect] alert_correlator | incident_created: new incident for core-banking-db from 18 anomalies
+13:52:46.843     +0.03s INFO    [Detect] correlate_dedup | node_completed: step finished in 173 ms
+13:52:46.858     +0.04s INFO    [Detect] redact | node_completed: step finished in 0 ms
+13:52:46.978     +0.16s INFO    [Triage] severity_rules_pass1 | severity_rules_evaluated: pass1: S1 (major); rules fired: R-S1-LAT, R-S3-DEG
+13:52:46.979     +0.16s INFO    [Triage] severity_rules_pass1 | node_completed: step finished in 107 ms
+13:52:47.014     +0.20s INFO    [Triage] dispatch_fast_page | dispatch_suppressed: action page; reason evaluation_mode
+13:52:47.017     +0.20s INFO    [Triage] dispatch_fast_page | node_completed: step finished in 25 ms
+13:52:50.378     +3.56s INFO    [Other] tool_registry | mcp_server_started: tool_count 13; tools ["get_service_dependencies", "query_acl_audit", "query_api_metrics", "query_change_records", "query_cluster_quorum", "q…
+13:52:50.400     +3.58s INFO    [Triage] triage_agent | tool_call: tool query_complaints over mcp, 3384 ms
+13:52:50.411     +3.60s INFO    [Triage] triage_agent | tool_call: tool get_service_dependencies over mcp, 8 ms
+13:52:50.794     +3.98s INFO    [Triage] triage_agent | tool_call: tool search_knowledge_base over mcp, 382 ms
+13:52:58.058    +11.24s INFO    [Triage] triage_agent | llm_call: gpt-4o-mini-2024-07-18 (structured): 5944 tokens in, 256 out, 7256 ms, finish stop
+13:52:58.059    +11.24s INFO    [Triage] triage_agent | node_completed: step finished in 11059 ms
+13:52:58.099    +11.28s INFO    [Triage] itsm_upsert | dispatch_suppressed: action itsm_upsert; reason evaluation_mode
+13:52:58.100    +11.28s INFO    [Triage] itsm_upsert | node_completed: step finished in 1 ms
+13:52:58.217    +11.40s INFO    [Triage] severity_rules_pass2 | severity_rules_evaluated: pass2: S1 (major); rules fired: R-S1-LAT, R-S3-DEG, R-P2-CHANNEL
+13:52:58.218    +11.40s INFO    [Triage] severity_rules_pass2 | node_completed: step finished in 89 ms
+13:52:58.284    +11.47s INFO    [Analyse] change_correlation_agent | tool_call: tool query_change_records over mcp, 19 ms
+13:52:58.355    +11.54s INFO    [Analyse] change_correlation_agent | tool_call: tool get_service_dependencies over mcp, 8 ms
+13:53:00.716    +13.90s INFO    [Analyse] rca_agent | llm_call: gpt-4o-mini-2024-07-18 (tools): 4382 tokens in, 158 out, 2436 ms, finish tool_calls
+13:53:00.723    +13.91s WARNING [Analyse] rca_agent | tool_call: tool query_logs invalid arguments: service: Input should be a valid list
+13:53:00.734    +13.92s INFO    [Analyse] rca_agent | tool_call: tool query_db_infra_metrics over mcp, 14 ms
+13:53:00.775    +13.96s INFO    [Analyse] rca_agent | tool_call: tool query_api_metrics over mcp, 50 ms
+13:53:01.322    +14.51s INFO    [Analyse] change_correlation_agent | llm_call: gpt-4o-mini-2024-07-18 (structured): 800 tokens in, 148 out, 2966 ms, finish stop
+13:53:01.324    +14.51s INFO    [Analyse] change_correlation_agent | node_completed: step finished in 3059 ms
+13:53:02.769    +15.95s INFO    [Analyse] rca_agent | llm_call: gpt-4o-mini-2024-07-18 (tools): 6917 tokens in, 20 out, 1989 ms, finish tool_calls
+13:53:02.839    +16.02s INFO    [Analyse] rca_agent | tool_call: tool query_logs over mcp, 67 ms
+14:45:39.596  +3172.78s ERROR   [Analyse] rca_agent | node_retry: retry 1 of RcaDraft call: llm_unavailable
+14:45:54.307  +3187.49s INFO    [Analyse] rca_agent | llm_call: gpt-4o-mini-2024-07-18 (structured): 5984 tokens in, 923 out, 13637 ms, finish stop
+14:45:54.398  +3187.58s INFO    [Analyse] rca_agent | node_completed: step finished in 3176145 ms
+14:45:54.595  +3187.78s INFO    [Analyse] analysis_join | node_completed: step finished in 0 ms
+14:46:05.115  +3198.30s ERROR   [Analyse] recommendation_agent | tool_call: tool search_knowledge_base failed: MCP call search_knowledge_base timed out after 10 s
+14:46:05.125  +3198.31s ERROR   [Analyse] recommendation_agent | node_retry: retry 1 of search_knowledge_base: tool_call_failed
+14:46:16.317  +3209.50s ERROR   [Analyse] recommendation_agent | tool_call: tool search_knowledge_base failed: MCP call search_knowledge_base timed out after 10 s
+14:46:16.321  +3209.51s ERROR   [Analyse] recommendation_agent | node_retry: retry 2 of search_knowledge_base: tool_call_failed
+14:46:28.431  +3221.61s ERROR   [Analyse] recommendation_agent | tool_call: tool search_knowledge_base failed: MCP call search_knowledge_base timed out after 10 s
+14:46:28.473  +3221.66s ERROR   [Analyse] recommendation_agent | system_error: failed in recommendation_agent: tool_call_failed (MCP call search_knowledge_base timed out after 10 s)
+14:46:28.570  +3221.75s INFO    [Respond] rules_only_dispatch | node_completed: step finished in 0 ms
+14:46:28.655  +3221.84s ERROR   [Respond] system_error | system_error: failed in recommendation_agent: tool_call_failed
+14:46:28.657  +3221.84s INFO    [Respond] system_error | node_completed: step finished in 53 ms
+
+58 lines · run 3221.84 s · 5 LLM calls, 25532 tokens · 12 tool calls · 8 errors

@@ -1,0 +1,67 @@
+Flow log of RUN-179207013737201, incident INC-20260402-001
+
+13:15:40.887     +0.00s INFO    [Detect] anomaly_detector | anomaly_detected: api-gateway api_error_rate: observed 0.0728 against baseline 0.0029 (z 220.45, threshold)
+13:15:40.898     +0.01s INFO    [Detect] anomaly_detector | anomaly_detected: mobile-app api_error_rate: observed 0.052 against baseline 0.0041 (z 87.16, threshold)
+13:15:40.901     +0.01s INFO    [Detect] anomaly_detector | anomaly_detected: payment-network-gateway api_error_rate: observed 1.0 against baseline 0.0045 (z 2578.04, threshold)
+13:15:40.902     +0.01s INFO    [Detect] anomaly_detector | anomaly_detected: payment-network-gateway log_error_count: observed 6.0 against baseline 0.0 (z None, threshold)
+13:15:40.904     +0.02s INFO    [Detect] anomaly_detector | anomaly_detected: payment-network-gateway tls_failures: observed 1.0 against baseline 0.0 (z None, threshold)
+13:15:40.905     +0.02s INFO    [Detect] anomaly_detector | anomaly_detected: payments-service api_error_rate: observed 0.3119 against baseline 0.005 (z 406.34, threshold)
+13:15:40.906     +0.02s INFO    [Detect] anomaly_detector | anomaly_detected: payments-service complaints_30min:card_payment: observed 40.0 against baseline 0.0 (z None, threshold)
+13:15:40.932     +0.04s INFO    [Detect] alert_correlator | incident_created: new incident for payment-network-gateway from 7 anomalies
+13:15:40.933     +0.05s INFO    [Detect] correlate_dedup | node_completed: step finished in 361 ms
+13:15:40.942     +0.06s INFO    [Detect] redact | node_completed: step finished in 0 ms
+13:15:41.053     +0.17s INFO    [Triage] severity_rules_pass1 | severity_rules_evaluated: pass1: S1 (major); rules fired: R-S1-ERR, R-S1-ROUTE, R-S3-DEG
+13:15:41.054     +0.17s INFO    [Triage] severity_rules_pass1 | node_completed: step finished in 104 ms
+13:15:41.086     +0.20s INFO    [Triage] dispatch_fast_page | tool_call: tool page_oncall over inprocess, 2 ms
+13:15:41.090     +0.20s INFO    [Triage] dispatch_fast_page | fast_path_page: fast-path page (new) to incident-escalation, PAGE-B368638383
+13:15:41.092     +0.20s INFO    [Triage] dispatch_fast_page | node_completed: step finished in 27 ms
+13:15:45.021     +4.13s INFO    [Other] tool_registry | mcp_server_started: tool_count 13; tools ["get_service_dependencies", "query_acl_audit", "query_api_metrics", "query_change_records", "query_cluster_quorum", "q…
+13:15:45.032     +4.14s INFO    [Triage] triage_agent | tool_call: tool query_complaints over mcp, 3965 ms
+13:15:45.048     +4.16s INFO    [Triage] triage_agent | tool_call: tool get_service_dependencies over mcp, 8 ms
+13:15:45.570     +4.68s INFO    [Triage] triage_agent | tool_call: tool search_knowledge_base over mcp, 518 ms
+13:15:53.415    +12.53s INFO    [Triage] triage_agent | llm_call: gpt-4o-mini-2024-07-18 (structured): 4607 tokens in, 158 out, 7831 ms, finish stop
+13:15:53.415    +12.53s INFO    [Triage] triage_agent | node_completed: step finished in 12347 ms
+13:15:53.452    +12.56s INFO    [Triage] itsm_upsert | tool_call: tool itsm_upsert_incident over inprocess, 13 ms
+13:15:53.470    +12.58s INFO    [Triage] itsm_upsert | dispatch_itsm: ITSM upsert MOCK-ITSM-0002 (created)
+13:15:53.470    +12.58s INFO    [Triage] itsm_upsert | node_completed: step finished in 29 ms
+13:15:53.578    +12.69s INFO    [Triage] severity_rules_pass2 | severity_rules_evaluated: pass2: S1 (major); rules fired: R-S1-ERR, R-S1-ROUTE, R-S3-DEG, R-P2-CHANNEL
+13:15:53.578    +12.69s INFO    [Triage] severity_rules_pass2 | node_completed: step finished in 86 ms
+13:15:53.681    +12.79s INFO    [Analyse] change_correlation_agent | tool_call: tool query_change_records over mcp, 75 ms
+13:15:53.688    +12.80s INFO    [Analyse] change_correlation_agent | tool_call: tool get_service_dependencies over mcp, 7 ms
+13:15:57.043    +16.16s INFO    [Analyse] rca_agent | llm_call: gpt-4o-mini-2024-07-18 (tools): 3143 tokens in, 244 out, 3422 ms, finish tool_calls
+13:15:57.043    +16.16s WARNING [Analyse] rca_agent | tool_call: tool query_logs invalid arguments: service: Input should be a valid list
+13:15:57.043    +16.16s WARNING [Analyse] rca_agent | tool_call: tool query_api_metrics invalid arguments: service: Input should be a valid list
+13:15:57.052    +16.16s WARNING [Analyse] rca_agent | tool_call: tool query_api_metrics invalid arguments: service: Input should be a valid list
+13:15:57.052    +16.16s WARNING [Analyse] rca_agent | tool_call: tool query_network invalid arguments: service: Input should be a valid list
+13:15:57.161    +16.27s INFO    [Analyse] change_correlation_agent | llm_call: gpt-4o-mini-2024-07-18 (structured): 742 tokens in, 151 out, 3469 ms, finish stop
+13:15:57.161    +16.27s INFO    [Analyse] change_correlation_agent | node_completed: step finished in 3564 ms
+13:16:00.244    +19.36s INFO    [Analyse] rca_agent | llm_call: gpt-4o-mini-2024-07-18 (tools): 3559 tokens in, 248 out, 3188 ms, finish tool_calls
+13:16:00.337    +19.45s INFO    [Analyse] rca_agent | tool_call: tool query_logs over mcp, 92 ms
+13:16:00.357    +19.47s INFO    [Analyse] rca_agent | tool_call: tool query_api_metrics over mcp, 110 ms
+13:16:00.361    +19.47s INFO    [Analyse] rca_agent | tool_call: tool query_api_metrics over mcp, 113 ms
+13:16:00.361    +19.47s INFO    [Analyse] rca_agent | tool_call: tool query_network over mcp, 112 ms
+13:16:10.203    +29.32s INFO    [Analyse] rca_agent | llm_call: gpt-4o-mini-2024-07-18 (structured): 3863 tokens in, 899 out, 9836 ms, finish stop
+13:16:10.205    +29.32s INFO    [Analyse] rca_agent | node_completed: step finished in 16598 ms
+13:16:10.221    +29.33s INFO    [Analyse] analysis_join | node_completed: step finished in 0 ms
+13:16:16.969    +36.08s INFO    [Analyse] recommendation_agent | tool_call: tool search_knowledge_base over mcp, 6728 ms
+13:16:18.997    +38.11s INFO    [Analyse] recommendation_agent | tool_call: tool search_knowledge_base over mcp, 2026 ms
+13:16:23.773    +42.89s INFO    [Analyse] recommendation_agent | llm_call: gpt-4o-mini-2024-07-18 (structured): 2378 tokens in, 415 out, 4780 ms, finish stop
+13:16:23.773    +42.89s INFO    [Analyse] recommendation_agent | node_completed: step finished in 13542 ms
+13:16:23.878    +42.99s INFO    [Respond] output_guardrails | guardrail_block: guardrail flags: ungrounded_removed, tone_adjusted
+13:16:23.879    +42.99s INFO    [Respond] output_guardrails | node_completed: step finished in 8 ms
+13:16:23.890    +43.00s INFO    [Respond] confidence_gate | node_completed: step finished in 0 ms
+13:16:23.906    +43.02s INFO    [Respond] final_severity_gate | node_completed: step finished in 0 ms
+13:16:23.937    +43.05s INFO    [Respond] dispatch_page | tool_call: tool page_oncall over inprocess, 2 ms
+13:16:23.953    +43.07s INFO    [Respond] dispatch_page | dispatch_page: page (update), PAGE-90E90A27DA
+13:16:23.953    +43.07s INFO    [Respond] dispatch_page | node_completed: step finished in 17 ms
+13:16:23.977    +43.09s INFO    [Respond] notify | tool_call: tool lookup_stakeholders over inprocess, 10 ms
+13:16:24.002    +43.12s INFO    [Respond] notify | tool_call: tool send_chat_alert over inprocess, 1 ms
+13:16:24.003    +43.12s INFO    [Respond] notify | notification_sent: chat notification to incident-channel (S1), CHAT-DDEAC3A3C1
+13:16:24.018    +43.13s INFO    [Respond] notify | tool_call: tool send_chat_alert over inprocess, 1 ms
+13:16:24.019    +43.13s INFO    [Respond] notify | notification_sent: chat notification to team-channel (S1), CHAT-742E32181B
+13:16:24.029    +43.14s INFO    [Respond] notify | tool_call: tool send_email over inprocess, 2 ms
+13:16:24.029    +43.14s INFO    [Respond] notify | notification_sent: email notification to stakeholders (S1), MAIL-1162685E40
+13:16:24.029    +43.14s INFO    [Respond] notify | node_completed: step finished in 58 ms
+13:16:24.086    +43.20s INFO    [Respond] finalize | node_completed: step finished in 28 ms
+
+63 lines · run 43.2 s · 6 LLM calls, 20407 tokens · 22 tool calls · 0 errors

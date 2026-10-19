@@ -1,0 +1,17 @@
+Long-term memory evidence (SC-03, run RUN-179207569709101, evaluation mode)
+
+Earlier: incident INC-20260327-001 (SC-03) was resolved, its root cause verified by the SME and indexed
+{"timestamp": "2026-10-11T10:44:16.886+00:00", "level": "INFO", "event": "resolution_indexed", "component": "resolution_indexer", "incident_id": "INC-20260327-001", "run_id": "RUN-179171338273016", "doc_id": "VR-INC-20260327-001", "chunks": 3}
+
+Now: documents retrieved for the new SC-03 run (doc_id, similarity), in retrieval order:
+   VR-INC-20260327-001 0.554 verified_resolution Verified resolution for INC-20260327-001
+   RB-DB-002 0.551 runbook Connection pool exhaustion and contention on core-banking-db
+   VR-INC-20260314-001 0.535 verified_resolution Verified resolution for INC-20260314-001
+   RB-DB-002 0.528 runbook Connection pool exhaustion and contention on core-banking-db
+   PM-2025-019 0.653 postmortem Postmortem: month-end batch contention on core-banking-db
+
+Recommended actions of the new run:
+   investigate_further 
+   reschedule_batch_job RB-DB-002 §4
+   rollback_release RB-DB-002 §4
+cited documents: 

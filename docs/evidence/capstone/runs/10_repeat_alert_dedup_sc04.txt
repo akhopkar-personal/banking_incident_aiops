@@ -1,0 +1,70 @@
+  . intake
+  . correlate_dedup
+  . redact
+  . severity_rules_pass1
+  . dispatch_fast_page
+  . triage_agent
+  . itsm_upsert
+  . severity_rules_pass2
+  . change_correlation_agent
+  . rca_agent
+  . analysis_join
+  . recommendation_agent
+  . output_guardrails
+  . confidence_gate
+  . final_severity_gate
+  . dispatch_page
+  . notify
+  . finalize
+{
+  "incident_id": "INC-20260402-001",
+  "status": "PENDING_REVIEW",
+  "incident_state": "PAGED",
+  "issue_class": "network_tls",
+  "severity": "S1",
+  "rules_fired": [
+    "R-S1-ERR",
+    "R-S1-ROUTE",
+    "R-S3-DEG",
+    "R-P2-CHANNEL"
+  ],
+  "hypotheses": [
+    "1. (1.0) The TLS handshake failures were caused by an expired certificate on the payment-network-gateway. ['LOG-0096', 'LOG-0097', 'LOG-0098', 'NET-0121']",
+    "2. (0.9) The high error rates in the payment-network-gateway and payments-service were due to the inability to process card payments because of the expired TLS certificate. ['API-0308', 'API-0305', 'CMP-0025', 'CMP-0047']",
+    "3. (0.8) Increased customer complaints about card payment failures were a direct result of the expired TLS certificate affecting the payment processing. ['CMP-0025', 'CMP-0047']"
+  ],
+  "change_findings": [
+    "DEP-0031 linked to 1: The release on payment-network-gateway (DEP-0031) is on the dependency path and could have introduced changes that affected the TLS handling, leading to the certificate-related issues observed."
+  ],
+  "actions": [
+    "1. [low] customer_communication: Communicate to customers that card payments are temporarily unavailable due to a certificate issue. ()",
+    "2. [low] investigate_further: Investigate further to confirm the certificate's expiration and its impact on payment processing. ()",
+    "3. [medium] renew_certificate: Renew the expired TLS certificate on the payment-network-gateway. (RB-NET-004 §1)",
+    "4. [medium] rollback_release: Rollback the recent release on payment-network-gateway if the certificate renewal does not resolve the issue. (RB-PAY-003 §1)"
+  ],
+  "needs_human_rca": false,
+  "stakeholder_summary": "The payment-network-gateway experienced TLS handshake failures due to an expired certificate, leading to a complete failure of card payment transactions. Customer impact is being assessed. The incident is ongoing as the expired certificate needs to be renewed to restore payment processing functionality. An update will be provided within the next hour.",
+  "regulatory_notes": null,
+  "insufficient_evidence_reason": null,
+  "error_detail": null,
+  "dispatch": {
+    "paged": true,
+    "fast_path": false,
+    "itsm_ticket_id": "MOCK-ITSM-0002",
+    "suppressed": false,
+    "intended": {}
+  },
+  "notifications": 0,
+  "guardrail_flags": [
+    "tone_adjusted"
+  ],
+  "tokens": {
+    "triage_agent": 4818,
+    "change_correlation_agent": 957,
+    "rca_agent": 13795,
+    "recommendation_agent": 2796
+  },
+  "cost_usd": 0.004503,
+  "langfuse_trace_id": "6ec220b4385e97c571be7af1b7c731a6",
+  "seconds": 50.5
+}

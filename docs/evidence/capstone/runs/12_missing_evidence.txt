@@ -1,0 +1,36 @@
+  1/2 GC-SC02-MISSING
+  2/2 GC-SC04-MISSING
+{
+  "eval_id": "EVAL-20261015T144641054",
+  "label": "missing source",
+  "golden_dataset_version": "golden-v1",
+  "prompt_version_set": {
+    "triage_agent": "v1",
+    "rca_agent": "v1",
+    "change_correlation_agent": "v1",
+    "recommendation_agent": "v1"
+  },
+  "use_judge": false,
+  "retrieval_enabled": true,
+  "metrics": {
+    "abstention_correct": 0.0,
+    "citation_validity": 1.0,
+    "cost_usd": 0.004,
+    "dispatch_routing_correct": 1.0,
+    "latency_total_s": 56.805,
+    "red_herring_rejected": 1.0,
+    "retrieval_recall_at_5": 0.5,
+    "severity_match": 1.0,
+    "severity_within_1": 1.0,
+    "system_error": 0.0,
+    "triage_class_match": 0.5,
+    "cases": 2.0,
+    "failed_cases": 0.0
+  }
+}
+LOW retrieval_recall_at_5         0.500  target >= 0.85
+ok  citation_validity             1.000  target >= 0.95
+ok  severity_match                1.000  target >= 0.7
+LOW triage_class_match            0.500  target >= 0.8
+LOW abstention_correct            0.000  target >= 0.8
+ok  dispatch_routing_correct      1.000  target >= 1.0

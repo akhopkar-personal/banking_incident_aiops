@@ -1,0 +1,44 @@
+===== WITH retrieval (EVAL-20261015T132212386)
+GC-SC01-REPLAY: PENDING_REVIEW, 3 actions, flags ['ungrounded_removed', 'pii_redacted_output']
+   - [low] investigate_further: Identify specific queries causing timeouts and performance degradation. ()
+   - [medium] rollback_release: Revert to the previous stable version of payments-service to restore normal operation. (RB-PAY-003 §4)
+   - [low] customer_communication: Inform affected customers about the incident and expected resolution timeline. ()
+GC-SC01-FREETEXT: PENDING_REVIEW, 3 actions, flags ['ungrounded_removed', 'tone_adjusted', 'pii_redacted_output']
+   - [low] investigate_further: Identify specific queries or configurations causing the high load on the database. ()
+   - [medium] rollback_release: Revert to the previous version of payments-service to alleviate the load on the database. (RB-PAY-003 §4)
+   - [low] scale_out: Increase the number of instances of payments-service to handle the load better. ()
+GC-SC02-REPLAY: PENDING_REVIEW, 3 actions, flags ['ungrounded_removed', 'pii_redacted_output']
+   - [low] investigate_further: Identify the current state of the broker and any offline partitions. (RB-KFK-001 §2)
+   - [low] customer_communication: Keep customers informed about the ongoing issues and expected resolution timelines. ()
+   - [low] restart_service: Restore the broker to operational status and reduce consumer lag. ()
+GC-SC02-FREETEXT: PENDING_REVIEW, 4 actions, flags ['pii_redacted_output']
+   - [low] investigate_further: Identify any broker issues that may be causing consumer lag. (RB-KFK-001 §2)
+   - [low] investigate_further: Promptly address any critical issues with the EventHub platform. (RB-KFK-001 §5)
+   - [low] customer_communication: Keep customers informed about the situation and manage expectations. ()
+   - [medium] investigate_further: Ensure that the consuming teams are aware of the ongoing issues and can take necessary act (RB-KFK-001 §5)
+GC-SC04-REPLAY: PENDING_REVIEW, 3 actions, flags ['tone_adjusted', 'pii_redacted_output']
+   - [low] customer_communication: Customers are informed about the issue and can manage their expectations. ()
+   - [medium] renew_certificate: Restores functionality for card payments. (RB-NET-004 §4)
+   - [medium] rollback_release: Reverts any changes that may have negatively impacted TLS handling. (RB-PAY-003 §4)
+GC-SC04-FREETEXT: PENDING_REVIEW, 3 actions, flags ['tone_adjusted', 'pii_redacted_output']
+   - [low] customer_communication: Informs customers about the current unavailability of card payments. (RB-NET-004 §4)
+   - [medium] renew_certificate: Restores functionality for card payment transactions. (RB-NET-004 §4)
+   - [medium] failover_payment_route: Minimizes downtime for card payment transactions. (RB-NET-004 §4)
+===== WITHOUT retrieval (EVAL-20261015T133336971)
+GC-SC01-REPLAY: PENDING_REVIEW, 2 actions, flags ['ungrounded_removed', 'uncited_action_removed', 'pii_redacted_output']
+   - [low] investigate_further: Identify any misconfigurations or issues that could be causing the database timeouts. ()
+   - [low] customer_communication: Keep customers informed and manage expectations during the incident. ()
+GC-SC01-FREETEXT: PENDING_REVIEW, 2 actions, flags ['ungrounded_removed', 'pii_redacted_output']
+   - [low] investigate_further: Identify any issues with database performance that may be causing timeouts. ()
+   - [low] customer_communication: Keep customers informed about the status of their transactions. ()
+GC-SC02-REPLAY: PENDING_REVIEW, 2 actions, flags ['uncited_action_removed', 'tone_adjusted', 'pii_redacted_output']
+   - [low] investigate_further: Identify the underlying issue causing Broker 2 to be unreachable. ()
+   - [low] customer_communication: Keep customers informed about the ongoing issues and expected resolution timeline. ()
+GC-SC02-FREETEXT: PENDING_REVIEW, 2 actions, flags ['uncited_action_removed', 'tone_adjusted', 'pii_redacted_output']
+   - [low] investigate_further: Gain clarity on the current state of the Kafka broker and consumer lag. ()
+   - [low] customer_communication: Inform customers about the ongoing issue and expected resolution timeline. ()
+GC-SC04-REPLAY: PENDING_REVIEW, 2 actions, flags ['ungrounded_removed', 'pii_redacted_output']
+   - [low] investigate_further: Confirm the status of the TLS certificate and its impact on payment processing. ()
+   - [low] customer_communication: Inform affected customers about the payment processing issues and expected resolution time ()
+GC-SC04-FREETEXT: PENDING_REVIEW, 1 actions, flags ['ungrounded_removed', 'tone_adjusted', 'pii_redacted_output']
+   - [low] customer_communication: Inform customers about the card payment issues and assure them that the team is working on ()
