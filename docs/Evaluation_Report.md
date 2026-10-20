@@ -269,5 +269,7 @@ All evidence runs, including the adaptation cycle, cost about $0.90.
 - **Judge:** the same model family as the agents; its scores vary between runs (Section 4).
 - **Single runs:** each configuration was measured once, except the consistency check. The prompt and
   retrieval comparisons used a 6-case subset to limit cost.
-- **Human steps:** all human roles were played by the author under separate reviewer IDs, as the
-  requirements allow for the demo (assumption A-11).
+- **Human steps:** all reviewer, SME and Evaluation Engineer steps in the UI were performed by one team
+  member under separate reviewer IDs (`rev-a`, `rev-b`, `sme-1`, `ee-1`), as the requirements allow for
+  the demo (assumption A-11). The reviewer cap and the two-reviewer rules were therefore exercised as
+  mechanisms, not as independent judgments by different people.

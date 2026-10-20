@@ -5,6 +5,20 @@ database and network metrics, deployments and customer complaints. It returns an
 cause, a rules-decided severity, runbook-cited actions and a simulated page or ticket. A human reviews
 every recommendation, and validated feedback improves the agents under human control.
 
+This was a team project jointly done by Abhijeet Khopkar and Saravanavel Murugan. Task distribution:
+
+**Saravanavel Murugan:**
+- Subject matter expert in banking domain
+- Proposed the initial architecture, based on domain expertise
+- Reviewed the project requirement and architecture specifications, provided review comments
+- Provided overview of the problem and architecture to rest of the class
+
+**Abhijeet Khopkar:**
+- Generation of the project requirement and architecture specification documents
+- Code generation using vibe coding
+- Testing the flow
+- Demo of the system to rest of the class
+
 **Project:** AI Capstone Project · Scenario 2: Banking (non-transactional) · Track A: LangChain +
 LangGraph.
 
