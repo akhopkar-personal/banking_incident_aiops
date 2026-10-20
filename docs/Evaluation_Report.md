@@ -1,6 +1,6 @@
 # Evaluation Report: EventHub AIOps
 
-**AI Capstone Project · Scenario 2: Banking · Abhijeet Khopkar · October 2026**
+**AI Capstone Project · Scenario 2: Banking · October 2026**
 
 **Setup:**
 - **Models:** agents and DeepEval judge both on gpt-4o-mini, through the Vocareum gateway.

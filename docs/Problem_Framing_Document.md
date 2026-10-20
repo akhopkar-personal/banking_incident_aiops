@@ -1,6 +1,6 @@
 # Problem Framing: EventHub AIOps
 
-**AI Capstone Project · Scenario 2: Banking (decision support, non-transactional) · Abhijeet Khopkar**
+**AI Capstone Project · Scenario 2: Banking (decision support, non-transactional)**
 Source of detail: [Requirements Specification v0.18](AI_Capstone_Project_Requirements_v0.18.md)
 
 ## 1. The problem

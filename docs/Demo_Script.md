@@ -1,6 +1,6 @@
 # Demo Script: EventHub AIOps
 
-**AI Capstone Project · Scenario 2: Banking · Abhijeet Khopkar**
+**AI Capstone Project · Scenario 2: Banking**
 
 Five forced interactions, each with a fixed input, the expected result, and the evidence that proves it
 happened. Run live, they take about 9 minutes. Every interaction has recorded evidence (logs, flow logs,
